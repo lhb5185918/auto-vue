@@ -3,6 +3,7 @@ import App from './App.vue';
 import router from './router'; // 引入 router
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
+import './assets/styles/global.css';
 
 // 创建 Vue 应用并挂载
 createApp(App)

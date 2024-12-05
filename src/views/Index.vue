@@ -1,76 +1,240 @@
 <template>
-    <Home>
-        <div class="content">
-            <h1>这是一个内容标题</h1>
-            <div class="grid">
-                <!-- 第一个区域：项目名称 -->
-                <div class="section">
-                    <h2>项目名称</h2>
-                    <ul>
-                        <li v-for="project in projects" :key="project.id">{{ project.name }}</li>
-                    </ul>
-                </div>
+  <Home>
+    <PageContainer title="仪表盘">
+      <template #actions>
+        <el-button type="primary" @click="refreshData">
+          <el-icon><Refresh /></el-icon>刷新数据
+        </el-button>
+      </template>
 
-                <!-- 第二个区域：用户统计 -->
-                <div class="section">
-                    <h2>用户统计</h2>
-                    <BarChart :labels="['用例1', '用例2', '用例3']" :data="[100, 200, 150]" />
-                </div>
+      <div class="dashboard-grid">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <el-card class="stat-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>总项目数</span>
+                <el-icon class="icon"><FolderOpened /></el-icon>
+              </div>
+            </template>
+            <div class="card-value">{{ projects.length }}</div>
+          </el-card>
 
-                <!-- 第三个区域：问题统计 -->
-                <div class="section">
-                    <h2>问题统计</h2>
-                    <BarChart :labels="['问题1', '问题2', '问题3']" :data="[5, 10, 3]" />
-                </div>
+          <el-card class="stat-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>测试用例总数</span>
+                <el-icon class="icon"><Files /></el-icon>
+              </div>
+            </template>
+            <div class="card-value">168</div>
+          </el-card>
 
-                <!-- 第四个区域：测试报告统计 -->
-                <div class="section">
-                    <h2>测试报告统计</h2>
-                    <BarChart :labels="['报告1', '报告2', '报告3']" :data="[10, 20, 15]" />
-                </div>
-            </div>
+          <el-card class="stat-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>执行成功率</span>
+                <el-icon class="icon"><DataLine /></el-icon>
+              </div>
+            </template>
+            <div class="card-value success">98.5%</div>
+          </el-card>
+
+          <el-card class="stat-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>待处理问题</span>
+                <el-icon class="icon"><Warning /></el-icon>
+              </div>
+            </template>
+            <div class="card-value warning">12</div>
+          </el-card>
         </div>
-    </Home>
+
+        <!-- 图表区域 -->
+        <div class="charts-container">
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-card class="chart-card" shadow="hover">
+                <template #header>
+                  <div class="card-header">
+                    <span>测试用例分布</span>
+                  </div>
+                </template>
+                <BarChart 
+                  :labels="['接口测试', '性能测试', 'UI测试']" 
+                  :data="[100, 200, 150]"
+                  :chartOptions="{
+                    backgroundColor: ['#409EFF', '#67C23A', '#E6A23C'],
+                    borderRadius: 6,
+                    title: '测试用例分布'
+                  }"
+                />
+              </el-card>
+            </el-col>
+            <el-col :span="12">
+              <el-card class="chart-card" shadow="hover">
+                <template #header>
+                  <div class="card-header">
+                    <span>测试执行趋势</span>
+                  </div>
+                </template>
+                <BarChart 
+                  :labels="['通过', '失败', '阻塞']" 
+                  :data="[85, 10, 5]"
+                  :chartOptions="{
+                    backgroundColor: ['#67C23A', '#F56C6C', '#909399'],
+                    borderRadius: 6,
+                    gradient: true,
+                    title: '测试结果分布'
+                  }"
+                />
+              </el-card>
+            </el-col>
+          </el-row>
+        </div>
+
+        <!-- 项目列表 -->
+        <el-card class="project-list" shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <span>最近项目</span>
+              <el-button type="primary" link @click="goToProjects">
+                查看全部
+                <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+              </el-button>
+            </div>
+          </template>
+          <el-table :data="projects" style="width: 100%" v-loading="loading">
+            <el-table-column prop="project_name" label="项目名称" />
+            <el-table-column prop="description" label="描述" show-overflow-tooltip />
+            <el-table-column prop="create_time" label="创建时间" width="180">
+              <template #default="{ row }">
+                {{ formatDate(row.create_time) }}
+              </template>
+            </el-table-column>
+            <el-table-column fixed="right" label="操作" width="120">
+              <template #default="{ row }">
+                <el-button type="primary" link @click="goToTestCases(row)">
+                  查看用例
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </div>
+    </PageContainer>
+  </Home>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import Home from '@/components/HomePage.vue';
-import BarChart from '@/components/BarChart.vue'; // 导入柱状图组件
+import BarChart from '@/components/BarChart.vue';
+import PageContainer from '@/components/PageContainer.vue';
+import { 
+  Refresh, 
+  FolderOpened, 
+  Files, 
+  DataLine, 
+  Warning,
+  ArrowRight 
+} from '@element-plus/icons-vue';
 
 const projects = ref([]); // 用于存储项目名称
+const router = useRouter();
 
 onMounted(async () => {
     try {
-        const response = await fetch('你的API地址'); // 替换为你的API地址
+        const response = await fetch('http://localhost:8000/api/project/'); // 替换为你的API地址
         const data = await response.json();
-        projects.value = data.projects; // 假设返回的数据结构中有 projects 数组
+        projects.value = data.project; // 从返回的数据中获取项目数组
+        console.log(projects.value);
     } catch (error) {
         console.error('获取项目名称失败:', error);
     }
 });
+
+// 格式化日期的函数
+function formatDate(dateString) {
+    const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+    return new Date(dateString).toLocaleString('zh-CN', options); // 根据需要调整语言和格式
+}
+
+// 添加跳转函数
+const goToTestCases = () => {
+    router.push('/testcases');
+};
 </script>
 
 <style scoped>
-.content {
-    padding: 20px;
+.dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 每行两个方块 */
-    gap: 20px; /* 区域之间的间距 */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
 }
 
-.section {
-    height: 300px; /* 固定高度 */
-    padding: 15px;
-    border: 1px solid #ccc; /* 边框样式 */
-    border-radius: 5px; /* 圆角 */
-    background-color: #f9f9f9; /* 背景颜色 */
-    display: flex;
-    flex-direction: column;
-    justify-content: center; /* 垂直居中 */
-    align-items: center; /* 水平居中 */
+.stat-card {
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+  color: #606266;
+}
+
+.icon {
+  font-size: 20px;
+  color: #909399;
+}
+
+.card-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: #303133;
+  margin-top: 8px;
+}
+
+.card-value.success {
+  color: #67C23A;
+}
+
+.card-value.warning {
+  color: #E6A23C;
+}
+
+.charts-container {
+  margin-top: 20px;
+}
+
+.chart-card {
+  height: 400px;
+}
+
+.project-list {
+  margin-top: 20px;
+}
+
+:deep(.el-card__header) {
+  border-bottom: 1px solid #ebeef5;
+  padding: 15px 20px;
+}
+
+:deep(.el-table) {
+  margin: -12px;
 }
 </style>

@@ -1,7 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import Login from '@/views/Login.vue'; // 确保路径正确
+import Login from '@/views/Login.vue';
 import Index from '@/views/Index.vue';
 import Register from '@/views/Register.vue';
+import Project from '@/views/Project.vue';
+import TestCases from '@/views/TestCases.vue';
 
 const routes = [
     {
@@ -19,11 +21,33 @@ const routes = [
         name: 'Register',
         component: Register
     },
-    // 其他路由可以在这里添加
+    {
+        path: '/project',
+        name: 'Project',
+        component: Project,
+    },
+    {
+        path: '/project/:projectId/testcases',
+        name: 'TestCases',
+        component: TestCases,
+        props: true,
+        beforeEnter: (to, from, next) => {
+            if (!to.params.projectId) {
+                next('/project');
+            } else {
+                next();
+            }
+        }
+    },
+    {
+        path: '/project-analysis',
+        name: 'ProjectAnalysis',
+        component: () => import('@/views/ProjectAnalysis.vue')
+    }
 ];
 
 const router = createRouter({
-    history: createWebHistory(), // 使用 HTML5 History 模式
+    history: createWebHistory(),
     routes,
 });
 
