@@ -17,7 +17,7 @@
                 <el-icon class="icon"><FolderOpened /></el-icon>
               </div>
             </template>
-            <div class="card-value">{{ projects.length }}</div>
+            <div class="card-value">{{ totalProjects }}</div>
           </el-card>
 
           <el-card class="stat-card" shadow="hover">
@@ -106,7 +106,7 @@
             </div>
           </template>
           <el-table :data="projects" style="width: 100%" v-loading="loading">
-            <el-table-column prop="project_name" label="项目名称" />
+            <el-table-column prop="name" label="项目名称" />
             <el-table-column prop="description" label="描述" show-overflow-tooltip />
             <el-table-column prop="create_time" label="创建时间" width="180">
               <template #default="{ row }">
@@ -143,28 +143,54 @@ import {
 } from '@element-plus/icons-vue';
 
 const projects = ref([]); // 用于存储项目名称
+const totalProjects = ref(0); // 添加这行
+const recentProjects = ref([]); // 添加这行
+const loading = ref(false); // 添加加载状态
 const router = useRouter();
 
-onMounted(async () => {
-    try {
-        const response = await fetch('http://localhost:8000/api/project/'); // 替换为你的API地址
-        const data = await response.json();
-        projects.value = data.project; // 从返回的数据中获取项目数组
-        console.log(projects.value);
-    } catch (error) {
-        console.error('获取项目名称失败:', error);
+// 刷新数据
+const refreshData = async () => {
+  loading.value = true;
+  try {
+    const response = await fetch('http://localhost:8081/api/project/');
+    const data = await response.json();
+    if (data.code === 200) {
+      projects.value = data.data.projects;
+      totalProjects.value = data.data.total;
+      recentProjects.value = data.data.projects;
     }
+  } catch (error) {
+    console.error('获取项目数据失败:', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  refreshData();
 });
 
 // 格式化日期的函数
 function formatDate(dateString) {
-    const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
-    return new Date(dateString).toLocaleString('zh-CN', options); // 根据需要调整语言和格式
+  const options = { 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit', 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: '2-digit' 
+  };
+  return new Date(dateString).toLocaleString('zh-CN', options);
 }
 
 // 添加跳转函数
 const goToTestCases = () => {
-    router.push('/testcases');
+  router.push('/testcases');
+};
+
+// 添加跳转到项目列表的函数
+const goToProjects = () => {
+  router.push('/project');
 };
 </script>
 

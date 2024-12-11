@@ -40,7 +40,7 @@ export default {
     // 处理登录的异步方法
     async handleLogin() {
       try {
-        const response = await axios.post('http://localhost:8000/api/login/', {
+        const response = await axios.post('http://localhost:8081/api/login/', {
           username: this.username,
           password: this.password
         });
@@ -60,18 +60,24 @@ export default {
             this.$router.push(response.data.data.redirect_url);
           }
         } else {
+          // 登录失败，显示后端返回的错误信息
           ElMessage.error(response.data.message);
         }
       } catch (error) {
         console.error('登录失败:', error);
-        ElMessage.error(error.response?.data?.message || '登录失败，请检查账号和密码');
+        // 显示后端返回的错误信息
+        if (error.response && error.response.data) {
+          ElMessage.error(error.response.data.message);
+        } else {
+          ElMessage.error('登录失败，请检查网络连接');
+        }
       }
     },
     // 跳转到注册页面的方法
     goToRegister() {
       this.$router.push('/register');
       // 这里可以添加实际的跳转逻辑，例如：
-      // this.$router.push('/register'); // 示例：跳转到注册页面
+      // this.$router.push('/register'); // 示例：跳转到注册页
     }
   }
 };

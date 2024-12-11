@@ -188,7 +188,6 @@ const viewProjectInfo = () => {
 
 // 退出登录
 const logout = () => {
-  // 清除本地存储的token等信息
   localStorage.removeItem('token');
   localStorage.removeItem('userInfo');
   router.push('/login');
@@ -531,7 +530,7 @@ body {
   border: 1px solid #ccc;
   border-radius: 5px;
   font-size: 16px;
-  /* 增加字���大小 */
+  /* 增加字体大小 */
 }
 
 .modal-footer {
@@ -598,7 +597,7 @@ body {
   border-right: 3px solid #409EFF;
 }
 
-/* 优化菜单图标样式 */
+/* 优化���单图标样式 */
 :deep(.el-icon) {
   vertical-align: middle;
   margin-right: 10px;

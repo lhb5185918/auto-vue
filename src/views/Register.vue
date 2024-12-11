@@ -19,10 +19,6 @@
             <label for="email">邮箱</label> <!-- 新增邮箱输入框 -->
             <input type="email" id="email" v-model="email" required />
           </div>
-          <div class="input-group">
-            <label for="phone">手机号</label> <!-- 新增手机号输入框 -->
-            <input type="tel" id="phone" v-model="phone" required />
-          </div>
           <div class="button-group">
             <button type="submit" class="login-button">注册</button> <!-- 更新按钮文本为注册 -->
             <button type="button" class="register-button" @click="goToLogin">登录</button> <!-- 更新方法为goToLogin -->
@@ -45,22 +41,48 @@
     };
   },
   methods: {
-    async handleRegister() { // 更新为处理注册的方法
+    async handleRegister() {
       try {
-        const response = await axios.post('http://localhost:8000/api/register/', { // 更新API URL
+        const response = await axios.post('http://localhost:8081/api/register/', {
           username: this.username,
           password: this.password,
-          email: this.email, // 传递邮箱
-          phone: this.phone // 传递手机号
+          email: this.email
         });
-        
-        console.log('注册成功:', response.data);
-        if(response.data.redirect_url){
-            this.$router.push(response.data.redirect_url);
+
+        if (response.data.code === 200) {
+          // 注册成功
+          ElMessage.success(response.data.message);
+          console.log('注册成功:', response.data);
+          
+          // 存储token（如果需要的话）
+          if (response.data.data.token) {
+            localStorage.setItem('token', response.data.data.token);
+          }
+          
+          // 处理重定向
+          if (response.data.data.redirect_url) {
+            // 将api/login/转换为前端路由/login
+            const redirectPath = response.data.data.redirect_url.includes('api/login') 
+              ? '/login' 
+              : response.data.data.redirect_url;
+            
+            this.$router.push(redirectPath);
+          } else {
+            // 如果没有重定向URL，默认跳转到登录页
+            this.$router.push('/login');
+          }
+        } else {
+          // 注册失败，显示后端返回的错误信息
+          ElMessage.error(response.data.message);
         }
       } catch (error) {
         console.error('注册失败:', error);
-        ElMessage.error('注册失败，请检查输入信息'); // 更新错误信息
+        // 显示后端返回的错误信息
+        if (error.response && error.response.data) {
+          ElMessage.error(error.response.data.message);
+        } else {
+          ElMessage.error('注册失败，请检查输入信息');
+        }
       }
     },
     goToLogin() { // 新增跳转到登录页面的方法
@@ -101,7 +123,7 @@
 
 .login-box {
     background-color: #fff; /* 背景颜色 */
-    padding: 40px; /* 增加内边距 */
+    padding: 40px; /* 增加内���距 */
     border-radius: 5px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     width: 300px; /* 设置宽度 */
