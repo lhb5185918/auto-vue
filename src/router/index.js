@@ -27,16 +27,12 @@ const routes = [
         component: Project,
     },
     {
-        path: '/project/:projectId/testcases',
+        path: '/project/:projectId/test-cases',
         name: 'TestCases',
-        component: TestCases,
-        props: true,
-        beforeEnter: (to, from, next) => {
-            if (!to.params.projectId) {
-                next('/project');
-            } else {
-                next();
-            }
+        component: () => import('@/views/TestCases.vue'),
+        meta: {
+            requiresAuth: true,
+            title: '测试用例管理'
         }
     },
     {

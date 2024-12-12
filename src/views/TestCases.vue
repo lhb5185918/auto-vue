@@ -29,13 +29,6 @@
                     v-if="testCases.length === 0"
                     description="暂无测试用例"
                 >
-                    <el-button
-                        type="primary"
-                        @click="showAddDialog = true"
-                        :icon="Plus"
-                    >
-                        创建测试用例
-                    </el-button>
                 </el-empty>
 
                 <el-table 
@@ -92,7 +85,7 @@
                             </el-tag>
                         </template>
                     </el-table-column>
-                    <el-table-column prop="create_time" label="创建时间" width="160" align="center">
+                    <el-table-column prop="create_time" label="创建��间" width="160" align="center">
                         <template #default="{ row }">
                             <div class="time-info">
                                 <el-icon><Timer /></el-icon>
@@ -229,7 +222,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import Home from '@/components/HomePage.vue';
 import { 
@@ -240,6 +233,7 @@ import {
     Timer 
 } from '@element-plus/icons-vue';
 
+const router = useRouter();
 const route = useRoute();
 const projectId = route.params.projectId;
 
@@ -590,8 +584,45 @@ onMounted(() => {
         router.push('/project');
         return;
     }
-    fetchTestCases();
+    
+    // 从路由状态中获取测试用例数据
+    if (route.state && route.state.testCases) {
+        testCases.value = route.state.testCases;
+    }
+    
+    // 如果没有数据，重新请求
+    if (!testCases.value.length) {
+        getTestCases();
+    }
 });
+
+// 获取测试用例数据的方法
+const getTestCases = async () => {
+    try {
+        const response = await axios.get(
+            `http://localhost:8081/api/testcase/list/${route.query.projectId}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (response.data.code === 200) {
+            testCases.value = response.data.data;
+        } else {
+            ElMessage.error(response.data.message);
+        }
+    } catch (error) {
+        console.error('获取测试用例失败:', error);
+        if (error.response && error.response.data) {
+            ElMessage.error(error.response.data.message);
+        } else {
+            ElMessage.error('获取测试用例失败，请检查网络连接');
+        }
+    }
+};
 </script>
 
 <style scoped>
