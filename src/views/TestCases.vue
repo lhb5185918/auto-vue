@@ -85,7 +85,7 @@
                             </el-tag>
                         </template>
                     </el-table-column>
-                    <el-table-column prop="create_time" label="创建��间" width="160" align="center">
+                    <el-table-column prop="create_time" label="创建时间" width="160" align="center">
                         <template #default="{ row }">
                             <div class="time-info">
                                 <el-icon><Timer /></el-icon>
@@ -603,8 +603,7 @@ const getTestCases = async () => {
             `http://localhost:8081/api/testcase/list/${route.query.projectId}`,
             {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             }
         );

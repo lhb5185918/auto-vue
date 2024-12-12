@@ -231,7 +231,7 @@
           <p class="delete-content">确定要删除项目 "<span class="project-name">{{ projectToDelete?.name }}</span>" 吗？</p>
           <p class="warning-text">
             <el-icon><InfoFilled /></el-icon>
-            此操作不可恢复，请谨慎操作！
+            此操作不可恢复，请谨��操作！
           </p>
         </div>
         <template #footer>
@@ -330,7 +330,7 @@ const viewProject = (project) => {
   dialogVisible.value = true;
 };
 
-// ��辑项目
+// 编辑项目
 const editProject = (project) => {
   editForm.value = {
     id: project.id,
@@ -360,19 +360,16 @@ const createProject = () => {
 // 添加跳转到测试用例页面的方法
 const goToTestCases = async (project) => {
   try {
-    const response = await axios.post(
-      'http://localhost:8081/api/testcase/list/',
-      { project_id: project.id },
+    const response = await axios.get(
+      `http://localhost:8081/api/testcase/list/${project.id}`,
       {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       }
     );
 
     if (response.data.code === 200) {
-      // 获取数据成功后再跳转
       router.push({
         path: '/test-cases',
         query: { 
@@ -422,7 +419,7 @@ const formRules = {
   ]
 };
 
-// 提交编辑
+// 提交���辑
 const submitEdit = async () => {
   if (!editFormRef.value) return;
   
