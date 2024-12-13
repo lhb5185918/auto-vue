@@ -27,12 +27,15 @@ const routes = [
         component: Project,
     },
     {
-        path: '/project/:projectId/test-cases',
+        path: '/testcases',
         name: 'TestCases',
-        component: () => import('@/views/TestCases.vue'),
+        component: TestCases,
+        props: route => ({
+            projectId: route.query.projectId,
+            projectName: route.query.projectName
+        }),
         meta: {
-            requiresAuth: true,
-            title: '测试用例管理'
+            requiresAuth: true
         }
     },
     {

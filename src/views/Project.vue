@@ -231,7 +231,7 @@
           <p class="delete-content">确定要删除项目 "<span class="project-name">{{ projectToDelete?.name }}</span>" 吗？</p>
           <p class="warning-text">
             <el-icon><InfoFilled /></el-icon>
-            此操作不可恢复，请谨��操作！
+            此操作不可恢复，请谨慎操作！
           </p>
         </div>
         <template #footer>
@@ -330,7 +330,7 @@ const viewProject = (project) => {
   dialogVisible.value = true;
 };
 
-// 编辑项目
+// ��辑项目
 const editProject = (project) => {
   editForm.value = {
     id: project.id,
@@ -358,39 +358,14 @@ const createProject = () => {
 };
 
 // 添加跳转到测试用例页面的方法
-const goToTestCases = async (project) => {
-  try {
-    const response = await axios.get(
-      `http://localhost:8081/api/testcase/list/${project.id}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      }
-    );
-
-    if (response.data.code === 200) {
-      router.push({
-        path: '/test-cases',
-        query: { 
-          projectId: project.id,
-          projectName: project.name
-        },
-        state: {
-          testCases: response.data.data
-        }
-      });
-    } else {
-      ElMessage.error(response.data.message);
+const goToTestCases = (project) => {
+  router.push({
+    name: 'TestCases',
+    query: {
+      projectId: project.id,
+      projectName: project.name
     }
-  } catch (error) {
-    console.error('获取测试用例失败:', error);
-    if (error.response && error.response.data) {
-      ElMessage.error(error.response.data.message);
-    } else {
-      ElMessage.error('获取测试用例失败，请检查网络连接');
-    }
-  }
+  });
 };
 
 // 添加新的响应式变量
@@ -419,7 +394,7 @@ const formRules = {
   ]
 };
 
-// 提交���辑
+// 提交辑
 const submitEdit = async () => {
   if (!editFormRef.value) return;
   
@@ -512,7 +487,7 @@ const submitCreate = async () => {
 const deleteDialogVisible = ref(false);
 const projectToDelete = ref(null);
 
-// 添加确认删除方法
+// 添加确认��除方法
 const confirmDelete = async () => {
   if (!projectToDelete.value) return;
   
