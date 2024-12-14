@@ -27,15 +27,17 @@
 <script>
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
-
 export default {
+  // 定义组件的数据
   data() {
     return {
+      // 用户名和密码的初始值为空字符串
       username: '',
       password: ''
     };
   },
   methods: {
+    // 处理登录的异步方法
     async handleLogin() {
       try {
         const response = await axios.post('http://localhost:8081/api/login/', {
@@ -49,9 +51,6 @@ export default {
           
           // 存储用户信息
           localStorage.setItem('userInfo', JSON.stringify(response.data.data.user));
-          
-          // 设置axios默认header
-          axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.data.token}`;
           
           // 显示成功消息
           ElMessage.success(response.data.message);
@@ -74,8 +73,11 @@ export default {
         }
       }
     },
+    // 跳转到注册页面的方法
     goToRegister() {
       this.$router.push('/register');
+      // 这里可以添加实际的跳转逻辑，例如：
+      // this.$router.push('/register'); // 示例：跳转到注册页
     }
   }
 };

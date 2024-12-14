@@ -27,28 +27,21 @@ const routes = [
         component: Project,
     },
     {
-        path: '/project/:projectId/testcases',
+        path: '/testcases',
         name: 'TestCases',
         component: TestCases,
-        props: true,
-        beforeEnter: (to, from, next) => {
-            if (!to.params.projectId) {
-                next('/project');
-            } else {
-                next();
-            }
+        props: route => ({
+            projectId: route.query.projectId,
+            projectName: route.query.projectName
+        }),
+        meta: {
+            requiresAuth: true
         }
     },
     {
         path: '/project-analysis',
         name: 'ProjectAnalysis',
         component: () => import('@/views/ProjectAnalysis.vue')
-    },
-    {
-        path: '/test-cases',
-        name: 'TestCases',
-        component: TestCases,
-        meta: { requiresAuth: true }
     }
 ];
 

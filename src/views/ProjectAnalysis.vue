@@ -1,6 +1,50 @@
 <template>
   <Home>
     <PageContainer title="项目分析">
+      <!-- 添加查询表单 -->
+      <div class="search-form">
+        <el-form :inline="true" :model="searchForm" class="form-inline">
+          <el-form-item label="项目名称">
+            <el-input
+              v-model="searchForm.name"
+              placeholder="请输入项目名称"
+              clearable
+              @clear="handleSearch"
+            />
+          </el-form-item>
+          <el-form-item label="项目状态">
+            <el-select
+              v-model="searchForm.status"
+              placeholder="请选择项目状态"
+              clearable
+              @clear="handleSearch"
+            >
+              <el-option label="活跃" :value="0" />
+              <el-option label="未活跃" :value="1" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="创建时间">
+            <el-date-picker
+              v-model="searchForm.dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              value-format="YYYY-MM-DD"
+              @clear="handleSearch"
+            />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="handleSearch">
+              <el-icon><Search /></el-icon>查询
+            </el-button>
+            <el-button @click="resetSearch">
+              <el-icon><Refresh /></el-icon>重置
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
       <!-- 顶部统计卡片 -->
       <div class="stat-cards">
         <el-card v-for="(stat, index) in statistics" :key="index" class="stat-card" shadow="hover">
@@ -104,12 +148,16 @@ import {
   CircleCheck, 
   Warning,
   ArrowUp,
-  ArrowDown 
+  ArrowDown,
+  Search,
+  Refresh
 } from '@element-plus/icons-vue';
 import Home from '@/components/HomePage.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import LineChart from '@/components/LineChart.vue';
 import PieChart from '@/components/PieChart.vue';
+import axios from 'axios';
+import { ElMessage } from 'element-plus';
 
 // 统计数据
 const statistics = ref([
@@ -374,8 +422,63 @@ const pieChartOptions = {
   }
 };
 
+// 查询表单数据
+const searchForm = ref({
+  name: '',
+  status: '',
+  dateRange: []
+});
+
+// 处理查询
+const handleSearch = async () => {
+  try {
+    const params = {
+      name: searchForm.value.name,
+      status: searchForm.value.status,
+      start_date: searchForm.value.dateRange?.[0],
+      end_date: searchForm.value.dateRange?.[1]
+    };
+
+    const response = await axios.post(
+      'http://localhost:8081/api/project/',
+      params,
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (response.data.code === 200) {
+      // 处理返回的数据，更新您的分析图表等
+      console.log('查询结果:', response.data.data);
+    } else {
+      ElMessage.error(response.data.message);
+    }
+  } catch (error) {
+    console.error('查询失败:', error);
+    if (error.response && error.response.data) {
+      ElMessage.error(error.response.data.message);
+    } else {
+      ElMessage.error('查询失败，请检查网络连接');
+    }
+  }
+};
+
+// 重置查询条件
+const resetSearch = () => {
+  searchForm.value = {
+    name: '',
+    status: '',
+    dateRange: []
+  };
+  handleSearch(); // 重置后自动查询
+};
+
+// 页面加载时执行查询
 onMounted(() => {
-  // 可以在这里加载实际数据
+  handleSearch();
 });
 </script>
 
@@ -467,5 +570,47 @@ onMounted(() => {
 
 :deep(.el-carousel__item) {
   overflow-y: hidden;
+}
+
+.search-form {
+  background: #fff;
+  padding: 24px;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+}
+
+.form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 0;
+  margin-right: 0;
+}
+
+:deep(.el-input),
+:deep(.el-select) {
+  width: 200px;
+}
+
+:deep(.el-date-picker) {
+  width: 320px;
+}
+
+.analysis-content {
+  background: #fff;
+  padding: 24px;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+:deep(.el-button) {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 </style> 

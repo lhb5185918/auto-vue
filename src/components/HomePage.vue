@@ -67,6 +67,10 @@
           <div class="header-content">
             <div class="header-right">
               <el-space :size="20" class="header-items">
+                <div class="action-buttons">
+                  <el-button type="primary" @click="showModal = true">创建项目</el-button>
+                  <el-button @click="viewProjectInfo">项目信息</el-button>
+                </div>
                 <el-dropdown trigger="click">
                   <div class="user-info">
                     <img src="@/assets/logo.svg" alt="用户头像">
