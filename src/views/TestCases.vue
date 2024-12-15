@@ -38,26 +38,33 @@
                             <el-option label="低" value="低" />
                         </el-select>
                     </div>
-                    
-                    <!-- 右侧操作按钮 -->
-                    <div class="table-operations">
-                        <el-button 
-                            type="success" 
-                            @click="handleCreateEnv"
-                            :icon="Setting"
-                            class="create-button"
-                        >
-                            新建环境变量
-                        </el-button>
+                </div>
+
+                <!-- 添加操作按钮容器 -->
+                <div class="operation-container">
+                    <el-button-group>
                         <el-button 
                             type="primary" 
                             @click="handleCreateTestCase"
                             :icon="Plus"
-                            class="create-button"
                         >
                             新建接口测试用例
                         </el-button>
-                    </div>
+                        <el-button 
+                            type="success" 
+                            @click="handleCreateEnv"
+                            :icon="Setting"
+                        >
+                            新建环境变量
+                        </el-button>
+                        <el-button 
+                            type="info" 
+                            @click="handleViewEnv"
+                            :icon="List"
+                        >
+                            查看环境变量
+                        </el-button>
+                    </el-button-group>
                 </div>
 
                 <!-- 表部分保持不变 -->
@@ -135,33 +142,27 @@
                             </div>
                         </template>
                     </el-table-column>
-                    <el-table-column label="操作" width="200" fixed="right" align="center">
+                    <el-table-column label="操作" width="180" align="center" fixed="right">
                         <template #default="{ row }">
-                            <div class="action-buttons">
-                                <el-tooltip content="执行测试" placement="top">
-                                    <el-button 
-                                        type="success" 
-                                        :icon="VideoPlay"
-                                        circle 
-                                        @click="runTestCase(row)"
-                                    />
-                                </el-tooltip>
-                                <el-tooltip content="编辑用例" placement="top">
-                                    <el-button 
-                                        type="primary" 
-                                        :icon="Edit"
-                                        circle 
-                                        @click="editTestCase(row)"
-                                    />
-                                </el-tooltip>
-                                <el-tooltip content="删除用例" placement="top">
-                                    <el-button 
-                                        type="danger" 
-                                        :icon="Delete"
-                                        circle 
-                                        @click="deleteTestCase(row)"
-                                    />
-                                </el-tooltip>
+                            <div class="operation-buttons">
+                                <el-button
+                                    type="primary"
+                                    link
+                                    size="small"
+                                    @click="editTestCase(row)"
+                                >
+                                    <el-icon class="operation-icon"><Edit /></el-icon>
+                                    编辑
+                                </el-button>
+                                <el-button
+                                    type="danger"
+                                    link
+                                    size="small"
+                                    @click="deleteVariable(env, row)"
+                                >
+                                    <el-icon class="operation-icon"><Delete /></el-icon>
+                                    删除
+                                </el-button>
                             </div>
                         </template>
                     </el-table-column>
@@ -348,6 +349,19 @@
                                         </div>
                                         
                                         <div class="body-editor" v-if="bodyType === 'raw'">
+                                            <div class="editor-toolbar">
+                                                <el-tooltip content="格式化 JSON (Ctrl+Alt+A)" placement="top">
+                                                    <el-button 
+                                                        type="primary" 
+                                                        link 
+                                                        :icon="Document"
+                                                        @click="formatJsonInput"
+                                                        :disabled="rawContentType !== 'application/json'"
+                                                    >
+                                                        格式化
+                                                    </el-button>
+                                                </el-tooltip>
+                                            </div>
                                             <el-input
                                                 v-model="testCaseForm.body"
                                                 type="textarea"
@@ -470,10 +484,10 @@ $headers.Content-Type=application/json  # 检查响应头"
                         </el-form>
                     </div>
 
-                    <!-- 可拖动分隔线 -->
+                    <!-- 可拖动分隔 -->
                     <div class="resizer" @mousedown="startResize"></div>
 
-                    <!-- 下方响应面板 -->
+                    <!-- 方响应面板 -->
                     <div class="response-panel" :style="{ height: `${responsePanelHeight}px` }">
                         <div class="response-header">
                             <h3 class="response-title">响应信息</h3>
@@ -622,13 +636,13 @@ $headers.Content-Type=application/json  # 检查响应头"
                                             <el-option-group label="其他配置">
                                                 <el-option value="env_name" label="环境名称(env_name)" />
                                                 <el-option value="version" label="版本号(version)" />
-                                                <el-option value="project_id" label="项目ID(project_id)" />
+                                                <el-option value="project_id" label="目ID(project_id)" />
                                                 <el-option value="tenant_id" label="租户ID(tenant_id)" />
                                             </el-option-group>
                                         </el-select>
                                     </template>
                                 </el-table-column>
-                                <el-table-column label="变量值" min-width="200">
+                                <el-table-column prop="value" label="变量值" min-width="200">
                                     <template #default="{ row }">
                                         <el-input 
                                             v-model="row.value" 
@@ -677,6 +691,140 @@ $headers.Content-Type=application/json  # 检查响应头"
                     </div>
                 </template>
             </el-dialog>
+
+            <!-- 查看环境变量的对话框 -->
+            <el-dialog
+                title="环境变量列表"
+                v-model="showEnvListDialog"
+                width="800px"
+                class="env-list-dialog"
+            >
+                <div class="env-list-container">
+                    <el-empty v-if="envList.length === 0" description="暂无环境变量">
+                        <el-button type="primary" @click="handleCreateEnv">
+                            新建环境变量
+                        </el-button>
+                    </el-empty>
+                    
+                    <template v-else>
+                        <div v-for="env in envList" :key="env.id" class="env-item">
+                            <div class="env-header">
+                                <h3 class="env-name">{{ env.name }}</h3>
+                            </div>
+                            
+                            <el-table 
+                                :data="env.variables" 
+                                border 
+                                style="width: 100%"
+                                :header-cell-style="{
+                                    background: '#f5f7fa',
+                                    color: '#606266'
+                                }"
+                            >
+                                <el-table-column prop="key" label="变量名" width="180" />
+                                <el-table-column prop="value" label="变量值" min-width="200">
+                                    <template #default="{ row }">
+                                        <el-input 
+                                            v-model="row.value" 
+                                            :placeholder="getValuePlaceholder(row.key)"
+                                            clearable
+                                        >
+                                            <template #prefix v-if="getValuePrefix(row.key)">
+                                                {{ getValuePrefix(row.key) }}
+                                            </template>
+                                        </el-input>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="description" label="描述" min-width="180" />
+                                <el-table-column label="操作" width="150" align="center" fixed="right">
+                                    <template #default="{ row }">
+                                        <div class="operation-buttons">
+                                            <el-button
+                                                type="primary"
+                                                link
+                                                size="small"
+                                                @click="editEnvVariable(row)"
+                                                :icon="Edit"
+                                            >
+                                                编辑
+                                            </el-button>
+                                            <el-button
+                                                type="danger"
+                                                link
+                                                size="small"
+                                                @click="deleteEnvVariable(row)"
+                                                :icon="Delete"
+                                            >
+                                                删除
+                                            </el-button>
+                                        </div>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </div>
+                    </template>
+                </div>
+            </el-dialog>
+
+            <!-- 添加环境变量编辑对话框 -->
+            <el-dialog
+                title="编辑环境变量"
+                v-model="showEditVarDialog"
+                width="500px"
+                :close-on-click-modal="false"
+            >
+                <el-form
+                    ref="editVarFormRef"
+                    :model="editVarForm"
+                    :rules="varRules"
+                    label-width="80px"
+                >
+                    <el-form-item label="变量名" prop="key">
+                        <el-select
+                            v-model="editVarForm.key"
+                            placeholder="请选择或输入变量名"
+                            filterable
+                            allow-create
+                            default-first-option
+                            clearable
+                        >
+                            <el-option-group label="服务器配置">
+                                <el-option value="host" label="服务��地址(host)" />
+                                <el-option value="port" label="端口号(port)" />
+                                <el-option value="base_url" label="基础URL(base_url)" />
+                                <el-option value="protocol" label="协议(protocol)" />
+                            </el-option-group>
+                            <el-option-group label="认证信息">
+                                <el-option value="username" label="用户名(username)" />
+                                <el-option value="password" label="密码(password)" />
+                                <el-option value="token" label="令牌(token)" />
+                            </el-option-group>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="变量值" prop="value">
+                        <el-input 
+                            v-model="editVarForm.value" 
+                            :placeholder="getValuePlaceholder(editVarForm.key)"
+                        >
+                            <template #prefix v-if="getValuePrefix(editVarForm.key)">
+                                {{ getValuePrefix(editVarForm.key) }}
+                            </template>
+                        </el-input>
+                    </el-form-item>
+                    <el-form-item label="描述" prop="description">
+                        <el-input 
+                            v-model="editVarForm.description" 
+                            placeholder="请输入变量描述"
+                        />
+                    </el-form-item>
+                </el-form>
+                <template #footer>
+                    <div class="dialog-footer">
+                        <el-button @click="showEditVarDialog = false">取消</el-button>
+                        <el-button type="primary" @click="submitEditVar">确定</el-button>
+                    </div>
+                </template>
+            </el-dialog>
         </PageContainer>
     </Home>
 </template>
@@ -694,7 +842,8 @@ import {
     Timer, 
     Link, 
     Document, 
-    Setting 
+    Setting, 
+    List 
 } from '@element-plus/icons-vue';
 import axios from 'axios';
 
@@ -717,7 +866,7 @@ const props = defineProps({
 const projectId = ref(props.projectId || route.query.projectId);
 const projectName = ref(props.projectName || route.query.projectName);
 
-// 数据相关
+// 数据相
 const testCases = ref([]);
 const loading = ref(false);
 const currentPage = ref(1);
@@ -729,7 +878,7 @@ const testCaseFormRef = ref(null);
 
 // 表单验证规则
 const rules = {
-    title: [{ required: true, message: '请输入用例标题', trigger: 'blur' }],
+    title: [{ required: true, message: '请输入用例题', trigger: 'blur' }],
     api_path: [{ required: true, message: '请输入接口路径', trigger: 'blur' }],
     method: [{ required: true, message: '请选择请求方法', trigger: 'change' }],
     priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
@@ -778,7 +927,7 @@ const testCaseForm = ref({
     assertions: ''
 });
 
-// 添加响应相关的响应式数据
+// 添加应相关的应式数据
 const showResponse = ref(false);
 const responseData = ref({
     status: 200,
@@ -821,7 +970,7 @@ const formatResponse = (data) => {
     }
 };
 
-// 添加格式化响应体的方法
+// 添加格式化响应体的方
 const formatResponseBody = () => {
     try {
         const parsed = JSON.parse(responseData.value.body);
@@ -842,7 +991,7 @@ const copyResponseBody = () => {
     }
 };
 
-// 修改提交测试用例的方法
+// 修改提交试例的方法
 const submitTestCase = async () => {
     if (!testCaseFormRef.value) return;
     
@@ -851,7 +1000,7 @@ const submitTestCase = async () => {
             try {
                 loading.value = true;
                 
-                // 构建请求数据，添加提取器配置
+                // 构建请求数据，添提取器配置
                 const requestData = {
                     ...testCaseForm.value,
                     project_id: projectId.value,
@@ -954,7 +1103,7 @@ const runTestCase = async (row) => {
             // 可以在这里处理测试结果
         }
     } catch (error) {
-        ElMessage.error('测试用例执行失败');
+        ElMessage.error('测试用例执��失败');
         console.error(error);
     }
 };
@@ -1014,8 +1163,7 @@ const getStatusType = (status) => {
     const types = {
         '通过': 'success',
         '失败': 'danger',
-        '阻': 'warning',
-        '未执行': 'info',
+        '未执行': 'warning',
     };
     return types[status] || 'info';
 };
@@ -1077,7 +1225,7 @@ const resetForm = () => {
         expected_result: '',
         assertions: ''
     };
-    // 重置其他数据
+    // 重其他数据
     bodyType.value = 'none';
     rawContentType.value = 'application/json';
     paramsTableData.value = [{ enabled: true, key: '', value: '', description: '' }];
@@ -1408,9 +1556,165 @@ const validateEnvValue = (key, value) => {
     }
     return true;
 };
+
+// 添加查看环境变量对话框
+const showEnvListDialog = ref(false);
+const envList = ref([]);
+
+// 添加查看环变量方法
+const handleViewEnv = async () => {
+    try {
+        const response = await axios.get(
+            `http://localhost:8081/api/env/list/${projectId.value}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            }
+        );
+
+        if (response.data.code === 200) {
+            envList.value = response.data.data || [];
+            showEnvListDialog.value = true;
+        } else {
+            ElMessage.error(response.data.message);
+        }
+    } catch (error) {
+        console.error('获取环境变量失败:', error);
+        ElMessage.error('获取环境变量失败，请检查网络连接');
+    }
+};
+
+// 添加编辑变量相关的响应式数据
+const showEditVarDialog = ref(false);
+const editVarForm = ref({
+    id: '',
+    key: '',
+    value: '',
+    description: ''
+});
+
+// 修改环境变量编辑方法
+const editEnvVariable = async (variable) => {
+    // 打开编辑弹窗并填充数据
+    editVarForm.value = {
+        id: variable.id,
+        key: variable.key,
+        value: variable.value,
+        description: variable.description,
+        env_id: variable.env_id || variable.id,  // 保存环境ID
+        project_id: projectId.value  // 从当前件获取project_id
+    };
+    showEditVarDialog.value = true;
+};
+
+// 添加提交编辑的方法
+const submitEditVar = async () => {
+    try {
+        const response = await axios.put(
+            `http://localhost:8081/api/env/variable/${projectId.value}`,
+            {
+                id: editVarForm.value.id,
+                key: editVarForm.value.key,
+                value: editVarForm.value.value,
+                description: editVarForm.value.description,
+                env_id: editVarForm.value.env_id,  // 传递环境ID
+                project_id: projectId.value  // 传递项目ID
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (response.data.code === 200) {
+            ElMessage.success('更新成功');
+            showEditVarDialog.value = false;
+            handleViewEnv(); // 刷新环境变量列表
+        } else {
+            ElMessage.error(response.data.message);
+        }
+    } catch (error) {
+        console.error('更新变量失败:', error);
+        ElMessage.error('更新变量失败，请检查网络连接');
+    }
+};
+
+// 添加环境变量删除方法
+const deleteEnvVariable = async (variable) => {
+    try {
+        await ElMessageBox.confirm(
+            '确定要删除该变量吗？删除后无法恢复。',
+            '警告',
+            {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning'
+            }
+        );
+
+        const response = await axios.delete(
+            `http://localhost:8081/api/env/variable/${variable.id}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            }
+        );
+
+        if (response.data.code === 200) {
+            ElMessage.success('删除成功');
+            handleViewEnv(); // 刷新环境变量列表
+        } else {
+            ElMessage.error(response.data.message);
+        }
+    } catch (error) {
+        if (error !== 'cancel') {
+            console.error('删除变量失败:', error);
+            ElMessage.error('删除变量失败，请检查网络连接');
+        }
+    }
+};
+
+// 添加 JSON 格式化方法
+const formatJsonInput = () => {
+    if (bodyType.value === 'raw' && rawContentType.value === 'application/json') {
+        try {
+            const jsonObj = JSON.parse(testCaseForm.value.body);
+            testCaseForm.value.body = JSON.stringify(jsonObj, null, 2);
+            ElMessage.success('JSON 格式化成功');
+        } catch (e) {
+            ElMessage.warning('无效的 JSON 格式');
+        }
+    }
+};
+
+// 添加键盘事件监听
+const handleKeydown = (e) => {
+    // 检查是否按下 Ctrl+Alt+A
+    if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault(); // 阻止默认行为
+        formatJsonInput();
+    }
+};
+
+// 在组件挂载时添加事件监听
+onMounted(() => {
+    document.addEventListener('keydown', handleKeydown);
+    // ... 其他已有的 onMounted 代码
+});
+
+// 在组件卸载时移除事件监听
+onUnmounted(() => {
+    document.removeEventListener('keydown', handleKeydown);
+    // ... 其他已有的 onUnmounted 代码
+});
 </script>
 
 <style scoped>
+/* 表格卡片样式 */
 .table-card {
     margin-top: 20px;
     padding: 24px;
@@ -1419,664 +1723,247 @@ const validateEnvValue = (key, value) => {
     background-color: var(--el-bg-color);
 }
 
+/* 搜索栏样式 */
 .search-bar {
     display: flex;
     gap: 16px;
-    margin-bottom: 24px;
     align-items: center;
 }
 
 .search-input {
     width: 300px;
-    border-radius: 4px;
 }
 
 .filter-select {
     width: 150px;
-    border-radius: 4px;
 }
 
-.case-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.title-text {
-    color: var(--el-text-color-primary);
-    font-weight: 500;
-    cursor: pointer;
-    transition: color 0.3s;
-}
-
-.title-text:hover {
-    color: var(--el-color-primary);
-}
-
-.priority-tag {
-    font-size: 12px;
-    border-radius: 12px;
-    padding: 0 8px;
-}
-
-.api-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.method-tag {
-    min-width: 60px;
-    text-align: center;
-    border-radius: 12px;
-}
-
-.api-path {
-    color: var(--el-text-color-regular);
-    font-family: monospace;
-    background: var(--el-fill-color-light);
-    padding: 2px 8px;
-    border-radius: 4px;
-}
-
-.status-tag {
-    min-width: 70px;
-    border-radius: 12px;
-}
-
-.time-info {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    color: var(--el-text-color-secondary);
-}
-
-.action-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-}
-
-:deep(.el-table) {
-    border-radius: 8px;
-    overflow: hidden;
-    --el-table-border-color: var(--el-border-color-lighter);
-}
-
-:deep(.el-table__row) {
-    transition: all 0.3s;
-}
-
-:deep(.el-table__row:hover) {
-    transform: translateY(-2px);
-    box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
-    z-index: 2;
-    position: relative;
-}
-
-.pagination-container {
-    margin-top: 24px;
+/* 操作按钮容器样式 */
+.operation-container {
+    margin: 20px 0;
     display: flex;
     justify-content: flex-end;
 }
 
+.operation-container :deep(.el-button-group) {
+    display: flex;
+    gap: 1px;
+}
+
+/* 修改按钮样式，确保图标居中 */
+.operation-container :deep(.el-button) {
+    display: inline-flex;  /* 改为 inline-flex */
+    align-items: center;
+    justify-content: center; /* 添加水平居中 */
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
+    height: 32px;  /* 添加固定高度 */
+}
+
+/* 修改图标样式 */
+.operation-container :deep(.el-button .el-icon) {
+    margin: 0;
+    font-size: 16px;
+    display: inline-flex;  /* 添加 inline-flex 布局 */
+    align-items: center;
+    justify-content: center;
+    width: 16px;  /* 给定固定宽度 */
+    height: 16px; /* 给定固定高度 */
+}
+
+/* 确保按钮内容整体居中 */
+.operation-container :deep(.el-button span) {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* 表格中的圆形按钮样式 */
 :deep(.el-button.is-circle) {
-    transition: transform 0.3s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-}
-
-:deep(.el-button.is-circle:hover) {
-    transform: scale(1.1);
+    padding: 8px;
 }
 
 :deep(.el-button.is-circle .el-icon) {
     margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
+    font-size: 16px;
 }
 
-.create-button {
-    padding: 8px 16px;
-    font-size: 14px;
+/* 分页器样式 */
+.pagination-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* 环境变量表样式 */
+.env-list-container {
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 0 16px;
+}
+
+.env-item {
+    margin-bottom: 24px;
+    padding: 16px;
+    border-radius: 8px;
+    background-color: var(--el-fill-color-light);
+}
+
+.env-item:last-child {
+    margin-bottom: 0;
+}
+
+/* 表格中的操作按钮样式 */
+.env-item :deep(.el-table .cell) {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.env-item :deep(.el-button.is-link) {
+    height: 28px;
+    padding: 4px 8px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    transition: all 0.3s;
+    justify-content: center;
 }
 
-.create-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
-}
-
-.create-button .el-icon {
-    font-size: 16px;
+.env-item :deep(.el-button.is-link .el-icon) {
     margin-right: 4px;
-}
-
-:deep(.el-empty) {
-    padding: 40px 0;
-}
-
-:deep(.el-empty .el-button) {
-    margin-top: 20px;
-}
-
-.table-operations {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 16px;
-}
-
-.table-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-
-.test-case-dialog :deep(.el-dialog__body) {
-    padding: 0 20px 20px;
-}
-
-.request-header {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    align-items: center;
-}
-
-.method-select {
-    width: 120px;
-    margin-bottom: 0;
-}
-
-.api-input {
-    flex: 1;
-    margin-bottom: 0;
-}
-
-.request-tabs {
-    margin-bottom: 20px;
-}
-
-.request-tabs :deep(.el-tabs__content) {
-    padding: 20px;
-}
-
-.case-info {
-    display: flex;
-    gap: 20px;
-    align-items: center;
-}
-
-.case-info .el-form-item {
-    margin-bottom: 0;
-}
-
-:deep(.el-select) {
-    width: 100%;
-}
-
-:deep(.el-tabs--border-card) {
-    border: 1px solid var(--el-border-color-light);
-    box-shadow: none;
-}
-
-:deep(.el-textarea__inner) {
-    font-family: monospace;
     font-size: 14px;
 }
 
-/* 新增的样式 */
-.postman-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    height: 700px;
-    overflow: hidden;
-    position: relative;
+/* 表格样式优化 */
+.env-item :deep(.el-table) {
+    --el-table-border-color: var(--el-border-color-lighter);
 }
 
-.request-panel {
-    flex: none;
-    overflow-y: auto;
-    min-height: 200px;
+.env-item :deep(.el-table__cell) {
+    padding: 8px;
 }
 
-.response-panel {
-    flex: none;
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: 4px;
-    padding: 20px;
-    background-color: var(--el-bg-color);
-    min-height: 100px;
-    overflow-y: auto;
+/* 表头样式 */
+.env-item :deep(.el-table__header) {
+    background-color: var(--el-fill-color-light);
 }
 
-.request-url-section {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.method-select {
-    width: 120px;
-}
-
-.api-input {
-    flex: 1;
-}
-
-.send-button {
-    width: 100px;
-}
-
-.body-type-selector {
-    margin-bottom: 16px;
-    display: flex;
-    gap: 16px;
-    align-items: center;
-}
-
-.table-actions {
-    margin-top: 16px;
+/* 修改表格中的操作按钮样式 */
+.operation-buttons {
     display: flex;
     justify-content: center;
-}
-
-.tests-toolbar {
-    margin-bottom: 16px;
-}
-
-.response-header {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    gap: 8px;  /* 减小按钮之间的间距 */
 }
 
-.response-title {
+.operation-buttons .el-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 8px;
+    min-width: 52px;  /* 减小按钮的最小宽度 */
+}
+
+.operation-icon {
     margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--el-text-color-primary);
+    font-size: 14px;
 }
 
-.response-body-wrapper {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+/* 调整按钮内部图标和文字的间距 */
+.env-item :deep(.el-button.is-link) {
+    height: 28px;
+    padding: 4px;  /* 减小内边距 */
+    white-space: nowrap;
 }
 
-.response-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px;
-    background: var(--el-fill-color-light);
-    border-radius: 4px 4px 0 0;
+.env-item :deep(.el-button.is-link .el-icon) {
+    margin-right: 2px;  /* 减小图标和文字的间距 */
+    font-size: 14px;
 }
 
-.content-type {
-    font-family: monospace;
+/* 确保钮文字不换行且对齐 */
+.env-item :deep(.el-button.is-link span) {
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* 修改固定列样式 */
+.env-item :deep(.el-table__fixed-right) {
+    height: 100% !important;
+    background-color: var(--el-bg-color);
+    box-shadow: -6px 0 6px -4px rgba(0,0,0,0.12);
+}
+
+/* 确保表格内不会被遮挡 */
+.env-item :deep(.el-table__body-wrapper) {
+    overflow: visible;
+}
+
+.env-item :deep(.el-table__fixed-right-patch) {
+    background-color: var(--el-fill-color-light);
+}
+
+/* 调整表格单元格内容对齐 */
+.env-item :deep(.el-table .cell) {
+    white-space: nowrap;
+    overflow: visible;
+}
+
+/* 调整钮内容对齐 */
+.env-item :deep(.el-button.is-link) {
+    height: 28px;
+    white-space: nowrap;
+}
+
+/* 确保图标和文字对齐 */
+.env-item :deep(.el-button.is-link .el-icon) {
+    vertical-align: middle;
+}
+
+/* 确保按钮文字不换行 */
+.env-item :deep(.el-button.is-link span) {
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* 变量值输入框样式 */
+.env-item :deep(.el-input__wrapper) {
+    padding: 0 8px;
+}
+
+.env-item :deep(.el-input__prefix) {
+    color: var(--el-text-color-secondary);
     font-size: 12px;
-    color: var(--el-text-color-secondary);
 }
 
-.response-body {
-    flex: 1;
-    margin: 0;
-    padding: 16px;
-    background: var(--el-fill-color-light);
-    border-radius: 0 0 4px 4px;
-    font-family: monospace;
-    font-size: 14px;
-    line-height: 1.5;
-    overflow: auto;
-    white-space: pre-wrap;
+.env-item :deep(.el-input.is-focus .el-input__wrapper) {
+    box-shadow: 0 0 0 1px var(--el-color-primary) inset;
 }
 
-.response-tabs {
-    height: calc(100% - 50px);
-}
-
-.response-tabs :deep(.el-tabs__content) {
-    height: calc(100% - 40px);
-    overflow-y: auto;
-}
-
-.status-info {
+/* Body 编辑器工具栏样式 */
+.body-editor {
     display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.time-info {
-    color: var(--el-text-color-secondary);
-    font-size: 14px;
-}
-
-.test-results {
-    padding: 16px;
-}
-
-.test-result {
-    display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
-    margin-bottom: 8px;
-    padding: 8px;
-    border-radius: 4px;
 }
 
-.test-result.passed {
-    background: var(--el-color-success-light-9);
-}
-
-.test-result.failed {
-    background: var(--el-color-danger-light-9);
-}
-
-.method-get { color: var(--el-color-success); }
-.method-post { color: var(--el-color-warning); }
-.method-put { color: var(--el-color-primary); }
-.method-delete { color: var(--el-color-danger); }
-.method-patch { color: var(--el-color-info); }
-
-:deep(.el-dialog__body) {
-    padding: 0 20px 20px;
-}
-
-:deep(.el-tabs--border-card) {
-    border: 1px solid var(--el-border-color-light);
-    box-shadow: none;
-}
-
-/* 调整内容区域的滚动 */
-.request-tabs :deep(.el-tabs__content) {
-    height: calc(100% - 40px);
-    overflow-y: auto;
-}
-
-/* 优化底部按钮样式 */
-.dialog-footer {
+.editor-toolbar {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
+    padding: 4px;
+    background-color: var(--el-fill-color-light);
+    border-radius: 4px;
 }
 
-.empty-response {
-    height: calc(100% - 60px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.editor-toolbar .el-button {
+    font-size: 12px;
 }
 
-.empty-response :deep(.el-empty__description) {
-    margin-top: 0;
-}
-
-.empty-response :deep(.el-empty__description p) {
-    color: var(--el-text-color-secondary);
+.editor-toolbar .el-button .el-icon {
+    margin-right: 4px;
     font-size: 14px;
-    margin: 8px 0 0;
-}
-
-/* 添加用例基本信息区域样式 */
-.case-info-section {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 20px;
-    padding: 16px;
-    background-color: var(--el-fill-color-light);
-    border-radius: 4px;
-}
-
-.case-title-input {
-    flex: 1;
-    margin-bottom: 0;
-}
-
-.case-priority-select {
-    width: 120px;
-    margin-bottom: 0;
-}
-
-.case-info-section :deep(.el-input__prefix) {
-    color: var(--el-text-color-secondary);
-}
-
-/* 修改请求方式颜色相关样式 */
-:deep(.method-get) { 
-    color: var(--el-color-success) !important;
-}
-:deep(.method-post) { 
-    color: var(--el-color-warning) !important;
-}
-:deep(.method-put) { 
-    color: var(--el-color-primary) !important;
-}
-:deep(.method-delete) { 
-    color: var(--el-color-danger) !important;
-}
-:deep(.method-patch) { 
-    color: var(--el-color-info) !important;
-}
-
-/* 确保选中后的颜色也保持一致 */
-:deep(.el-select-dropdown__item.selected) {
-    color: inherit;
-    font-weight: bold;
-}
-
-/* 修改下拉框中选项hover状态的背景色，以保持文字颜色可见 */
-:deep(.el-select-dropdown__item.hover),
-:deep(.el-select-dropdown__item:hover) {
-    background-color: var(--el-fill-color-light);
-}
-
-/* 确保选中的值在输入框中显示正确的颜色 */
-.method-select :deep(.el-input__inner) {
-    color: inherit;
-}
-
-/* 添加分隔线样式 */
-.resizer {
-    width: 100%;
-    height: 8px;
-    background-color: transparent;
-    cursor: row-resize;
-    position: relative;
-}
-
-.resizer::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 30px;
-    height: 4px;
-    background-color: var(--el-border-color-lighter);
-    border-radius: 2px;
-}
-
-.resizer:hover::after {
-    background-color: var(--el-color-primary);
-}
-
-/* 拖动时添加的样式 */
-.resizing {
-    user-select: none;
-}
-
-.resizing .resizer::after {
-    background-color: var(--el-color-primary);
-}
-
-/* 添加环境变量相关样式 */
-.env-vars-table {
-    margin-bottom: 16px;
-}
-
-.env-vars-table :deep(.el-table) {
-    margin-bottom: 16px;
-}
-
-.env-vars-table :deep(.el-input__wrapper) {
-    box-shadow: none;
-}
-
-.env-vars-table :deep(.el-table__cell) {
-    padding: 8px;
-}
-
-/* 调整按钮间距 */
-.table-operations .create-button + .create-button {
-    margin-left: 12px;
-}
-
-/* 添加和修改环境变量相关样式 */
-.env-dialog :deep(.el-dialog__body) {
-    padding: 20px;
-}
-
-.env-name-item {
-    margin-bottom: 20px;
-}
-
-.env-vars-table {
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.env-vars-table :deep(.el-table) {
-    margin-bottom: 16px;
-}
-
-.env-vars-table :deep(.el-table__header) {
-    font-weight: 600;
-}
-
-.env-vars-table :deep(.el-input__wrapper) {
-    box-shadow: none;
-}
-
-.env-vars-table :deep(.el-table__cell) {
-    padding: 8px;
-}
-
-.env-vars-table :deep(.el-button.is-circle) {
-    margin: 0;
-}
-
-.env-vars-table :deep(.el-button.is-circle:hover) {
-    transform: scale(1);
-}
-
-.env-vars-table :deep(.el-button.is-circle) {
-    margin: 0;
-}
-
-.env-vars-table :deep(.el-button.is-circle:hover) {
-    transform: scale(1);
-}
-
-.env-vars-table :deep(.el-input__wrapper) {
-    padding: 1px 8px;
-}
-
-.env-vars-table :deep(.el-input__inner) {
-    height: 32px;
-    line-height: 32px;
-}
-
-/* 优化表格hover效果 */
-.env-vars-table :deep(.el-table__row:hover) {
-    background-color: var(--el-fill-color-light);
-}
-
-/* 优化删除按钮样式 */
-.env-vars-table :deep(.el-button.is-circle) {
-    transform: scale(0.9);
-}
-
-.env-vars-table :deep(.el-button.is-circle:hover) {
-    transform: scale(1);
-}
-
-.env-vars-table :deep(.el-input__wrapper) {
-    padding: 1px 8px;
-}
-
-.env-vars-table :deep(.el-input__inner) {
-    height: 32px;
-    line-height: 32px;
-}
-
-/* 添加提取器相关样式 */
-.extractors-section {
-    margin: 20px 0;
-    padding: 16px;
-    background-color: var(--el-fill-color-light);
-    border-radius: 4px;
-}
-
-.section-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-.section-title h4 {
-    margin: 0;
-    font-size: 16px;
-    color: var(--el-text-color-primary);
-}
-
-.extractor-item {
-    margin-bottom: 16px;
-    padding: 12px;
-    background-color: var(--el-bg-color);
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.extractor-item:last-child {
-    margin-bottom: 0;
-}
-
-.el-divider {
-    margin: 24px 0;
-}
-
-/* 环境变量表格样式 */
-.env-vars-table :deep(.el-table__row:hover) {
-    background-color: var(--el-fill-color-light);
-}
-
-.env-vars-table :deep(.el-button.is-circle) {
-    transform: scale(0.9);
-}
-
-.env-vars-table :deep(.el-button.is-circle:hover) {
-    transform: scale(1);
-}
-
-.env-vars-table :deep(.el-input__wrapper) {
-    padding: 1px 8px;
-}
-
-.env-vars-table :deep(.el-input__inner) {
-    height: 32px;
-    line-height: 32px;
 }
 </style>
