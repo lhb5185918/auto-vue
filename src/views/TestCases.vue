@@ -8,18 +8,15 @@
                     <div class="search-bar">
                         <el-input
                             v-model="searchKeyword"
-                            placeholder="请输入"
+                            placeholder="请输入用例名称"
                             prefix-icon="Search"
                             clearable
-                            @clear="handleSearch"
-                            @input="handleSearch"
                             class="search-input"
                         />
                         <el-select
                             v-model="statusFilter"
                             placeholder="状态筛选"
                             clearable
-                            @change="handleSearch"
                             class="filter-select"
                         >
                             <el-option label="未执行" value="未执行" />
@@ -30,13 +27,25 @@
                             v-model="priorityFilter"
                             placeholder="优先级筛选"
                             clearable
-                            @change="handleSearch"
                             class="filter-select"
                         >
                             <el-option label="高" value="高" />
                             <el-option label="中" value="中" />
                             <el-option label="低" value="低" />
                         </el-select>
+                        <el-button 
+                            type="primary" 
+                            @click="handleSearch"
+                            :icon="Search"
+                        >
+                            查询
+                        </el-button>
+                        <el-button 
+                            @click="resetSearch"
+                            :icon="Refresh"
+                        >
+                            重置
+                        </el-button>
                     </div>
                 </div>
 
@@ -50,6 +59,24 @@
                         >
                             新建接口测试用例
                         </el-button>
+                        <el-upload
+                            class="upload-button"
+                            action="/api/testcases/import"
+                            :headers="uploadHeaders"
+                            :data="{ project_id: projectId }"
+                            :show-file-list="false"
+                            :on-success="handleUploadSuccess"
+                            :on-error="handleUploadError"
+                            :before-upload="beforeUpload"
+                            accept=".xlsx,.xls"
+                        >
+                            <el-button 
+                                type="warning"
+                                :icon="Upload"
+                            >
+                                上传测试用例
+                            </el-button>
+                        </el-upload>
                         <el-button 
                             type="success" 
                             @click="handleCreateEnv"
@@ -134,36 +161,36 @@
                             </el-tag>
                         </template>
                     </el-table-column>
-                    <el-table-column prop="create_time" label="创建时间" width="160" align="center">
+                    <el-table-column prop="last_run_time" label="最后执行时间" width="160">
                         <template #default="{ row }">
-                            <div class="time-info">
-                                <el-icon><Timer /></el-icon>
-                                <span>{{ formatDate(row.create_time) }}</span>
-                            </div>
+                            {{ row.last_run_time ? formatDate(row.last_run_time) : '-' }}
                         </template>
                     </el-table-column>
-                    <el-table-column label="操作" width="180" align="center" fixed="right">
+                    <el-table-column label="操作" width="280" fixed="right">
                         <template #default="{ row }">
-                            <div class="operation-buttons">
-                                <el-button
+                            <el-button-group>
+                                <el-button 
                                     type="primary"
-                                    link
-                                    size="small"
+                                    @click="executeTestCase(row)"
+                                    :loading="row.executing"
+                                >
+                                    执行
+                                </el-button>
+                                <el-button 
+                                    type="primary" 
+                                    plain
                                     @click="editTestCase(row)"
                                 >
-                                    <el-icon class="operation-icon"><Edit /></el-icon>
                                     编辑
                                 </el-button>
-                                <el-button
-                                    type="danger"
-                                    link
-                                    size="small"
-                                    @click="deleteVariable(env, row)"
+                                <el-button 
+                                    type="danger" 
+                                    plain
+                                    @click="deleteTestCase(row)"
                                 >
-                                    <el-icon class="operation-icon"><Delete /></el-icon>
                                     删除
                                 </el-button>
-                            </div>
+                            </el-button-group>
                         </template>
                     </el-table-column>
                 </el-table>
@@ -340,7 +367,7 @@
                                             <el-select 
                                                 v-if="bodyType === 'raw'"
                                                 v-model="rawContentType"
-                                                style="width: 120px"
+                                                style="width: 120px; margin-left: 8px;"
                                             >
                                                 <el-option label="JSON" value="application/json" />
                                                 <el-option label="Text" value="text/plain" />
@@ -348,7 +375,7 @@
                                             </el-select>
                                         </div>
                                         
-                                        <div class="body-editor" v-if="bodyType === 'raw'">
+                                        <div class="json-editor-container" v-if="bodyType === 'raw'">
                                             <div class="editor-toolbar">
                                                 <el-tooltip content="格式化 JSON (Ctrl+Alt+A)" placement="top">
                                                     <el-button 
@@ -362,12 +389,31 @@
                                                     </el-button>
                                                 </el-tooltip>
                                             </div>
-                                            <el-input
-                                                v-model="testCaseForm.body"
-                                                type="textarea"
-                                                :rows="10"
-                                                :placeholder="getBodyPlaceholder()"
-                                            />
+                                            <div class="editor-content">
+                                                <div class="line-numbers">
+                                                    <div v-for="i in getLineCount(testCaseForm.body)" :key="i" class="line-number">
+                                                        {{ i }}
+                                                    </div>
+                                                </div>
+                                                <div class="editor-wrapper">
+                                                    <el-input
+                                                        v-model="testCaseForm.body"
+                                                        type="textarea"
+                                                        :rows="10"
+                                                        :placeholder="getBodyPlaceholder()"
+                                                        @input="handleBodyInput"
+                                                        :class="{ 'has-error': jsonError }"
+                                                    />
+                                                    <div v-if="jsonError" class="json-error-message">
+                                                        <el-alert
+                                                            :title="jsonError"
+                                                            type="error"
+                                                            :closable="false"
+                                                            show-icon
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                         
                                         <div class="form-data-table" v-else-if="bodyType === 'form-data'">
@@ -499,7 +545,7 @@ $headers.Content-Type=application/json  # 检查响应头"
                             </div>
                         </div>
                         
-                        <!-- 有响应数据时显示响应内容 -->
+                        <!-- 有响应数据时显示应 -->
                         <template v-if="showResponse">
                             <el-tabs type="border-card" class="response-tabs">
                                 <el-tab-pane label="Body">
@@ -547,7 +593,7 @@ $headers.Content-Type=application/json  # 检查响应头"
                                 :image-size="100"
                             >
                                 <template #description>
-                                    <p>点击"发送请求"按钮获取响应数据</p>
+                                    <p>点击"发送请求"钮获取响应数据</p>
                                 </template>
                             </el-empty>
                         </div>
@@ -564,7 +610,7 @@ $headers.Content-Type=application/json  # 检查响应头"
                 </template>
             </el-dialog>
 
-            <!-- 修改环境变量弹窗的结构和样式 -->
+            <!-- 修改环境变量弹窗结构和样式 -->
             <el-dialog
                 title="新建环境变量"
                 v-model="showEnvDialog"
@@ -636,7 +682,7 @@ $headers.Content-Type=application/json  # 检查响应头"
                                             <el-option-group label="其他配置">
                                                 <el-option value="env_name" label="环境名称(env_name)" />
                                                 <el-option value="version" label="版本号(version)" />
-                                                <el-option value="project_id" label="目ID(project_id)" />
+                                                <el-option value="project_id" label="项目ID(project_id)" />
                                                 <el-option value="tenant_id" label="租户ID(tenant_id)" />
                                             </el-option-group>
                                         </el-select>
@@ -789,7 +835,7 @@ $headers.Content-Type=application/json  # 检查响应头"
                             clearable
                         >
                             <el-option-group label="服务器配置">
-                                <el-option value="host" label="服务��地址(host)" />
+                                <el-option value="host" label="服务器地址(host)" />
                                 <el-option value="port" label="端口号(port)" />
                                 <el-option value="base_url" label="基础URL(base_url)" />
                                 <el-option value="protocol" label="协议(protocol)" />
@@ -843,7 +889,10 @@ import {
     Link, 
     Document, 
     Setting, 
-    List 
+    List, 
+    Search, 
+    Refresh, 
+    Upload 
 } from '@element-plus/icons-vue';
 import axios from 'axios';
 
@@ -927,7 +976,7 @@ const testCaseForm = ref({
     assertions: ''
 });
 
-// 添加应相关的应式数据
+// 添加应相关的应式据
 const showResponse = ref(false);
 const responseData = ref({
     status: 200,
@@ -965,7 +1014,7 @@ const formatResponse = (data) => {
         }
         return JSON.stringify(data, null, 2);
     } catch (e) {
-        // 如果不是JSON格式，直接返回原始内容
+        // 如果不JSON格式，直接返回原始内容
         return data;
     }
 };
@@ -994,6 +1043,14 @@ const copyResponseBody = () => {
 // 修改提交试例的方法
 const submitTestCase = async () => {
     if (!testCaseFormRef.value) return;
+    
+    // 如果是 JSON 类型，先验证格式
+    if (bodyType.value === 'raw' && rawContentType.value === 'application/json' && testCaseForm.value.body) {
+        if (!validateJson(testCaseForm.value.body)) {
+            ElMessage.error('请先修正 JSON 格式错误');
+            return;
+        }
+    }
     
     await testCaseFormRef.value.validate(async (valid) => {
         if (valid) {
@@ -1103,7 +1160,7 @@ const runTestCase = async (row) => {
             // 可以在这里处理测试结果
         }
     } catch (error) {
-        ElMessage.error('测试用例执��失败');
+        ElMessage.error('测试用例执行失败');
         console.error(error);
     }
 };
@@ -1111,7 +1168,7 @@ const runTestCase = async (row) => {
 // 删除测试用例
 const deleteTestCase = async (row) => {
     try {
-        await ElMessageBox.confirm('确定要删除该测试用例吗？', '提示', {
+        await ElMessageBox.confirm('确定要删除该测试用例？', '提示', {
             type: 'warning',
         });
         
@@ -1120,7 +1177,7 @@ const deleteTestCase = async (row) => {
         });
 
         if (response.ok) {
-            ElMessage.success('删除成功');
+            ElMessage.success('删���成功');
             fetchTestCases();
         }
     } catch (error) {
@@ -1133,7 +1190,7 @@ const deleteTestCase = async (row) => {
 
 // 编辑测试用例
 const editTestCase = (row) => {
-    dialogTitle.value = '编辑接口测试用例';
+    dialogTitle.value = '编辑接口试用例';
     testCaseForm.value = { ...row };
     showAddDialog.value = true;
 };
@@ -1159,6 +1216,7 @@ const getPriorityType = (priority) => {
     return types[priority] || 'info';
 };
 
+// 添加状态类型判断方法
 const getStatusType = (status) => {
     const types = {
         '通过': 'success',
@@ -1168,27 +1226,31 @@ const getStatusType = (status) => {
     return types[status] || 'info';
 };
 
+// 添加请求方法类型判断方法
 const getMethodType = (method) => {
     const types = {
-        'GET': 'info',
-        'POST': 'success',
+        'GET': 'success',
+        'POST': 'primary',
         'PUT': 'warning',
         'DELETE': 'danger',
-        'PATCH': 'warning'
+        'PATCH': 'info'
     };
     return types[method] || 'info';
 };
 
 // 格式化日期
 const formatDate = (dateString) => {
-    const options = { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    };
-    return new Date(dateString).toLocaleString('zh-CN', options);
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
 };
 
 // 处理新建测试用例
@@ -1242,8 +1304,18 @@ const priorityFilter = ref('');
 
 // 添加搜索处理方法
 const handleSearch = () => {
-    currentPage.value = 1;  // 重置页码
+    // 重置页码
+    currentPage.value = 1;
+    // 执行搜索
     fetchTestCases();
+};
+
+// 添加重置搜索方法
+const resetSearch = () => {
+    searchKeyword.value = '';
+    statusFilter.value = '';
+    priorityFilter.value = '';
+    handleSearch();
 };
 
 // 添加 Body 类相关的响应式数据
@@ -1308,6 +1380,14 @@ const addAssertion = (type) => {
 const saveTestCase = async () => {
     if (!testCaseFormRef.value) return;
     
+    // 如果是 JSON 类型，先验证格式
+    if (bodyType.value === 'raw' && rawContentType.value === 'application/json' && testCaseForm.value.body) {
+        if (!validateJson(testCaseForm.value.body)) {
+            ElMessage.error('请先修正 JSON 格式错误');
+            return;
+        }
+    }
+    
     await testCaseFormRef.value.validate(async (valid) => {
         if (valid) {
             try {
@@ -1343,7 +1423,7 @@ const saveTestCase = async () => {
                     ElMessage.error(response.data.message);
                 }
             } catch (error) {
-                console.error('保存失败:', error);
+                console.error('存失败:', error);
                 ElMessage.error(error.response?.data?.message || '保存失败，请检查网络连接');
             } finally {
                 loading.value = false;
@@ -1391,7 +1471,7 @@ const stopResize = () => {
     document.body.classList.remove('resizing');
 };
 
-// 组件卸载时清理件监
+// 件卸载时清理件监
 onUnmounted(() => {
     if (isResizing.value) {
         document.removeEventListener('mousemove', handleResize);
@@ -1406,7 +1486,7 @@ onMounted(async () => {
     // 确保有项目ID
     if (!projectId.value) {
         console.error('No project ID provided');
-        ElMessage.error('请先选择项目');
+        ElMessage.error('请选择项目');
         router.push('/project');
         return;
     }
@@ -1438,7 +1518,7 @@ const envRules = {
     ]
 };
 
-// 添加环境变量相关方法
+// 添加环境变相关方法
 const handleCreateEnv = () => {
     showEnvDialog.value = true;
 };
@@ -1561,7 +1641,7 @@ const validateEnvValue = (key, value) => {
 const showEnvListDialog = ref(false);
 const envList = ref([]);
 
-// 添加查看环变量方法
+// 添加查看环境变量方法
 const handleViewEnv = async () => {
     try {
         const response = await axios.get(
@@ -1619,7 +1699,7 @@ const submitEditVar = async () => {
                 value: editVarForm.value.value,
                 description: editVarForm.value.description,
                 env_id: editVarForm.value.env_id,  // 传递环境ID
-                project_id: projectId.value  // 传递项目ID
+                project_id: projectId.value  // 传项目ID
             },
             {
                 headers: {
@@ -1699,7 +1779,7 @@ const handleKeydown = (e) => {
     }
 };
 
-// 在组件挂载时添加事件监听
+// 在组挂载时添加事件监听
 onMounted(() => {
     document.addEventListener('keydown', handleKeydown);
     // ... 其他已有的 onMounted 代码
@@ -1710,6 +1790,162 @@ onUnmounted(() => {
     document.removeEventListener('keydown', handleKeydown);
     // ... 其他已有的 onUnmounted 代码
 });
+
+// 在 script setup 部分添加 JSON 校验相关的函数
+const jsonError = ref('');
+const jsonErrorPosition = ref(null);
+
+// 添加 JSON 格式校验函数
+const validateJson = (jsonString) => {
+    if (!jsonString) {
+        jsonError.value = '';
+        return true;
+    }
+
+    try {
+        JSON.parse(jsonString);
+        jsonError.value = '';
+        return true;
+    } catch (e) {
+        // 获取错误位置和内容
+        const lines = jsonString.split('\n');
+        let lineNumber = 1;
+        let columnNumber = 0;
+        let errorLine = '';
+        
+        // 分析错误信息
+        const errorMessage = e.message;
+        if (errorMessage.includes('Unexpected token')) {
+            const match = errorMessage.match(/Unexpected token '(.+?)'(,|\s+)(.*)/);
+            if (match) {
+                const [_, token, , context] = match;
+                
+                // 找到错误所在行
+                const contextStart = jsonString.indexOf(context);
+                if (contextStart !== -1) {
+                    // 计算行号和列号
+                    const beforeError = jsonString.substring(0, contextStart);
+                    const beforeLines = beforeError.split('\n');
+                    lineNumber = beforeLines.length;
+                    columnNumber = beforeLines[beforeLines.length - 1].length;
+                    errorLine = lines[lineNumber - 1];
+
+                    // 生成更友好的错误信息
+                    let errorDesc = '';
+                    if (token === ',') {
+                        errorDesc = '多余逗号';
+                    } else if (token === '}' || token === ']') {
+                        errorDesc = '缺少值或提前结束';
+                    } else if (token === ':') {
+                        errorDesc = '缺少键名或键值';
+                    } else {
+                        errorDesc = `无效的字符 '${token}'`;
+                    }
+
+                    // 构建错误提示
+                    jsonError.value = `第 ${lineNumber} 行出现语法错误: ${errorDesc}\n`;
+                    jsonError.value += `${errorLine}\n`;
+                    jsonError.value += `${' '.repeat(columnNumber)}^ 此处有误`;
+                    return false;
+                }
+            }
+        }
+
+        // 如果无法解析具体错误，返回通用错误信息
+        jsonError.value = `JSON 格式错误: ${e.message}`;
+        return false;
+    }
+};
+
+// 修改 handleBodyInput 函数，添加错误位置高亮
+const handleBodyInput = (value) => {
+    if (bodyType.value === 'raw' && rawContentType.value === 'application/json') {
+        validateJson(value);
+    }
+};
+
+// 添加错误位置高亮函数
+const highlightError = () => {
+    if (!jsonErrorPosition.value) return;
+    
+    const textarea = document.querySelector('.json-editor-container textarea');
+    if (!textarea) return;
+    
+    // 设置选区到错误位置
+    textarea.setSelectionRange(jsonErrorPosition.value, jsonErrorPosition.value + 1);
+    textarea.focus();
+};
+
+// 添加获取行数的方法
+const getLineCount = (text) => {
+    return text ? text.split('\n').length : 1;
+};
+
+// 添加执行测试用例的方法
+const executeTestCase = async (row) => {
+    try {
+        // 设置执行状态
+        row.executing = true;
+        
+        // 调用执行接口
+        const response = await axios.post(`/api/testcases/${row.id}/execute`, {
+            project_id: projectId.value
+        });
+        
+        if (response.data.code === 200) {
+            ElMessage.success('执行成功');
+            // 更新测试用例状态和最后执行时间
+            row.status = response.data.data.status;
+            row.last_run_time = response.data.data.executed_at;
+        } else {
+            ElMessage.error(response.data.message || '执行失败');
+        }
+    } catch (error) {
+        console.error('执行失败:', error);
+        ElMessage.error(error.response?.data?.message || '执行失败，请检查网络连接');
+    } finally {
+        row.executing = false;
+    }
+};
+
+// 添加上传相关的方法
+const uploadHeaders = computed(() => ({
+    Authorization: `Bearer ${localStorage.getItem('token')}`
+}));
+
+// 上传前的验证
+const beforeUpload = (file) => {
+    const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+                    file.type === 'application/vnd.ms-excel';
+    const isLt2M = file.size / 1024 / 1024 < 2;
+
+    if (!isExcel) {
+        ElMessage.error('只能上传 Excel 文件!');
+        return false;
+    }
+    if (!isLt2M) {
+        ElMessage.error('文件大小不能超过 2MB!');
+        return false;
+    }
+    return true;
+};
+
+// 上传成功的处理
+const handleUploadSuccess = (response) => {
+    if (response.code === 200) {
+        ElMessage.success(`成功导入 ${response.data.imported_count} 条测试用例`);
+        // 刷新列表
+        fetchTestCases();
+    } else {
+        ElMessage.error(response.message || '导入失败');
+    }
+};
+
+// 上传失败的处理
+const handleUploadError = (error) => {
+    console.error('上传失败:', error);
+    ElMessage.error('上传失败，请检查文件格式或网络连接');
+};
 </script>
 
 <style scoped>
@@ -1725,16 +1961,17 @@ onUnmounted(() => {
 /* 搜索栏样式 */
 .search-bar {
     display: flex;
-    gap: 16px;
     align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
 }
 
 .search-input {
-    width: 300px;
+    width: 240px;
 }
 
 .filter-select {
-    width: 150px;
+    width: 160px;
 }
 
 /* 操作按钮容器样式 */
@@ -1753,11 +1990,11 @@ onUnmounted(() => {
 .operation-container :deep(.el-button) {
     display: inline-flex;  /* 改为 inline-flex */
     align-items: center;
-    justify-content: center; /* 添加水平居中 */
+    justify-content: center; /* 添水平居中 */
     gap: 8px;
     padding: 8px 16px;
     font-size: 14px;
-    height: 32px;  /* 添加固定高度 */
+    height: 32px;  /* 添固定高度 */
 }
 
 /* 修改图标样式 */
@@ -1777,7 +2014,7 @@ onUnmounted(() => {
     align-items: center;
 }
 
-/* 表格中的圆形按钮样式 */
+/* 表格中圆形按钮样式 */
 :deep(.el-button.is-circle) {
     display: inline-flex;
     align-items: center;
@@ -1889,7 +2126,7 @@ onUnmounted(() => {
     white-space: nowrap;
 }
 
-/* 修改固定列样式 */
+/* 修改固定样式 */
 .env-item :deep(.el-table__fixed-right) {
     height: 100% !important;
     background-color: var(--el-bg-color);
@@ -1905,13 +2142,13 @@ onUnmounted(() => {
     background-color: var(--el-fill-color-light);
 }
 
-/* 调整表格单元格内容对齐 */
+/* 调整格单元格内容对齐 */
 .env-item :deep(.el-table .cell) {
     white-space: nowrap;
     overflow: visible;
 }
 
-/* 调整钮内容对齐 */
+/* 调整钮容对齐 */
 .env-item :deep(.el-button.is-link) {
     height: 28px;
     white-space: nowrap;
@@ -1947,6 +2184,8 @@ onUnmounted(() => {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    position: relative; /* 添加相对定位 */
+    padding-bottom: 16px; /* 底部添加间距 */
 }
 
 .editor-toolbar {
@@ -1964,5 +2203,248 @@ onUnmounted(() => {
 .editor-toolbar .el-button .el-icon {
     margin-right: 4px;
     font-size: 14px;
+}
+
+/* 修改 JSON 编辑器相关样式 */
+.json-editor-container {
+    position: relative;
+    margin-bottom: 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.editor-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px 8px;
+    background-color: var(--el-fill-color-light);
+    border-radius: 4px;
+}
+
+.editor-content {
+    display: flex;
+    position: relative;
+}
+
+.line-numbers {
+    padding: 12px 0;
+    background-color: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color);
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    user-select: none;
+}
+
+.line-number {
+    min-width: 40px;
+    padding: 0 8px;
+    color: var(--el-text-color-secondary);
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 21px;
+    text-align: right;
+}
+
+.editor-wrapper {
+    flex: 1;
+    position: relative;
+}
+
+.editor-wrapper :deep(.el-textarea__inner) {
+    font-family: monospace;
+    line-height: 21px;
+    font-size: 13px;
+    tab-size: 2;
+    padding: 12px;
+    border-radius: 0 4px 4px 0;
+    min-height: 100%;
+    resize: vertical;
+}
+
+.editor-wrapper :deep(.el-textarea__inner.has-error) {
+    border-color: var(--el-color-danger);
+    background-color: var(--el-color-danger-light-9);
+}
+
+.json-error-message {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    margin-top: 8px;
+    z-index: 1;
+}
+
+/* 修改底部按钮样式 */
+.dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 16px;
+}
+
+.dialog-footer .el-button {
+    min-width: 80px;
+}
+
+/* 添加请求 URL 区域的样式 */
+.request-url-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.method-select {
+    width: 120px;
+    margin-bottom: 0;  /* 覆盖 form-item 的默认下边距 */
+}
+
+.api-input {
+    flex: 1;
+    margin-bottom: 0;  /* 覆盖 form-item 的默认下边距 */
+}
+
+.send-button {
+    min-width: 80px;
+    height: 32px;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 请求方法下拉框样式 */
+.method-select :deep(.el-input__wrapper) {
+    padding: 0 8px;
+}
+
+.method-select :deep(.el-select-dropdown__item) {
+    padding: 0 12px;
+    height: 32px;
+    line-height: 32px;
+}
+
+/* 请求方法颜色样式 */
+.method-get {
+    color: #67C23A;
+}
+
+.method-post {
+    color: #409EFF;
+}
+
+.method-put {
+    color: #E6A23C;
+}
+
+.method-delete {
+    color: #F56C6C;
+}
+
+.method-patch {
+    color: #909399;
+}
+
+/* API 输入框样式 */
+.api-input :deep(.el-input__wrapper) {
+    padding: 0 12px;
+}
+
+.api-input :deep(.el-input__prefix) {
+    margin-right: 8px;
+}
+
+/* 修改 body 类型选择器的样式 */
+.body-type-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+}
+
+.body-type-selector :deep(.el-radio-group) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.body-type-selector :deep(.el-radio-button__inner) {
+    padding: 8px 16px;
+    height: 32px;
+    line-height: 1;
+}
+
+/* 调整 JSON 选择器的样式 */
+.body-type-selector :deep(.el-select) {
+    margin-left: 8px;
+}
+
+.body-type-selector :deep(.el-select .el-input__wrapper) {
+    height: 32px;  /* 与 radio button 保持相同高度 */
+    line-height: 32px;
+    padding: 0 8px;
+}
+
+.body-type-selector :deep(.el-select .el-input__inner) {
+    height: 32px;
+    line-height: 32px;
+}
+
+/* 确保下拉选项的样式统一 */
+.body-type-selector :deep(.el-select-dropdown__item) {
+    height: 32px;
+    line-height: 32px;
+    padding: 0 12px;
+}
+
+/* 添加表格相关样式 */
+.case-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.api-path {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.api-path .el-tag {
+    min-width: 60px;
+    text-align: center;
+}
+
+/* 操作按钮组样式 */
+.el-button-group {
+    display: flex;
+    gap: 4px;
+}
+
+.el-button-group .el-button {
+    margin-left: 0 !important;
+}
+
+/* 添加上传按钮样式 */
+.upload-button {
+    display: inline-block;
+}
+
+.upload-button :deep(.el-upload) {
+    display: block;
+}
+
+/* 确保上传按钮与其他按钮样式一致 */
+.upload-button :deep(.el-button) {
+    margin-left: 0;
+}
+
+/* 调整按钮组样式 */
+.operation-container .el-button-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 </style>
