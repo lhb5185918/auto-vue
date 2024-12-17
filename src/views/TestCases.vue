@@ -61,14 +61,17 @@
                         </el-button>
                         <el-upload
                             class="upload-button"
-                            action="/api/testcases/import"
+                            action="/api/testcase/import/"
                             :headers="uploadHeaders"
-                            :data="{ project_id: projectId }"
+                            :data="{
+                                project_id: Number(projectId)  // 确保转换为数字
+                            }"
                             :show-file-list="false"
                             :on-success="handleUploadSuccess"
                             :on-error="handleUploadError"
                             :before-upload="beforeUpload"
                             accept=".xlsx,.xls"
+                            name="file"
                         >
                             <el-button 
                                 type="warning"
@@ -522,7 +525,7 @@
                                             placeholder="输入测试断言，例如：
 $.code=200  # 检查响应状态码
 $.data.id=1  # 检查JSON响应体
-$headers.Content-Type=application/json  # 检查响应头"
+$headers.Content-Type=application/json  # ��查响应头"
                                         />
                                     </div>
                                 </el-tab-pane>
@@ -915,7 +918,7 @@ const props = defineProps({
 const projectId = ref(props.projectId || route.query.projectId);
 const projectName = ref(props.projectName || route.query.projectName);
 
-// 数据相
+// ��据相
 const testCases = ref([]);
 const loading = ref(false);
 const currentPage = ref(1);
@@ -953,7 +956,7 @@ const rules = {
                     JSON.parse(value);
                     callback();
                 } catch (e) {
-                    callback(new Error('请输入有效的JSON格式'));
+                    callback(new Error('请输入有��的JSON格式'));
                 }
             } else {
                 callback();
@@ -1383,7 +1386,7 @@ const saveTestCase = async () => {
     // 如果是 JSON 类型，先验证格式
     if (bodyType.value === 'raw' && rawContentType.value === 'application/json' && testCaseForm.value.body) {
         if (!validateJson(testCaseForm.value.body)) {
-            ElMessage.error('请先修正 JSON 格式错误');
+            ElMessage.error('请先修正 JSON 格���错误');
             return;
         }
     }
@@ -1894,7 +1897,7 @@ const executeTestCase = async (row) => {
         
         if (response.data.code === 200) {
             ElMessage.success('执行成功');
-            // 更新测试用例状态和最后执行时间
+            // ��新测��用例状���和最���执行时间
             row.status = response.data.data.status;
             row.last_run_time = response.data.data.executed_at;
         } else {
@@ -1902,7 +1905,7 @@ const executeTestCase = async (row) => {
         }
     } catch (error) {
         console.error('执行失败:', error);
-        ElMessage.error(error.response?.data?.message || '执行失败，请检查网络连接');
+        ElMessage.error(error.response?.data?.message || '执行��败，����检���网络连接');
     } finally {
         row.executing = false;
     }
