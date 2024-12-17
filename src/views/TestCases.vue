@@ -1,7 +1,15 @@
 <template>
     <Home>
-        <PageContainer :title="`${projectName || '未知项目'} - 测试用例管理`">
+        <PageContainer :title="`${projectName} - 测试用例管理`">
             <el-card shadow="hover" class="table-card">
+                <!-- 添加项目名称显示区域 -->
+                <div class="project-info">
+                    <h3 class="project-title">
+                        <el-icon><Folder /></el-icon>
+                        {{ projectName }}
+                    </h3>
+                </div>
+                
                 <!-- 搜索和操作栏 -->
                 <div class="table-header">
                     <!-- 左侧搜索区域 -->
@@ -525,7 +533,7 @@
                                             placeholder="输入测试断言，例如：
 $.code=200  # 检查响应状态码
 $.data.id=1  # 检查JSON响应体
-$headers.Content-Type=application/json  # ��查响应头"
+$headers.Content-Type=application/json  # ��查响���头"
                                         />
                                     </div>
                                 </el-tab-pane>
@@ -895,7 +903,8 @@ import {
     List, 
     Search, 
     Refresh, 
-    Upload 
+    Upload,
+    Folder 
 } from '@element-plus/icons-vue';
 import axios from 'axios';
 
@@ -915,10 +924,10 @@ const props = defineProps({
 });
 
 // 修改参数获取方式
-const projectId = ref(props.projectId || route.query.projectId);
-const projectName = ref(props.projectName || route.query.projectName);
+const projectId = ref(route.query.projectId);
+const projectName = ref(route.query.projectName || '未知项目');
 
-// ��据相
+// 据相
 const testCases = ref([]);
 const loading = ref(false);
 const currentPage = ref(1);
@@ -1419,7 +1428,7 @@ const saveTestCase = async () => {
                 );
 
                 if (response.data.code === 200) {
-                    ElMessage.success('测试用例保存成功');
+                    ElMessage.success('测试���例保存��功');
                     showAddDialog.value = false;
                     fetchTestCases();
                 } else {
@@ -1485,6 +1494,7 @@ onUnmounted(() => {
 
 onMounted(async () => {
     console.log('TestCases mounted with projectId:', projectId.value);
+    console.log('TestCases mounted with projectName:', projectName.value); // 添加日志
     
     // 确保有项目ID
     if (!projectId.value) {
@@ -1905,7 +1915,7 @@ const executeTestCase = async (row) => {
         }
     } catch (error) {
         console.error('执行失败:', error);
-        ElMessage.error(error.response?.data?.message || '执行��败，����检���网络连接');
+        ElMessage.error(error.response?.data?.message || '执行失败');
     } finally {
         row.executing = false;
     }
@@ -1916,38 +1926,99 @@ const uploadHeaders = computed(() => ({
     Authorization: `Bearer ${localStorage.getItem('token')}`
 }));
 
-// 上传前的验证
+// 修改上传失败的处理方法
+const handleUploadError = (error, file) => {
+    console.error('上传失败:', error);
+    
+    // 关闭所有现有的消息提示
+    ElMessage.closeAll();
+    
+    try {
+        // 处理 UploadAjaxError 错误
+        if (error.name === 'UploadAjaxError') {
+            const response = JSON.parse(error.message);
+            ElMessage({
+                message: response.message,
+                type: 'error',
+                duration: 2000,
+                showClose: true
+            });
+            return;
+        }
+        
+        // 处理其他类型的错误
+        let response;
+        if (error.currentTarget?.response) {
+            response = JSON.parse(error.currentTarget.response);
+        } else if (error.response?.data) {
+            response = error.response.data;
+        } else if (typeof error === 'string') {
+            response = JSON.parse(error);
+        }
+
+        if (response?.message) {
+            ElMessage({
+                message: response.message,
+                type: 'error',
+                duration: 2000,
+                showClose: true
+            });
+        }
+    } catch (e) {
+        console.error('解析错误信息失败:', e);
+    }
+};
+
+// 修改上传前的验证方法
 const beforeUpload = (file) => {
-    const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-                    file.type === 'application/vnd.ms-excel';
+    // 关闭所有现有的消息提示
+    ElMessage.closeAll();
+    
+    // 检查文件扩展名
+    const isExcel = /\.(xlsx|xls)$/.test(file.name.toLowerCase());
     const isLt2M = file.size / 1024 / 1024 < 2;
 
     if (!isExcel) {
-        ElMessage.error('只能上传 Excel 文件!');
+        ElMessage.error('只能上传 Excel 文件 (.xlsx, .xls)!');
         return false;
     }
     if (!isLt2M) {
         ElMessage.error('文件大小不能超过 2MB!');
         return false;
     }
+    
+    // 显示加载提示
+    ElMessage({
+        message: '正在上传文件，请稍候...',
+        type: 'info',
+        duration: 0,
+        showClose: true
+    });
+    
     return true;
 };
 
-// 上传成功的处理
-const handleUploadSuccess = (response) => {
+// 修改上传成功的处理方法
+const handleUploadSuccess = (response, file) => {
+    // 关闭所有消息提示
+    ElMessage.closeAll();
+    
     if (response.code === 200) {
-        ElMessage.success(`成功导入 ${response.data.imported_count} 条测试用例`);
+        ElMessage({
+            message: `成功导入 ${response.data.imported_count} 条测试用例`,
+            type: 'success',
+            duration: 2000
+        });
         // 刷新列表
         fetchTestCases();
     } else {
-        ElMessage.error(response.message || '导入失败');
+        ElMessage({
+            message: response.message || '导入失败',
+            type: 'error',
+            duration: 2000,
+            showClose: true
+        });
     }
-};
-
-// 上传失败的处理
-const handleUploadError = (error) => {
-    console.error('上传失败:', error);
-    ElMessage.error('上传失败，请检查文件格式或网络连接');
 };
 </script>
 
@@ -2449,5 +2520,61 @@ const handleUploadError = (error) => {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* 添加标题样式 */
+.page-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.project-name {
+    font-weight: 600;
+    color: var(--el-color-primary);
+}
+
+.title-divider {
+    color: var(--el-text-color-secondary);
+    margin: 0 4px;
+}
+
+.page-type {
+    color: var(--el-text-color-regular);
+}
+
+/* 添加项目名称显示区域 */
+.project-info {
+    margin-bottom: 20px;
+    padding: 16px;
+    border-radius: 8px;
+    background-color: var(--el-fill-color-light);
+}
+
+.project-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 项目信息样式 */
+.project-info {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.project-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 18px;
+    color: var(--el-text-color-primary);
+}
+
+.project-title .el-icon {
+    font-size: 20px;
+    color: var(--el-color-primary);
 }
 </style>

@@ -231,7 +231,7 @@
           <p class="delete-content">确定要删除项目 "<span class="project-name">{{ projectToDelete?.name }}</span>" 吗？</p>
           <p class="warning-text">
             <el-icon><InfoFilled /></el-icon>
-            此操作不可恢复，请谨慎操作！
+            此操作不可恢复，请谨��操作！
           </p>
         </div>
         <template #footer>
@@ -330,7 +330,7 @@ const viewProject = (project) => {
   dialogVisible.value = true;
 };
 
-// ��辑项目
+// 编辑项目
 const editProject = (project) => {
   editForm.value = {
     id: project.id,
@@ -357,13 +357,13 @@ const createProject = () => {
   createDialogVisible.value = true;
 };
 
-// 添加跳转到测试用例页面的方法
+// 在项目列表页添加跳转方法
 const goToTestCases = (project) => {
   router.push({
     name: 'TestCases',
     query: {
       projectId: project.id,
-      projectName: project.name
+      projectName: project.name || '未知项目'
     }
   });
 };
@@ -394,7 +394,7 @@ const formRules = {
   ]
 };
 
-// 提交辑
+// 提交编辑
 const submitEdit = async () => {
   if (!editFormRef.value) return;
   
@@ -487,7 +487,7 @@ const submitCreate = async () => {
 const deleteDialogVisible = ref(false);
 const projectToDelete = ref(null);
 
-// 添加确认��除方法
+// 添加确认删除方法
 const confirmDelete = async () => {
   if (!projectToDelete.value) return;
   

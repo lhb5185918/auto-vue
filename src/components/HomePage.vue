@@ -28,13 +28,6 @@
             </template>
             <el-menu-item index="/project">项目列表</el-menu-item>
             <el-menu-item index="/project-analysis">项目分析</el-menu-item>
-          </el-sub-menu>
-
-          <el-sub-menu index="test">
-            <template #title>
-              <el-icon><Files /></el-icon>
-              <span>测试管理</span>
-            </template>
             <el-menu-item index="/testcases">测试用例</el-menu-item>
             <el-menu-item index="/test-plan">测试计划</el-menu-item>
             <el-menu-item index="/test-execution">用例执行</el-menu-item>
@@ -74,7 +67,7 @@
                 <el-dropdown trigger="click">
                   <div class="user-info">
                     <img src="@/assets/logo.svg" alt="用户头像">
-                    <span>用户名</span>
+                    <span>{{ username }}</span>
                     <el-icon class="el-icon--right"><arrow-down /></el-icon>
                   </div>
                   <template #dropdown>
@@ -145,6 +138,16 @@ const activeMenu = ref(route.path);
 const showModal = ref(false);
 const projectName = ref('');
 const projectDescription = ref('');
+const username = ref('');
+
+// 添加获取用户信息的方法
+const getUserInfo = () => {
+  const userInfo = localStorage.getItem('userInfo');
+  if (userInfo) {
+    const { username: storedUsername } = JSON.parse(userInfo);
+    username.value = storedUsername;
+  }
+};
 
 // 创建项目方法
 const createProject = async () => {
@@ -196,6 +199,8 @@ const logout = () => {
 
 onMounted(() => {
   activeMenu.value = route.path;
+  // 在组件挂载时获取用户信息
+  getUserInfo();
 });
 </script>
 
@@ -498,7 +503,7 @@ body {
   background: none;
   border: none;
   font-size: 24px;
-  /* 增加关闭按钮的字体 */
+  /* 增加关闭按钮的字�� */
   cursor: pointer;
   color: #888;
   /* 关闭按钮颜色 */
@@ -597,7 +602,7 @@ body {
   border-right: 3px solid #409EFF;
 }
 
-/* 优化���单图标样式 */
+/* 优化单图标样式 */
 :deep(.el-icon) {
   vertical-align: middle;
   margin-right: 10px;
@@ -605,7 +610,7 @@ body {
   text-align: center;
 }
 
-/* 优化子菜单展开时的背景色 */
+/* 优化子菜单展开���的背景色 */
 :deep(.el-menu--inline) {
   background-color: #2b2b2b !important;
 }

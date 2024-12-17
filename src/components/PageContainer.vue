@@ -1,7 +1,9 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-title">{{ title }}</h2>
+      <div class="page-title">
+        <slot name="title">{{ title }}</slot>
+      </div>
       <div class="page-actions">
         <slot name="actions"></slot>
       </div>
@@ -16,7 +18,7 @@
 defineProps({
   title: {
     type: String,
-    required: true
+    default: ''
   }
 });
 </script>
@@ -34,13 +36,18 @@ defineProps({
 }
 
 .page-title {
-  font-size: 20px;
-  font-weight: bold;
-  color: #303133;
   margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.page-actions {
+  display: flex;
+  gap: 12px;
 }
 
 .page-content {
-  min-height: calc(100vh - 180px);
+  min-height: 200px;
 }
 </style> 

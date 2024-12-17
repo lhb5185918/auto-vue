@@ -30,7 +30,7 @@ const routes = [
         path: '/testcases',
         name: 'TestCases',
         component: TestCases,
-        props: route => ({
+        props: (route) => ({
             projectId: route.query.projectId,
             projectName: route.query.projectName
         }),
