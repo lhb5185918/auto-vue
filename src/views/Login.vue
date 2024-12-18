@@ -24,62 +24,35 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
-export default {
-  // 定义组件的数据
-  data() {
-    return {
-      // 用户名和密码的初始值为空字符串
-      username: '',
-      password: ''
-    };
-  },
-  methods: {
-    // 处理登录的异步方法
-    async handleLogin() {
-      try {
-        const response = await axios.post('http://localhost:8081/api/login/', {
-          username: this.username,
-          password: this.password
-        });
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import request from '@/utils/request';
 
-        if (response.data.code === 200) {
-          // 存储token
-          localStorage.setItem('token', response.data.data.token);
-          
-          // 存储用户信息
-          localStorage.setItem('userInfo', JSON.stringify(response.data.data.user));
-          
-          // 显示成功消息
-          ElMessage.success(response.data.message);
-          
-          // 跳转到指定页面
-          if (response.data.data.redirect_url) {
-            this.$router.push(response.data.data.redirect_url);
-          }
-        } else {
-          // 登录失败，显示后端返回的错误信息
-          ElMessage.error(response.data.message);
-        }
-      } catch (error) {
-        console.error('登录失败:', error);
-        // 显示后端返回的错误信息
-        if (error.response && error.response.data) {
-          ElMessage.error(error.response.data.message);
-        } else {
-          ElMessage.error('登录失败，请检查网络连接');
-        }
-      }
-    },
-    // 跳转到注册页面的方法
-    goToRegister() {
-      this.$router.push('/register');
-      // 这里可以添加实际的跳转逻辑，例如：
-      // this.$router.push('/register'); // 示例：跳转到注册页
+const username = ref('');
+const password = ref('');
+const router = useRouter();
+
+const handleLogin = async () => {
+  try {
+    const response = await request.post('/login/', {
+      username: username.value,
+      password: password.value
+    });
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      router.push('/');
+      ElMessage.success('登录成功');
     }
+  } catch (error) {
+    console.error('登录失败:', error);
   }
+};
+
+const goToRegister = () => {
+  router.push('/register');
 };
 </script>
 

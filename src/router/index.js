@@ -4,6 +4,7 @@ import Index from '@/views/Index.vue';
 import Register from '@/views/Register.vue';
 import Project from '@/views/Project.vue';
 import TestCases from '@/views/TestCases.vue';
+import ProjectAnalysis from '@/views/ProjectAnalysis.vue';
 
 const routes = [
     {
@@ -14,7 +15,10 @@ const routes = [
     {
         path: '/',
         name: 'Index',
-        component: Index
+        component: Index,
+        meta: {
+            requiresAuth: true
+        }
     },
     {
         path: '/register',
@@ -41,7 +45,7 @@ const routes = [
     {
         path: '/project-analysis',
         name: 'ProjectAnalysis',
-        component: () => import('@/views/ProjectAnalysis.vue')
+        component: ProjectAnalysis
     }
 ];
 

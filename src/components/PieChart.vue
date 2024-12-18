@@ -1,60 +1,84 @@
 <template>
-  <canvas ref="chartCanvas"></canvas>
+  <div class="chart-container">
+    <canvas ref="chartRef"></canvas>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue';
-import { Chart } from 'chart.js/auto';
+import Chart from 'chart.js/auto';
 
 const props = defineProps({
   data: {
     type: Array,
     required: true
   },
-  options: {
+  chartOptions: {
     type: Object,
     default: () => ({})
   }
 });
 
-const chartCanvas = ref(null);
+const chartRef = ref(null);
 let chart = null;
 
-const createChart = () => {
-  if (chart) {
-    chart.destroy();
-  }
-
-  const ctx = chartCanvas.value.getContext('2d');
+const initChart = () => {
+  const ctx = chartRef.value.getContext('2d');
+  
   chart = new Chart(ctx, {
-    type: 'pie',
+    type: 'doughnut',
     data: {
       labels: props.data.map(item => item.name),
       datasets: [{
         data: props.data.map(item => item.value),
-        backgroundColor: props.data.map(item => item.color)
+        backgroundColor: props.chartOptions.colors
       }]
     },
     options: {
-      ...props.options,
       responsive: true,
-      maintainAspectRatio: false
+      maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 20,
+          right: 120,
+          bottom: 20,
+          left: 20
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'right',
+          align: 'center',
+          labels: {
+            boxWidth: 15,
+            padding: 15,
+            font: {
+              size: 12
+            }
+          }
+        }
+      },
+      cutout: '60%'
     }
   });
 };
 
 onMounted(() => {
-  createChart();
+  initChart();
 });
 
 watch(() => props.data, () => {
-  createChart();
+  if (chart) {
+    chart.destroy();
+    initChart();
+  }
 }, { deep: true });
 </script>
 
 <style scoped>
-canvas {
-  width: 100% !important;
-  height: 100% !important;
+.chart-container {
+  position: relative;
+  height: 100%;
+  width: 100%;
 }
 </style> 

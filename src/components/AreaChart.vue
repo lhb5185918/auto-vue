@@ -16,6 +16,10 @@ const props = defineProps({
   data: {
     type: Array,
     required: true
+  },
+  chartOptions: {
+    type: Object,
+    default: () => ({})
   }
 });
 
@@ -29,14 +33,24 @@ const initChart = () => {
     type: 'line',
     data: {
       labels: props.labels,
-      datasets: props.data
+      datasets: [{
+        label: '覆盖率',
+        data: props.data,
+        fill: true,
+        borderColor: props.chartOptions.strokeColor || '#409EFF',
+        backgroundColor: props.chartOptions.fillColor ? `${props.chartOptions.fillColor}40` : '#409EFF40',
+        tension: props.chartOptions.tension || 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 2
+      }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       layout: {
         padding: {
-          top: 30,
+          top: 20,
           right: 20,
           bottom: 25,
           left: 20
@@ -44,13 +58,25 @@ const initChart = () => {
       },
       plugins: {
         legend: {
-          position: 'top',
-          align: 'end',
-          labels: {
-            boxWidth: 12,
-            padding: 15,
-            font: {
-              size: 12
+          display: false
+        },
+        tooltip: {
+          enabled: true,
+          mode: 'index',
+          intersect: false,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          titleColor: '#fff',
+          titleFont: {
+            size: 13
+          },
+          bodyFont: {
+            size: 13
+          },
+          padding: 12,
+          displayColors: false,
+          callbacks: {
+            label: function(context) {
+              return `覆盖率: ${context.parsed.y}%`;
             }
           }
         }
@@ -72,6 +98,7 @@ const initChart = () => {
         },
         y: {
           beginAtZero: true,
+          max: 100,
           grid: {
             color: '#f0f0f0'
           },
@@ -80,8 +107,21 @@ const initChart = () => {
               size: 11
             },
             color: '#909399',
-            padding: 8
+            padding: 8,
+            callback: value => `${value}%`
           }
+        }
+      },
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      elements: {
+        line: {
+          borderWidth: 2
+        },
+        point: {
+          hitRadius: 8
         }
       }
     }
@@ -105,5 +145,10 @@ watch(() => props.data, () => {
   position: relative;
   height: 100%;
   width: 100%;
+  padding: 10px 10px 20px 10px;
+}
+
+:deep(canvas) {
+  border-radius: 4px;
 }
 </style> 

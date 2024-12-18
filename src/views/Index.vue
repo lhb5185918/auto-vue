@@ -62,12 +62,19 @@
                   </div>
                 </template>
                 <BarChart 
-                  :labels="['接口测试', '性能测试', 'UI测试']" 
-                  :data="[100, 200, 150]"
+                  :labels="['接口测试', '性能测试', 'UI测试', '安全测试']" 
+                  :data="[100, 200, 150, 80]"
                   :chartOptions="{
-                    backgroundColor: ['#409EFF', '#67C23A', '#E6A23C'],
-                    borderRadius: 6,
-                    title: '测试用例分布'
+                    backgroundColor: ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C'],
+                    borderRadius: 8,
+                    title: '测试用例分布',
+                    enable3D: true,
+                    depth: 20,
+                    tooltips: {
+                      enabled: true,
+                      backgroundColor: 'rgba(0,0,0,0.8)',
+                      titleColor: '#fff'
+                    }
                   }"
                 />
               </el-card>
@@ -79,14 +86,69 @@
                     <span>测试执行趋势</span>
                   </div>
                 </template>
-                <BarChart 
-                  :labels="['通过', '失败', '阻塞']" 
-                  :data="[85, 10, 5]"
+                <LineChart 
+                  :labels="['周一', '周二', '周三', '周四', '周五']"
+                  :data="[
+                    {
+                      label: '通过率',
+                      data: [95, 93, 97, 94, 98],
+                      borderColor: '#67C23A',
+                      fill: true,
+                      tension: 0.4
+                    },
+                    {
+                      label: '失败率',
+                      data: [5, 7, 3, 6, 2],
+                      borderColor: '#F56C6C',
+                      fill: true,
+                      tension: 0.4
+                    }
+                  ]"
+                />
+              </el-card>
+            </el-col>
+          </el-row>
+          
+          <el-row :gutter="20" class="mt-20">
+            <el-col :span="12">
+              <el-card class="chart-card" shadow="hover">
+                <template #header>
+                  <div class="card-header">
+                    <span>缺陷严重程度分布</span>
+                  </div>
+                </template>
+                <PieChart
+                  :data="[
+                    { value: 20, name: '致命' },
+                    { value: 30, name: '严重' },
+                    { value: 40, name: '一般' },
+                    { value: 10, name: '轻微' }
+                  ]"
                   :chartOptions="{
-                    backgroundColor: ['#67C23A', '#F56C6C', '#909399'],
-                    borderRadius: 6,
+                    colors: ['#F56C6C', '#E6A23C', '#409EFF', '#67C23A'],
+                    radius: ['40%', '70%'],
+                    center: ['50%', '50%'],
+                    enable3D: true
+                  }"
+                />
+              </el-card>
+            </el-col>
+            <el-col :span="12">
+              <el-card class="chart-card" shadow="hover">
+                <template #header>
+                  <div class="card-header">
+                    <span>测试覆盖率趋势</span>
+                  </div>
+                </template>
+                <AreaChart
+                  :labels="['1月', '2月', '3月', '4月', '5月', '6月']"
+                  :data="[75, 82, 85, 88, 90, 95]"
+                  :chartOptions="{
                     gradient: true,
-                    title: '测试结果分布'
+                    fillColor: '#409EFF',
+                    strokeColor: '#409EFF',
+                    tension: 0.4,
+                    tooltips: true
                   }"
                 />
               </el-card>
@@ -141,6 +203,11 @@ import {
   Warning,
   ArrowRight 
 } from '@element-plus/icons-vue';
+import LineChart from '@/components/LineChart.vue';
+import PieChart from '@/components/PieChart.vue';
+import AreaChart from '@/components/AreaChart.vue';
+import { ElMessage } from 'element-plus';
+import request from '@/utils/request';
 
 const projects = ref([]); // 用于存储项目名称
 const totalProjects = ref(0); // 添加这行
@@ -148,17 +215,19 @@ const recentProjects = ref([]); // 添加这行
 const loading = ref(false); // 添加加载状态
 const router = useRouter();
 
-// 刷新数据
+// 添加获取token的方法
+const getToken = () => {
+  return localStorage.getItem('token') || '';
+};
+
+// 修改刷新数据的方法
 const refreshData = async () => {
   loading.value = true;
   try {
-    const response = await fetch('http://localhost:8081/api/project/');
-    const data = await response.json();
-    if (data.code === 200) {
-      projects.value = data.data.projects;
-      totalProjects.value = data.data.total;
-      recentProjects.value = data.data.projects;
-    }
+    const { data } = await request.get('/project/');
+    projects.value = data.projects;
+    totalProjects.value = data.total;
+    recentProjects.value = data.projects;
   } catch (error) {
     console.error('获取项目数据失败:', error);
   } finally {
@@ -248,10 +317,16 @@ const goToProjects = () => {
 }
 
 .chart-card {
-  height: 400px;
+  height: 380px;
+  transition: all 0.3s ease;
 }
 
-.project-list {
+.chart-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+}
+
+.mt-20 {
   margin-top: 20px;
 }
 
@@ -262,5 +337,10 @@ const goToProjects = () => {
 
 :deep(.el-table) {
   margin: -12px;
+}
+
+:deep(.el-card__body) {
+  padding: 20px;
+  height: calc(100% - 60px);
 }
 </style>
