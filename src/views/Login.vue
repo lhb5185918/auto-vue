@@ -1,136 +1,150 @@
 <template>
   <div class="login-container">
-    <div class="header-info">
-      <img src="@/assets/logo.svg" alt="系统Logo" class="logo" />
-      <span class="system-name">自动化测试平台</span>
-    </div>
     <div class="login-box">
-      <h2>登录</h2>
-      <form @submit.prevent="handleLogin">
-        <div class="input-group">
-          <label for="username">账号</label>
-          <input type="text" id="username" v-model="username" required />
-        </div>
-        <div class="input-group">
-          <label for="password">密码</label>
-          <input type="password" id="password" v-model="password" required />
-        </div>
-        <div class="button-group">
-          <button type="submit" class="login-button">登录</button>
-          <button type="button" class="register-button" @click="goToRegister">注册</button>
-        </div>
-      </form>
+      <div class="login-header">
+        <h2>自动化测试平台</h2>
+      </div>
+      <el-form
+        ref="loginFormRef"
+        :model="loginForm"
+        class="login-form"
+      >
+        <el-form-item>
+          <el-input
+            v-model="loginForm.username"
+            placeholder="用户名"
+            prefix-icon="User"
+            @keyup.enter="handleLogin"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-input
+            v-model="loginForm.password"
+            type="password"
+            placeholder="密码"
+            prefix-icon="Lock"
+            show-password
+            @keyup.enter="handleLogin"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button
+            :loading="loading"
+            type="primary"
+            class="login-button"
+            @click="handleLogin"
+          >
+            登录
+          </el-button>
+        </el-form-item>
+      </el-form>
     </div>
   </div>
 </template>
 
 <script setup>
-import axios from 'axios';
-import { ElMessage } from 'element-plus';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
 import request from '@/utils/request';
 
-const username = ref('');
-const password = ref('');
 const router = useRouter();
+const loginForm = ref({
+  username: '',
+  password: ''
+});
+
+const loading = ref(false);
 
 const handleLogin = async () => {
+  if (!loginForm.value.username || !loginForm.value.password) {
+    ElMessage.warning('请输入用户名和密码');
+    return;
+  }
+
+  loading.value = true;
   try {
-    const response = await request.post('/login/', {
-      username: username.value,
-      password: password.value
+    const response = await request.post('/api/login/', {
+      username: loginForm.value.username,
+      password: loginForm.value.password
     });
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      router.push('/');
+
+    if (response.data.code === 200) {
+      const { token, user, redirect_url } = response.data.data;
+      
+      // 保存token
+      localStorage.setItem('token', token);
+      
+      // 保存用户信息
+      localStorage.setItem('userInfo', JSON.stringify({
+        id: user.id,
+        username: user.username,
+        avatar: user.avatar,
+        email: user.email
+      }));
+
       ElMessage.success('登录成功');
+
+      // 使用 nextTick 确保状态更新后再跳转
+      await router.push(redirect_url || '/');
+    } else {
+      ElMessage.error(response.data.message || '登录失败');
     }
   } catch (error) {
     console.error('登录失败:', error);
+    ElMessage.error('登录失败，请检查网络连接');
+  } finally {
+    loading.value = false;
   }
-};
-
-const goToRegister = () => {
-  router.push('/register');
 };
 </script>
 
 <style scoped>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-}
-
 .login-container {
+  height: 100vh;
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  position: relative;
-}
-
-.header-info {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  display: flex;
-  align-items: center;
-}
-
-.logo {
-  height: 40px;
-  margin-right: 10px;
-}
-
-.system-name {
-  font-size: 20px;
-  font-weight: bold;
+  background-color: #f0f2f5;
 }
 
 .login-box {
-  background-color: #f8f9fa;
+  width: 400px;
   padding: 40px;
-  /* 增加内边距 */
-  border-radius: 5px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
-.input-group {
-  margin-bottom: 15px;
+.login-header {
+  text-align: center;
+  margin-bottom: 40px;
 }
 
-.input-group label {
-  display: block;
-  margin-bottom: 5px;
+.login-header h2 {
+  margin: 0;
+  color: #303133;
+  font-size: 24px;
 }
 
-.input-group input {
+.login-form {
+  margin-top: 20px;
+}
+
+.login-button {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+  padding: 12px 0;
 }
 
-.button-group {
-  display: flex;
-  justify-content: space-between;
+:deep(.el-input__wrapper) {
+  padding: 1px 11px;
 }
 
-.login-button,
-.register-button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 15px;
-  cursor: pointer;
-  transition: background-color 0.3s;
+:deep(.el-input__inner) {
+  height: 40px;
 }
 
-.login-button:hover,
-.register-button:hover {
-  background-color: #0056b3;
+:deep(.el-button) {
+  height: 40px;
 }
 </style>

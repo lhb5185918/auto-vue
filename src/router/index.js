@@ -5,6 +5,7 @@ import Register from '@/views/Register.vue';
 import Project from '@/views/Project.vue';
 import TestCases from '@/views/TestCases.vue';
 import ProjectAnalysis from '@/views/ProjectAnalysis.vue';
+import AutomationTest from '@/views/AutomationTest.vue'
 
 const routes = [
     {
@@ -46,6 +47,40 @@ const routes = [
         path: '/project-analysis',
         name: 'ProjectAnalysis',
         component: ProjectAnalysis
+    },
+    {
+        path: '/execution',
+        name: 'TestExecution',
+        component: () => import('@/views/TestExecution.vue'),
+        meta: {
+            title: '用例执行',
+            requiresAuth: true
+        }
+    },
+    {
+        path: '/automation',
+        name: 'AutomationTest',
+        component: AutomationTest,
+        meta: {
+            requiresAuth: true,
+            title: '接口自动化'
+        }
+    },
+    {
+        path: '/refresh',
+        name: 'Refresh',
+        component: {
+            beforeRouteEnter(to, from, next) {
+                next(vm => {
+                    const { redirect, ...query } = to.query;
+                    router.replace({
+                        path: redirect,
+                        query
+                    });
+                });
+            },
+            render: () => null
+        }
     }
 ];
 

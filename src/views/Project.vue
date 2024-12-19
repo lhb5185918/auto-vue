@@ -56,16 +56,30 @@
                   </el-button>
                 </el-button-group>
                 
-                <!-- 添加测试用例按钮 -->
-                <el-button 
-                  class="test-cases-btn"
-                  type="success" 
-                  size="small" 
-                  @click="goToTestCases(project)"
-                >
-                  <el-icon><Collection /></el-icon>
-                  测试用例
-                </el-button>
+                <!-- 功能按钮组 -->
+                <div class="feature-buttons">
+                  <!-- 测试用例按钮 -->
+                  <el-button 
+                    class="feature-btn"
+                    type="success" 
+                    size="small" 
+                    @click="goToTestCases(project)"
+                  >
+                    <el-icon><Collection /></el-icon>
+                    测试用例
+                  </el-button>
+                  
+                  <!-- 添加接口自动化按钮 -->
+                  <el-button 
+                    class="feature-btn"
+                    type="primary" 
+                    size="small" 
+                    @click="goToAutomation(project)"
+                  >
+                    <el-icon><Connection /></el-icon>
+                    接口自动化
+                  </el-button>
+                </div>
               </div>
             </el-card>
           </el-col>
@@ -231,7 +245,7 @@
           <p class="delete-content">确定要删除项目 "<span class="project-name">{{ projectToDelete?.name }}</span>" 吗？</p>
           <p class="warning-text">
             <el-icon><InfoFilled /></el-icon>
-            此操作不可恢复，请谨��操作！
+            此操作不可恢复，请谨慎操作！
           </p>
         </div>
         <template #footer>
@@ -253,7 +267,7 @@ import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import Home from '@/components/HomePage.vue';
 import PageContainer from '@/components/PageContainer.vue';
-import { Plus, WarningFilled, InfoFilled, Document, User, Timer, View, Edit, Delete, Collection } from '@element-plus/icons-vue';
+import { Plus, WarningFilled, InfoFilled, Document, User, Timer, View, Edit, Delete, Collection, Connection } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 
 const projects = ref([]);
@@ -368,6 +382,21 @@ const goToTestCases = (project) => {
   });
 };
 
+// 添加跳转到接口自动化页面的方法
+const goToAutomation = (project) => {
+  // 保存当前项目到 localStorage
+  localStorage.setItem('currentProject', JSON.stringify(project));
+  
+  // 跳转到接口自动化页面
+  router.push({
+    name: 'AutomationTest',
+    query: {
+      projectId: project.id,
+      projectName: project.name || '未知项目'
+    }
+  });
+};
+
 // 添加新的响应式变量
 const editDialogVisible = ref(false);
 const editFormRef = ref(null);
@@ -387,7 +416,7 @@ const formRules = {
   ],
   description: [
     { required: true, message: '请输入项目描述', trigger: 'blur' },
-    { max: 500, message: '长度不能超过 500 个字符', trigger: 'blur' }
+    { max: 500, message: '长度不超过 500 个字符', trigger: 'blur' }
   ],
   status: [
     { required: true, message: '请选择项目状态', trigger: 'change' }
@@ -602,7 +631,6 @@ onMounted(() => {
 .project-actions {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 12px;
   padding-top: 16px;
   border-top: 1px solid var(--el-border-color-lighter);
@@ -613,22 +641,40 @@ onMounted(() => {
   gap: 8px;
 }
 
-.test-cases-btn {
+.feature-buttons {
+  display: flex;
+  gap: 8px;
   width: 100%;
+}
+
+.feature-btn {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
 }
 
-:deep(.el-button-group .el-button) {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
+/* 调整按钮图标样式 */
 :deep(.el-button .el-icon) {
   margin: 0;
+}
+
+/* 优化按钮悬停效果 */
+.feature-btn:hover {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease;
+}
+
+/* 接口自动化按钮特殊样式 */
+.feature-btn:last-child {
+  background-color: #409EFF;
+  border-color: #409EFF;
+}
+
+.feature-btn:last-child:hover {
+  background-color: #66b1ff;
+  border-color: #66b1ff;
 }
 
 .pagination {

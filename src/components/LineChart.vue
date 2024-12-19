@@ -1,6 +1,6 @@
 <template>
   <div class="chart-container">
-    <canvas ref="chartRef"></canvas>
+    <canvas ref="chartCanvas"></canvas>
   </div>
 </template>
 
@@ -9,82 +9,29 @@ import { ref, onMounted, watch } from 'vue';
 import Chart from 'chart.js/auto';
 
 const props = defineProps({
-  labels: {
-    type: Array,
+  data: {
+    type: Object,
     required: true
   },
-  data: {
-    type: Array,
-    required: true
+  options: {
+    type: Object,
+    default: () => ({})
   }
 });
 
-const chartRef = ref(null);
+const chartCanvas = ref(null);
 let chart = null;
 
 const initChart = () => {
-  const ctx = chartRef.value.getContext('2d');
+  if (chart) {
+    chart.destroy();
+  }
   
+  const ctx = chartCanvas.value.getContext('2d');
   chart = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels: props.labels,
-      datasets: props.data
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      layout: {
-        padding: {
-          top: 30,
-          right: 20,
-          bottom: 25,
-          left: 20
-        }
-      },
-      plugins: {
-        legend: {
-          position: 'top',
-          align: 'end',
-          labels: {
-            boxWidth: 12,
-            padding: 15,
-            font: {
-              size: 12
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: {
-            display: false
-          },
-          ticks: {
-            maxRotation: 45,
-            minRotation: 45,
-            font: {
-              size: 11
-            },
-            color: '#909399',
-            padding: 5
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: '#f0f0f0'
-          },
-          ticks: {
-            font: {
-              size: 11
-            },
-            color: '#909399',
-            padding: 8
-          }
-        }
-      }
-    }
+    data: props.data,
+    options: props.options
   });
 };
 
@@ -92,18 +39,19 @@ onMounted(() => {
   initChart();
 });
 
-watch(() => props.data, () => {
-  if (chart) {
-    chart.destroy();
+watch(
+  () => [props.data, props.options],
+  () => {
     initChart();
-  }
-}, { deep: true });
+  },
+  { deep: true }
+);
 </script>
 
 <style scoped>
 .chart-container {
   position: relative;
-  height: 100%;
   width: 100%;
+  height: 100%;
 }
 </style> 

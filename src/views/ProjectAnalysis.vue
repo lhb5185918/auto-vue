@@ -62,7 +62,7 @@
               {{ Math.abs(stat.trend) }}% 
               <el-icon><component :is="stat.trend >= 0 ? 'ArrowUp' : 'ArrowDown'" /></el-icon>
             </span>
-            较上周
+            较���周
           </div>
         </el-card>
       </div>
@@ -94,12 +94,16 @@
             <el-card class="chart-card" shadow="hover">
               <template #header>
                 <div class="card-header">
-                  <span>测试通过率分布</span>
+                  <span>缺陷严重程度分布</span>
                 </div>
               </template>
               <PieChart 
-                :data="passRateData"
-                :options="pieChartOptions"
+                :data="[
+                  { name: '致命', value: 20, color: '#F56C6C' },
+                  { name: '严重', value: 30, color: '#E6A23C' },
+                  { name: '一般', value: 40, color: '#409EFF' },
+                  { name: '轻微', value: 10, color: '#67C23A' }
+                ]"
               />
             </el-card>
           </el-col>
@@ -196,7 +200,7 @@ const trendTimeRange = ref('week');
 
 // 执行趋势数据
 const executionTrendData = ref({
-  labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+  labels: ['周一', '周二', '周三', '��四', '周五', '周六', '周日'],
   datasets: [
     {
       label: '总执行次数',
@@ -251,7 +255,7 @@ const passRateData = ref([
 // 执行记录数据
 const executionRecords = ref([
   [
-    { id: 1, caseName: '登录功能测试', status: 'passed', executeTime: '2024-01-16 15:30:00' },
+    { id: 1, caseName: '登录功��测试', status: 'passed', executeTime: '2024-01-16 15:30:00' },
     { id: 2, caseName: '商品搜索测试', status: 'passed', executeTime: '2024-01-16 15:29:30' },
     { id: 3, caseName: '订单支付流程', status: 'failed', executeTime: '2024-01-16 15:29:00' }
   ],
@@ -473,7 +477,7 @@ const resetSearch = () => {
     status: '',
     dateRange: []
   };
-  handleSearch(); // 重置后自动查询
+  handleSearch(); // 重置��自动查询
 };
 
 // 页面加载时执行查询

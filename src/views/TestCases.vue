@@ -177,30 +177,36 @@
                             {{ row.last_run_time ? formatDate(row.last_run_time) : '-' }}
                         </template>
                     </el-table-column>
-                    <el-table-column label="操作" width="280" fixed="right">
+                    <el-table-column label="操作" width="180" fixed="right">
                         <template #default="{ row }">
                             <el-button-group>
-                                <el-button 
-                                    type="primary"
-                                    @click="executeTestCase(row)"
-                                    :loading="row.executing"
-                                >
-                                    执行
-                                </el-button>
-                                <el-button 
-                                    type="primary" 
-                                    plain
-                                    @click="editTestCase(row)"
-                                >
-                                    编辑
-                                </el-button>
-                                <el-button 
-                                    type="danger" 
-                                    plain
-                                    @click="deleteTestCase(row)"
-                                >
-                                    删除
-                                </el-button>
+                                <el-tooltip content="执行" placement="top">
+                                    <el-button 
+                                        type="primary"
+                                        @click="executeTestCase(row)"
+                                        :loading="row.executing"
+                                        :icon="VideoPlay"
+                                        circle
+                                    />
+                                </el-tooltip>
+                                <el-tooltip content="编辑" placement="top">
+                                    <el-button 
+                                        type="primary" 
+                                        plain
+                                        @click="editTestCase(row)"
+                                        :icon="Edit"
+                                        circle
+                                    />
+                                </el-tooltip>
+                                <el-tooltip content="删除" placement="top">
+                                    <el-button 
+                                        type="danger" 
+                                        plain
+                                        @click="deleteTestCase(row)"
+                                        :icon="Delete"
+                                        circle
+                                    />
+                                </el-tooltip>
                             </el-button-group>
                         </template>
                     </el-table-column>

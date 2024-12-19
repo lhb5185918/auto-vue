@@ -26,11 +26,55 @@
               <el-icon><Folder /></el-icon>
               <span>项目管理</span>
             </template>
-            <el-menu-item index="/project">项目列表</el-menu-item>
-            <el-menu-item index="/project-analysis">项目分析</el-menu-item>
-            <el-menu-item index="/testcases">测试用例</el-menu-item>
-            <el-menu-item index="/test-plan">测试计划</el-menu-item>
-            <el-menu-item index="/test-execution">用例执行</el-menu-item>
+            <el-menu-item index="/project">
+              <el-icon><List /></el-icon>
+              <span>项目列表</span>
+            </el-menu-item>
+            <el-menu-item index="/project-analysis">
+              <el-icon><TrendCharts /></el-icon>
+              <span>项目分析</span>
+            </el-menu-item>
+
+            <template v-if="currentProject">
+              <el-menu-item 
+                index="/testcases"
+                @click="handleProjectMenu('/testcases')"
+              >
+                <el-icon><Files /></el-icon>
+                <span>测试用例</span>
+              </el-menu-item>
+
+              <el-menu-item 
+                index="/automation"
+                @click="handleProjectMenu('/automation')"
+              >
+                <el-icon><Connection /></el-icon>
+                <span>接口自动化</span>
+              </el-menu-item>
+
+              <el-menu-item 
+                index="/test-plan"
+                @click="handleProjectMenu('/test-plan')"
+              >
+                <el-icon><Calendar /></el-icon>
+                <span>测试计划</span>
+              </el-menu-item>
+
+              <el-menu-item 
+                index="/execution"
+                @click="handleProjectMenu('/execution')"
+              >
+                <el-icon><VideoPlay /></el-icon>
+                <span>用例执行</span>
+              </el-menu-item>
+            </template>
+
+            <template v-else>
+              <div class="no-project-tip">
+                <el-icon><InfoFilled /></el-icon>
+                <span>请先选择���目</span>
+              </div>
+            </template>
           </el-sub-menu>
 
           <el-sub-menu index="report">
@@ -58,6 +102,49 @@
       <div class="main-content">
         <div class="header">
           <div class="header-content">
+            <div class="header-left">
+              <!-- 修改项目选择器部分 -->
+              <el-select 
+                v-model="currentProjectId"
+                placeholder="请选择项目"
+                @change="handleProjectChange"
+                class="project-select"
+                popper-class="project-select-dropdown"
+              >
+                <el-option
+                  v-for="project in projects"
+                  :key="project.id"
+                  :label="project.name"
+                  :value="project.id"
+                >
+                  <div class="project-option">
+                    <div class="project-option-main">
+                      <span class="project-name">{{ project.name }}</span>
+                      <el-tag 
+                        size="small" 
+                        :type="project.status === 'active' ? 'success' : 'info'"
+                      >
+                        {{ project.status === 'active' ? '活跃' : '未活跃' }}
+                      </el-tag>
+                    </div>
+                    <div class="project-option-info">
+                      <span class="info-item">
+                        <el-icon><Files /></el-icon>
+                        {{ project.test_cases_count || 0 }} 个用例
+                      </span>
+                      <span class="info-item">
+                        <el-icon><User /></el-icon>
+                        {{ project.creator?.username }}
+                      </span>
+                      <span class="info-item">
+                        <el-icon><Timer /></el-icon>
+                        {{ formatDate(project.create_time) }}
+                      </span>
+                    </div>
+                  </div>
+                </el-option>
+              </el-select>
+            </div>
             <div class="header-right">
               <el-space :size="20" class="header-items">
                 <div class="action-buttons">
@@ -119,7 +206,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import {
@@ -129,16 +216,140 @@ import {
   DataAnalysis,
   Setting,
   User,
-  ArrowDown
+  ArrowDown,
+  VideoPlay,
+  Connection,
+  Calendar,
+  List,
+  TrendCharts,
+  InfoFilled,
+  Timer
 } from '@element-plus/icons-vue';
 
 const route = useRoute();
 const router = useRouter();
-const activeMenu = ref(route.path);
+const activeMenu = computed(() => route.path);
 const showModal = ref(false);
 const projectName = ref('');
 const projectDescription = ref('');
 const username = ref('');
+
+// 修改响应式数据
+const projects = ref([]);
+const currentProject = ref(null);
+const currentProjectId = ref(null);
+
+// 修改获取项目列表方法
+const fetchProjects = async () => {
+  try {
+    const response = await fetch('http://localhost:8081/api/project/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        page: 1,
+        page_size: 50
+      })
+    });
+    const data = await response.json();
+    if (data.code === 200) {
+      projects.value = data.data.projects;
+      
+      // 如果localStorage中有已选择的项目，则自动选中
+      const savedProject = localStorage.getItem('currentProject');
+      if (savedProject) {
+        const parsedProject = JSON.parse(savedProject);
+        const found = projects.value.find(p => p.id === parsedProject.id);
+        if (found) {
+          currentProject.value = found;
+          currentProjectId.value = found.id;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('获取项目列表失败:', error);
+    ElMessage.error('获取项目列表失败');
+  }
+};
+
+// 修改项目变更处理方法
+const handleProjectChange = (projectId) => {
+  if (projectId) {
+    // 根据ID找到完整的项目信息
+    const selectedProject = projects.value.find(p => p.id === projectId);
+    if (selectedProject) {
+      currentProject.value = selectedProject;
+      // 将选中的项目保存到 localStorage
+      localStorage.setItem('currentProject', JSON.stringify(selectedProject));
+      
+      // 获取当前路由路径
+      const currentPath = route.path;
+      
+      // 需要刷新数据的路由列表
+      const refreshRoutes = [
+        '/testcases',
+        '/automation',
+        '/test-plan',
+        '/execution',
+        '/project-analysis'
+      ];
+      
+      // 如果当前页面需要刷新数据
+      if (refreshRoutes.includes(currentPath)) {
+        // 先跳转到一个中间路由，然后再跳回来，触发页面刷新
+        router.replace({
+          path: '/refresh',
+          query: {
+            redirect: currentPath,
+            projectId: selectedProject.id,
+            projectName: selectedProject.name
+          }
+        });
+      }
+    }
+  } else {
+    // 清除选择
+    currentProject.value = null;
+    currentProjectId.value = null;
+    localStorage.removeItem('currentProject');
+    
+    // 如果当前在需要项目的页面，则跳转到首页
+    const currentPath = route.path;
+    if (['/testcases', '/automation', '/test-plan', '/execution'].includes(currentPath)) {
+      router.push('/');
+      ElMessage.warning('已清除项目选择');
+    }
+  }
+};
+
+// 处理菜单选择
+const handleSelect = (index) => {
+  if (['/testcases', '/automation', '/test-plan', '/execution'].includes(index)) {
+    const currentProject = localStorage.getItem('currentProject');
+    if (!currentProject) {
+      ElMessage.warning('请先选择项目');
+      return false;
+    }
+    // 如果有选中的项目，则带上项目参数进行跳转
+    const project = JSON.parse(currentProject);
+    router.push({
+      path: index,
+      query: {
+        projectId: project.id,
+        projectName: project.name
+      }
+    });
+  } else {
+    router.push(index);
+  }
+};
+
+// 在组件挂载时获取项目列表
+onMounted(() => {
+  fetchProjects();
+});
 
 // 添加获取用户信息的方法
 const getUserInfo = () => {
@@ -197,11 +408,38 @@ const logout = () => {
   ElMessage.success('退出成功');
 };
 
+// 处理项目相关菜单点击
+const handleProjectMenu = (path) => {
+  if (!currentProject.value) {
+    ElMessage.warning('请先选择项目');
+    return;
+  }
+  
+  router.push({
+    path,
+    query: {
+      projectId: currentProject.value.id,
+      projectName: currentProject.value.name
+    }
+  });
+};
+
 onMounted(() => {
   activeMenu.value = route.path;
   // 在组件挂载时获取用户信息
   getUserInfo();
 });
+
+// 添加日期格式化方法
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+};
 </script>
 
 <style scoped>
@@ -503,7 +741,7 @@ body {
   background: none;
   border: none;
   font-size: 24px;
-  /* 增加关闭按钮的字�� */
+  /* 增加关闭按钮的字 */
   cursor: pointer;
   color: #888;
   /* 关闭按钮颜色 */
@@ -610,7 +848,7 @@ body {
   text-align: center;
 }
 
-/* 优化子菜单展开���的背景色 */
+/* 优化子菜单展开的背景色 */
 :deep(.el-menu--inline) {
   background-color: #2b2b2b !important;
 }
@@ -667,5 +905,118 @@ body {
 .action-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 为接口自动化菜单项添加特图标样式 */
+:deep(.el-menu-item .icon-automation) {
+  color: #67C23A;
+}
+
+/* 添加项目选择器样式 */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.project-select {
+  width: 300px;
+}
+
+:deep(.project-select-dropdown) {
+  .el-select-dropdown__item {
+    padding: 8px 12px;
+  }
+  
+  .el-select-dropdown__item.selected {
+    font-weight: normal;
+  }
+}
+
+.project-option {
+  padding: 4px 0;
+}
+
+.project-option-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.project-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+}
+
+.project-option-info {
+  display: flex;
+  gap: 16px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.info-item .el-icon {
+  font-size: 14px;
+}
+
+/* 选中项的样式 */
+:deep(.el-select-dropdown__item.selected) {
+  .project-name {
+    color: var(--el-color-primary);
+  }
+}
+
+/* 悬停效果 */
+:deep(.el-select-dropdown__item:hover) {
+  .project-name {
+    color: var(--el-color-primary);
+  }
+}
+
+/* 添加未选择项目时的提示样式 */
+.no-project-tip {
+  padding: 12px 20px;
+  color: #909399;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 3px solid transparent;
+}
+
+.no-project-tip .el-icon {
+  font-size: 16px;
+}
+
+/* 调整子菜单样式 */
+:deep(.el-sub-menu .el-menu-item) {
+  min-width: 0;
+  padding-left: 54px !important;
+}
+
+:deep(.el-menu-item.is-active) {
+  background-color: #409EFF20 !important;
+  border-right: 3px solid #409EFF;
+}
+
+/* 优化图标样式 */
+.el-icon {
+  vertical-align: middle;
+  margin-right: 10px;
+  width: 24px;
+  text-align: center;
+}
+
+/* 优化子菜单的背景色 */
+:deep(.el-menu--inline) {
+  background-color: #2b2b2b !important;
 }
 </style>
