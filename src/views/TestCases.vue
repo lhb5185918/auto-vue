@@ -102,6 +102,13 @@
                         >
                             查看环境变量
                         </el-button>
+                        <el-button 
+                            type="primary" 
+                            @click="showCreateEnvSuiteDialog"
+                            :icon="Plus"
+                        >
+                            新建环境套
+                        </el-button>
                     </el-button-group>
                 </div>
 
@@ -888,6 +895,67 @@ $headers.Content-Type=application/json  # ��查响���头"
                     </div>
                 </template>
             </el-dialog>
+
+            <!-- 环境套配置对话框 -->
+            <el-dialog
+                v-model="showEnvSuiteDialog"
+                :title="envSuiteDialogTitle"
+                width="600px"
+                :close-on-click-modal="false"
+            >
+                <el-form
+                    ref="envSuiteFormRef"
+                    :model="envSuiteForm"
+                    :rules="envSuiteRules"
+                    label-width="100px"
+                >
+                    <el-form-item label="环境套名称" prop="name">
+                        <el-input v-model="envSuiteForm.name" placeholder="请输入环境套名称" />
+                    </el-form-item>
+                    <el-form-item label="描述" prop="description">
+                        <el-input
+                            v-model="envSuiteForm.description"
+                            type="textarea"
+                            :rows="3"
+                            placeholder="请输入环境套描述"
+                        />
+                    </el-form-item>
+                </el-form>
+                <template #footer>
+                    <div class="dialog-footer">
+                        <el-button @click="showEnvSuiteDialog = false">取消</el-button>
+                        <el-button type="primary" @click="saveEnvSuite">确定</el-button>
+                    </div>
+                </template>
+            </el-dialog>
+
+            <!-- 修改环境变量对话框 -->
+            <el-dialog
+                v-model="showEnvDialog"
+                :title="envDialogTitle"
+                width="600px"
+                :close-on-click-modal="false"
+            >
+                <el-form
+                    ref="envFormRef"
+                    :model="envForm"
+                    :rules="envRules"
+                    label-width="100px"
+                >
+                    <!-- 添加环境套选择 -->
+                    <el-form-item label="所属环境套" prop="envSuiteId">
+                        <el-select v-model="envForm.envSuiteId" placeholder="请选择环境套">
+                            <el-option
+                                v-for="suite in envSuites"
+                                :key="suite.id"
+                                :label="suite.name"
+                                :value="suite.id"
+                            />
+                        </el-select>
+                    </el-form-item>
+                    <!-- ... 其他表单项保持不变 ... -->
+                </el-form>
+            </el-dialog>
         </PageContainer>
     </Home>
 </template>
@@ -1555,7 +1623,11 @@ const resetEnvForm = () => {
         envFormRef.value.resetFields();
     }
     envForm.value = {
-        name: ''
+        name: '',
+        description: '',
+        projectId: route.query.projectId,
+        envSuiteId: '', // 重置时也要包含环境套ID
+        variables: []
     };
     envVars.value = [{ key: '', value: '', description: '' }];
 };
@@ -2026,6 +2098,97 @@ const handleUploadSuccess = (response, file) => {
         });
     }
 };
+
+// 环境套相关数据
+const showEnvSuiteDialog = ref(false);
+const envSuiteDialogTitle = ref('新建环境套');
+const envSuiteFormRef = ref(null);
+const envSuites = ref([]);
+
+const envSuiteForm = ref({
+  name: '',
+  description: '',
+  projectId: route.query.projectId
+});
+
+const envSuiteRules = {
+  name: [
+    { required: true, message: '请输入环境套名称', trigger: 'blur' },
+    { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }
+  ]
+};
+
+// 修改已有的环境变量表单，添加环境套ID字段
+envForm.value = {
+  ...envForm.value,
+  envSuiteId: '', // 新增环境套ID字段
+};
+
+// 获取环境套列表
+const fetchEnvSuites = async () => {
+  try {
+    const response = await fetch(`http://localhost:8081/api/env-suite/list/${route.query.projectId}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    const data = await response.json();
+    if (data.code === 200) {
+      envSuites.value = data.data;
+    }
+  } catch (error) {
+    console.error('获取环境套列表失败:', error);
+    ElMessage.error('获取环境套列表失败');
+  }
+};
+
+// 显示创建环境套对话框
+const showCreateEnvSuiteDialog = () => {
+  envSuiteDialogTitle.value = '新建环境套';
+  envSuiteForm.value = {
+    name: '',
+    description: '',
+    projectId: route.query.projectId
+  };
+  showEnvSuiteDialog.value = true;
+};
+
+// 保存环境套
+const saveEnvSuite = async () => {
+  if (!envSuiteFormRef.value) return;
+  
+  await envSuiteFormRef.value.validate(async (valid) => {
+    if (valid) {
+      try {
+        const response = await fetch('http://localhost:8081/api/env-suite/create', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(envSuiteForm.value)
+        });
+        
+        const data = await response.json();
+        if (data.code === 200) {
+          ElMessage.success('环境套创建成功');
+          showEnvSuiteDialog.value = false;
+          fetchEnvSuites(); // 刷新环境套列表
+        } else {
+          ElMessage.error(data.message || '环境套创建失败');
+        }
+      } catch (error) {
+        console.error('创建环境套失败:', error);
+        ElMessage.error('创建环境套失败');
+      }
+    }
+  });
+};
+
+// 在组件挂载时获取环境套列表
+onMounted(() => {
+  fetchEnvSuites();
+});
 </script>
 
 <style scoped>
@@ -2056,14 +2219,38 @@ const handleUploadSuccess = (response, file) => {
 
 /* 操作按钮容器样式 */
 .operation-container {
-    margin: 20px 0;
+    margin-bottom: 20px;
     display: flex;
-    justify-content: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: flex-end; /* 修改为 flex-end 使按钮靠右对齐 */
+    width: 100%;
 }
 
-.operation-container :deep(.el-button-group) {
+/* 修改按钮组样式 */
+.operation-container .el-button-group {
     display: flex;
-    gap: 1px;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end; /* 修改为 flex-end 使按钮组内部靠右对齐 */
+    width: auto; /* 修改为 auto，不再占满整行 */
+}
+
+/* 修改上传按钮容器样式 */
+.upload-button {
+    display: inline-flex;
+    align-items: center;
+}
+
+.upload-button :deep(.el-upload) {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* 确保按钮样式一致 */
+.operation-container :deep(.el-button) {
+    margin: 0;
 }
 
 /* 修改按钮样式，确保图标居中 */
@@ -2582,5 +2769,19 @@ const handleUploadSuccess = (response, file) => {
 .project-title .el-icon {
     font-size: 20px;
     color: var(--el-color-primary);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+/* 环境套对话框样式 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
 }
 </style>
