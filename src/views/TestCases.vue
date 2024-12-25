@@ -184,14 +184,14 @@
                             {{ row.last_run_time ? formatDate(row.last_run_time) : '-' }}
                         </template>
                     </el-table-column>
-                    <el-table-column label="操作" width="180" fixed="right">
+                    <el-table-column label="操作" width="200" fixed="right">
                         <template #default="{ row }">
                             <el-button-group>
                                 <el-tooltip content="执行" placement="top">
                                     <el-button 
                                         type="primary"
-                                        @click="executeTestCase(row)"
-                                        :loading="row.executing"
+                                        @click="executeTestCase(row.case_id)"
+                                        :loading="loading"
                                         :icon="VideoPlay"
                                         circle
                                     />
@@ -305,7 +305,7 @@
                                             </el-table-column>
                                             <el-table-column label="KEY">
                                                 <template #default="{ row }">
-                                                    <el-input v-model="row.key" placeholder="参数名" />
+                                                    <el-input v-model="row.key" placeholder="����数��" />
                                                 </template>
                                             </el-table-column>
                                             <el-table-column label="VALUE">
@@ -576,10 +576,13 @@ $headers.Content-Type=application/json  # ��查响���头"
                                     <div class="response-body-wrapper">
                                         <div class="response-toolbar">
                                             <span class="content-type">
-                                                Content-Type: {{ responseData.headers?.['content-type'] || 'unknown' }}
+                                                Content-Type: {{ responseData.contentType || 'unknown' }}
                                             </span>
                                             <el-button-group>
-                                                <el-button size="small" @click="formatResponseBody">
+                                                <el-button 
+                                                    size="small" 
+                                                    @click="formatResponseBody"
+                                                >
                                                     Format
                                                 </el-button>
                                                 <el-button size="small" @click="copyResponseBody">
@@ -634,13 +637,12 @@ $headers.Content-Type=application/json  # ��查响���头"
                 </template>
             </el-dialog>
 
-            <!-- 修改环境变量弹窗结构和样式 -->
+            <!-- 修改环境变量对话框 -->
             <el-dialog
-                title="新建环境变量"
                 v-model="showEnvDialog"
-                width="800px"
+                :title="envDialogTitle"
+                width="900px"
                 :close-on-click-modal="false"
-                @closed="resetEnvForm"
                 class="env-dialog"
             >
                 <el-form
@@ -649,34 +651,74 @@ $headers.Content-Type=application/json  # ��查响���头"
                     :rules="envRules"
                     label-width="100px"
                 >
-                    <el-form-item label="环境名称" prop="name" class="env-name-item">
+                    <!-- 环境套选择 -->
+                    <el-form-item label="所属环境套" prop="envSuiteId">
+                        <div class="env-suite-section">
+                            <el-select 
+                                v-model="envForm.envSuiteId"
+                                placeholder="请选择环境套"
+                                clearable
+                                popper-class="env-suite-select"
+                                style="width: 100%"
+                            >
+                                <el-option
+                                    v-for="suite in envSuites"
+                                    :key="suite.id"
+                                    :label="suite.name"
+                                    :value="suite.id"
+                                >
+                                    <div class="env-suite-option">
+                                        <span class="suite-name">{{ suite.name }}</span>
+                                        <span class="suite-desc" v-if="suite.description">{{ suite.description }}</span>
+                                    </div>
+                                </el-option>
+                            </el-select>
+                            <el-button 
+                                type="primary" 
+                                link 
+                                @click="showCreateEnvSuiteDialog"
+                                :icon="Plus"
+                            >
+                                新建环境套
+                            </el-button>
+                        </div>
+                    </el-form-item>
+
+                    <!-- 环境变量名称 -->
+                    <el-form-item label="变量名称" prop="name">
                         <el-input 
                             v-model="envForm.name" 
-                            placeholder="请输入环境名称"
+                            placeholder="请输入环境变量名称" 
                             clearable
                         />
                     </el-form-item>
-                    
+
+                    <!-- 变量列表 -->
                     <el-form-item label="变量列表">
                         <div class="env-vars-table">
                             <el-table 
-                                :data="envVars" 
+                                :data="envForm.variables" 
                                 border 
                                 style="width: 100%"
+                                max-height="400"
                                 :header-cell-style="{
                                     background: '#f5f7fa',
                                     color: '#606266'
                                 }"
                             >
-                                <el-table-column label="变量名" min-width="150">
+                                <el-table-column 
+                                    label="变量名" 
+                                    prop="key"
+                                    min-width="200"
+                                >
                                     <template #default="{ row }">
                                         <el-select
                                             v-model="row.key"
                                             placeholder="请选择或输入变量名"
                                             filterable
                                             allow-create
-                                            default-first-option
                                             clearable
+                                            popper-class="var-name-select"
                                         >
                                             <el-option-group label="服务器配置">
                                                 <el-option value="host" label="服务器地址(host)" />
@@ -688,72 +730,60 @@ $headers.Content-Type=application/json  # ��查响���头"
                                                 <el-option value="username" label="用户名(username)" />
                                                 <el-option value="password" label="密码(password)" />
                                                 <el-option value="token" label="令牌(token)" />
-                                                <el-option value="api_key" label="API密钥(api_key)" />
-                                                <el-option value="access_token" label="访问令牌(access_token)" />
-                                            </el-option-group>
-                                            <el-option-group label="数据库配置">
-                                                <el-option value="db_host" label="数据库地址(db_host)" />
-                                                <el-option value="db_port" label="数据库端口(db_port)" />
-                                                <el-option value="db_name" label="数据库名(db_name)" />
-                                                <el-option value="db_user" label="数据库用户名(db_user)" />
-                                                <el-option value="db_password" label="数据库密码(db_password)" />
-                                            </el-option-group>
-                                            <el-option-group label="请求配置">
-                                                <el-option value="timeout" label="超时时间(timeout)" />
-                                                <el-option value="content_type" label="内容类型(content_type)" />
-                                                <el-option value="charset" label="字符编码(charset)" />
-                                            </el-option-group>
-                                            <el-option-group label="其他配置">
-                                                <el-option value="env_name" label="环境名称(env_name)" />
-                                                <el-option value="version" label="版本号(version)" />
-                                                <el-option value="project_id" label="项目ID(project_id)" />
-                                                <el-option value="tenant_id" label="租户ID(tenant_id)" />
                                             </el-option-group>
                                         </el-select>
                                     </template>
                                 </el-table-column>
-                                <el-table-column prop="value" label="变量值" min-width="200">
+                                <el-table-column 
+                                    label="变量值" 
+                                    prop="value"
+                                    min-width="200"
+                                >
                                     <template #default="{ row }">
                                         <el-input 
                                             v-model="row.value" 
-                                            :placeholder="getValuePlaceholder(row.key)"
-                                            clearable
-                                        >
-                                            <template #prefix v-if="getValuePrefix(row.key)">
-                                                {{ getValuePrefix(row.key) }}
-                                            </template>
-                                        </el-input>
-                                    </template>
-                                </el-table-column>
-                                <el-table-column label="描述" min-width="200">
-                                    <template #default="{ row }">
-                                        <el-input 
-                                            v-model="row.description" 
-                                            placeholder="请输入描述信息"
-                                            clearable
+                                            placeholder="请输入变量值"
                                         />
                                     </template>
                                 </el-table-column>
-                                <el-table-column width="80" align="center">
+                                <el-table-column 
+                                    label="描述" 
+                                    prop="description"
+                                    min-width="200"
+                                >
+                                    <template #default="{ row }">
+                                        <el-input 
+                                            v-model="row.description" 
+                                            placeholder="请输入描述"
+                                        />
+                                    </template>
+                                </el-table-column>
+                                <el-table-column 
+                                    label="操作"
+                                    width="70"
+                                    fixed="right"
+                                    align="center"
+                                >
                                     <template #default="{ $index }">
-                                        <el-button
-                                            type="danger"
-                                            :icon="Delete"
+                                        <el-button 
+                                            type="danger" 
+                                            :icon="Delete" 
                                             circle
-                                            @click="removeEnvVar($index)"
+                                            size="small"
+                                            @click="removeVariable($index)"
                                         />
                                     </template>
                                 </el-table-column>
                             </el-table>
-                            <div class="env-table-footer">
-                                <el-button type="primary" plain @click="addEnvVar">
-                                    <el-icon><Plus /></el-icon>添加变量
+                            <div class="table-actions">
+                                <el-button type="primary" plain @click="addVariable">
+                                    添加变量
                                 </el-button>
                             </div>
                         </div>
                     </el-form-item>
                 </el-form>
-                
+
                 <template #footer>
                     <div class="dialog-footer">
                         <el-button @click="showEnvDialog = false">取消</el-button>
@@ -766,7 +796,7 @@ $headers.Content-Type=application/json  # ��查响���头"
             <el-dialog
                 title="环境变量列表"
                 v-model="showEnvListDialog"
-                width="800px"
+                width="900px"
                 class="env-list-dialog"
             >
                 <div class="env-list-container">
@@ -779,55 +809,86 @@ $headers.Content-Type=application/json  # ��查响���头"
                     <template v-else>
                         <div v-for="env in envList" :key="env.id" class="env-item">
                             <div class="env-header">
-                                <h3 class="env-name">{{ env.name }}</h3>
+                                <div class="env-info">
+                                    <h3 class="env-name">{{ env.name }}</h3>
+                                    <el-tag 
+                                        size="small" 
+                                        type="info" 
+                                        effect="plain"
+                                        class="env-suite-tag"
+                                    >
+                                        {{ getEnvSuiteName(env.envSuiteId) }}
+                                    </el-tag>
+                                </div>
+                                <div class="env-description" v-if="env.description">
+                                    {{ env.description }}
+                                </div>
                             </div>
                             
                             <el-table 
                                 :data="env.variables" 
                                 border 
                                 style="width: 100%"
+                                size="small"
                                 :header-cell-style="{
                                     background: '#f5f7fa',
                                     color: '#606266'
                                 }"
                             >
-                                <el-table-column prop="key" label="变量名" width="180" />
-                                <el-table-column prop="value" label="变量值" min-width="200">
+                                <el-table-column 
+                                    prop="key" 
+                                    label="变量名" 
+                                    width="180"
+                                    show-overflow-tooltip
+                                >
                                     <template #default="{ row }">
-                                        <el-input 
-                                            v-model="row.value" 
-                                            :placeholder="getValuePlaceholder(row.key)"
-                                            clearable
-                                        >
-                                            <template #prefix v-if="getValuePrefix(row.key)">
-                                                {{ getValuePrefix(row.key) }}
-                                            </template>
-                                        </el-input>
+                                        <span class="variable-key">{{ row.key }}</span>
                                     </template>
                                 </el-table-column>
-                                <el-table-column prop="description" label="描述" min-width="180" />
-                                <el-table-column label="操作" width="150" align="center" fixed="right">
+                                <el-table-column 
+                                    prop="value" 
+                                    label="变量值"
+                                    min-width="200"
+                                    show-overflow-tooltip
+                                >
                                     <template #default="{ row }">
-                                        <div class="operation-buttons">
-                                            <el-button
-                                                type="primary"
-                                                link
-                                                size="small"
-                                                @click="editEnvVariable(row)"
-                                                :icon="Edit"
-                                            >
-                                                编辑
-                                            </el-button>
-                                            <el-button
-                                                type="danger"
-                                                link
-                                                size="small"
-                                                @click="deleteEnvVariable(row)"
-                                                :icon="Delete"
-                                            >
-                                                删除
-                                            </el-button>
-                                        </div>
+                                        <el-input
+                                            v-model="row.value"
+                                            size="small"
+                                            :placeholder="getValuePlaceholder(row.key)"
+                                            clearable
+                                        />
+                                    </template>
+                                </el-table-column>
+                                <el-table-column 
+                                    prop="description" 
+                                    label="描述"
+                                    min-width="180"
+                                    show-overflow-tooltip
+                                />
+                                <el-table-column 
+                                    label="操作" 
+                                    width="120"
+                                    fixed="right"
+                                    align="center"
+                                >
+                                    <template #default="{ row }">
+                                        <el-button
+                                            type="primary"
+                                            link
+                                            size="small"
+                                            @click="editEnvVariable(row)"
+                                        >
+                                            编辑
+                                        </el-button>
+                                        <el-button
+                                            type="danger"
+                                            link
+                                            size="small"
+                                            @click="deleteEnvVariable(row)"
+                                        >
+                                            删除
+                                        </el-button>
                                     </template>
                                 </el-table-column>
                             </el-table>
@@ -864,7 +925,7 @@ $headers.Content-Type=application/json  # ��查响���头"
                                 <el-option value="base_url" label="基础URL(base_url)" />
                                 <el-option value="protocol" label="协议(protocol)" />
                             </el-option-group>
-                            <el-option-group label="认证信息">
+                            <el-option-group label="认证信">
                                 <el-option value="username" label="用户名(username)" />
                                 <el-option value="password" label="密码(password)" />
                                 <el-option value="token" label="令牌(token)" />
@@ -928,40 +989,12 @@ $headers.Content-Type=application/json  # ��查响���头"
                     </div>
                 </template>
             </el-dialog>
-
-            <!-- 修改环境变量对话框 -->
-            <el-dialog
-                v-model="showEnvDialog"
-                :title="envDialogTitle"
-                width="600px"
-                :close-on-click-modal="false"
-            >
-                <el-form
-                    ref="envFormRef"
-                    :model="envForm"
-                    :rules="envRules"
-                    label-width="100px"
-                >
-                    <!-- 添加环境套选择 -->
-                    <el-form-item label="所属环境套" prop="envSuiteId">
-                        <el-select v-model="envForm.envSuiteId" placeholder="请选择环境套">
-                            <el-option
-                                v-for="suite in envSuites"
-                                :key="suite.id"
-                                :label="suite.name"
-                                :value="suite.id"
-                            />
-                        </el-select>
-                    </el-form-item>
-                    <!-- ... 其他表单项保持不变 ... -->
-                </el-form>
-            </el-dialog>
         </PageContainer>
     </Home>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, onUnmounted, defineProps } from 'vue';
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import Home from '@/components/HomePage.vue';
@@ -1008,7 +1041,7 @@ const currentPage = ref(1);
 const pageSize = ref(10);
 const total = ref(0);
 const showAddDialog = ref(false);
-const dialogTitle = ref('新建接口测试用例');
+const dialogTitle = ref('新建接���测试用例');
 const testCaseFormRef = ref(null);
 
 // 表单验证规则
@@ -1016,7 +1049,7 @@ const rules = {
     title: [{ required: true, message: '请输入用例题', trigger: 'blur' }],
     api_path: [{ required: true, message: '请输入接口路径', trigger: 'blur' }],
     method: [{ required: true, message: '请选择请求方法', trigger: 'change' }],
-    priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
+    priority: [{ required: true, message: '请选���优先级', trigger: 'change' }],
     headers: [{ 
         validator: (rule, value, callback) => {
             if (value) {
@@ -1065,133 +1098,206 @@ const testCaseForm = ref({
 // 添加应相关的应式据
 const showResponse = ref(false);
 const responseData = ref({
-    status: 200,
-    statusText: 'OK',
+    status: null,
+    statusText: '',
     time: 0,
-    body: null,
     headers: {},
-    testResults: []
+    body: null,
+    contentType: ''
 });
 
 // 添加响应头列表计算属性
 const responseHeadersList = computed(() => {
-    return Object.entries(responseData.value.headers || {}).map(([key, value]) => ({
+    const headers = responseData.value.headers || {};
+    return Object.entries(headers).map(([key, value]) => ({
         key,
-        value
+        value: typeof value === 'object' ? JSON.stringify(value) : value
     }));
 });
 
 // 添加获取响应状态类型的方法
 const getResponseStatusType = () => {
-    const status = responseData.value.status;
-    if (status < 300) return 'success';
-    if (status < 400) return 'warning';
+    const statusCode = responseData.value.status;
+    if (statusCode >= 200 && statusCode < 300) {
+        return 'success';
+    }
+    if (statusCode >= 300 && statusCode < 400) {
+        return 'warning';
+    }
     return 'danger';
 };
 
-// 添加格式化响应内容的方法
-const formatResponse = (data) => {
-    if (!data) return '';
-    try {
-        if (typeof data === 'string') {
-            // 尝试解析JSON字符串
-            const parsed = JSON.parse(data);
-            return JSON.stringify(parsed, null, 2);
-        }
-        return JSON.stringify(data, null, 2);
-    } catch (e) {
-        // 如果不JSON格式，直接返回原始内容
-        return data;
+// 修改断言处理相关方法
+const evaluateAssertions = (response) => {
+    // 如果没有断言，直接返回空数组
+    if (!testCaseForm.value.assertions) {
+        return [];
     }
-};
 
-// 添加格式化响应体的方
-const formatResponseBody = () => {
-    try {
-        const parsed = JSON.parse(responseData.value.body);
-        responseData.value.body = JSON.stringify(parsed, null, 2);
-        ElMessage.success('格式化成功');
-    } catch (e) {
-        ElMessage.warning('响应内容不是有效的 JSON 格式');
-    }
-};
-
-// 添加复制响应容的方法
-const copyResponseBody = () => {
-    try {
-        navigator.clipboard.writeText(responseData.value.body);
-        ElMessage.success('已复制到剪贴板');
-    } catch (e) {
-        ElMessage.error('复制失败');
-    }
-};
-
-// 修改提交试例的方法
-const submitTestCase = async () => {
-    if (!testCaseFormRef.value) return;
+    console.log('Response for assertions:', response);
     
-    // 如果是 JSON 类型，先验证格式
-    if (bodyType.value === 'raw' && rawContentType.value === 'application/json' && testCaseForm.value.body) {
-        if (!validateJson(testCaseForm.value.body)) {
-            ElMessage.error('请先修正 JSON 格式错误');
-            return;
-        }
-    }
-    
-    await testCaseFormRef.value.validate(async (valid) => {
-        if (valid) {
-            try {
-                loading.value = true;
-                
-                // 构建请求数据，添提取器配置
-                const requestData = {
-                    ...testCaseForm.value,
-                    project_id: projectId.value,
-                    params: paramsTableData.value.filter(item => item.enabled),
-                    headers: headersTableData.value.filter(item => item.enabled),
-                    body_type: bodyType.value,
-                    raw_content_type: rawContentType.value,
-                    form_data: formDataTableData.value.filter(item => item.enabled),
-                    extractors: extractors.value.filter(e => e.variableName && e.jsonPath)
-                };
+    // 解析断言语句，过滤掉空行和注释
+    const assertions = testCaseForm.value.assertions
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith('#'));
 
-                const response = await axios.post(
-                    'http://localhost:8081/api/testcase/run/',
-                    requestData,
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
+    return assertions.map(assertion => {
+        try {
+            // 分割断言语句为路径和期望值，并去除注释
+            const [fullAssertion] = assertion.split('#').map(s => s.trim());
+            const [path, expectedValue] = fullAssertion.split('=').map(s => s.trim());
+            let actualValue;
 
-                // 处理响应，包括提取的变量
-                if (response.data.code === 200) {
-                    responseData.value = {
-                        ...response.data,
-                        extractedVariables: response.data.extractedVariables || {}
-                    };
-                    showResponse.value = true;
-                    
-                    // 显示提取的变量
-                    if (response.data.extractedVariables) {
-                        const variables = Object.entries(response.data.extractedVariables)
-                            .map(([key, value]) => `${key}: ${value}`)
-                            .join('\n');
-                        ElMessage.success(`变量提取成功:\n${variables}`);
-                    }
-                } else {
-                    ElMessage.error(response.data.message);
-                }
-            } catch (error) {
-                console.error('请求发送失败:', error);
-                ElMessage.error(error.response?.data?.message || '请求发送失败');
-            } finally {
-                loading.value = false;
+            // 处理不同类型的断言
+            if (path === '$.code') {
+                // 从响应数据中获取 code
+                actualValue = response.data.data.response.status_code;
+            } else if (path.startsWith('$.data.')) {
+                const dataPath = path.replace('$.data.', '');
+                actualValue = getValueByPath(response.data.data, dataPath);
+            } else if (path.startsWith('$headers.')) {
+                const headerName = path.replace('$headers.', '');
+                actualValue = response.data.data.response.headers[headerName];
             }
+
+            console.log('Assertion check:', {
+                path,
+                expectedValue,
+                actualValue,
+                fullAssertion,
+                responseData: response.data.data.response, // 添加完整的响应数据日志
+                passed: String(actualValue) === String(expectedValue)
+            });
+
+            // 比较值（将两边都转换为字符串进行比较）
+            const passed = String(actualValue) === String(expectedValue);
+            
+            return {
+                passed,
+                message: `${path}=${expectedValue}${passed ? ' ✓' : ' ✗'} (实际值: ${actualValue})`,
+                assertion: fullAssertion,
+                actualValue,
+                expectedValue,
+                path
+            };
+        } catch (e) {
+            console.error('Assertion evaluation error:', e, {
+                response: response.data.data.response
+            });
+            return {
+                passed: false,
+                message: `断言格式错误: ${assertion} (${e.message})`,
+                assertion,
+                error: e.message
+            };
         }
     });
+};
+
+// 添加获取对象路径值的辅助方法
+const getValueByPath = (obj, path) => {
+    return path.split('.').reduce((acc, part) => {
+        return acc && acc[part];
+    }, obj);
+};
+
+// 修改处理响应的方法，添加断言评估
+const handleResponse = (response) => {
+    console.log('Raw response:', response);
+    
+    if (response.data.success) {
+        console.log('Response data before processing:', response.data.data);
+        
+        // 获取实际的响应数据
+        const apiResponse = response.data.data;
+        
+        // 构建响应数据对象
+        const processedResponse = {
+            status: apiResponse.response.status_code,
+            statusText: apiResponse.status,
+            time: apiResponse.duration * 1000,
+            headers: apiResponse.response.headers,
+            body: apiResponse.response.body.type === 'html' 
+                ? apiResponse.response.body.content 
+                : apiResponse.response.body,
+            contentType: apiResponse.response.content_type,
+            // 添加测试结果
+            testResults: evaluateAssertions(response)
+        };
+        
+        console.log('Processed response data:', processedResponse);
+        
+        // 更新响应数据
+        responseData.value = processedResponse;
+        showResponse.value = true;
+        
+        // 显示测试结果摘要
+        const failedTests = processedResponse.testResults.filter(r => !r.passed).length;
+        if (failedTests > 0) {
+            ElMessage.warning(`${failedTests} 个断言失败`);
+        } else if (processedResponse.testResults.length > 0) {
+            ElMessage.success('所有断言通过');
+        }
+    } else {
+        console.warn('Response not successful:', response.data);
+    }
+};
+
+// 修改提交测试用例的方法
+const submitTestCase = async () => {
+    try {
+        loading.value = true;
+        
+        // 构建请求数据
+        const requestData = {
+            ...testCaseForm.value,
+            project_id: projectId.value,
+            params: paramsTableData.value.filter(item => item.enabled),
+            headers: headersTableData.value.filter(item => item.enabled),
+            body_type: bodyType.value,
+            raw_content_type: rawContentType.value,
+            form_data: formDataTableData.value.filter(item => item.enabled)
+        };
+        
+        console.log('Request data:', requestData);
+
+        const response = await axios.post(
+            'http://localhost:8081/api/testcase/execute_direct/',
+            requestData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        
+        console.log('API response:', response);
+
+        // 先处理响应数据
+        handleResponse(response);
+        
+        // 根据响应结果显示消息
+        if (response.data.success) {
+            ElMessage({
+                type: 'success',
+                message: response.data.message || '测试执行成功',
+                duration: 3000
+            });
+        } else {
+            console.error('Request failed:', response.data);
+            ElMessage.error(response.data.message || '请求失败');
+        }
+    } catch (error) {
+        console.error('Request error:', error);
+        if (error.response) {
+            console.error('Error response:', error.response.data);
+        }
+        ElMessage.error(error.response?.data?.message || '请求发送失败');
+    } finally {
+        loading.value = false;
+    }
 };
 
 // 修改 fetchTestCases 方法
@@ -1228,27 +1334,42 @@ const fetchTestCases = async () => {
         if (error.response) {
             console.error('Error response:', error.response.data);
         }
-        ElMessage.error(error.message || '获取测试用例失败，请检查网络连接');
+        ElMessage.error(error.message || '获取测试用例失败，�������查网络连接');
         throw error;
     }
 };
 
-// 行测试用例
-const runTestCase = async (row) => {
-    try {
-        const response = await fetch(`http://localhost:8000/api/testcases/${row.case_id}/run`, {
-            method: 'POST'
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            ElMessage.success('测试用例执行成功');
-            // 可以在这里处理测试结果
-        }
-    } catch (error) {
-        ElMessage.error('测试用例执行失败');
-        console.error(error);
+// 添加执行测试用例的方法
+const executeTestCase = async (caseId) => {
+  try {
+    // 显示加载状态
+    loading.value = true;
+    
+    const response = await fetch(`http://localhost:8081/api/testcase/execute/${caseId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        project_id: route.query.projectId
+      })
+    });
+
+    const data = await response.json();
+    if (data.code === 200) {
+      ElMessage.success('测试用例执行成功');
+      // 可以在这里更新用例状态或刷新列表
+      fetchTestCases();
+    } else {
+      ElMessage.error(data.message || '执行失败');
     }
+  } catch (error) {
+    console.error('执行测试用例失败:', error);
+    ElMessage.error('执行测试用例失败');
+  } finally {
+    loading.value = false;
+  }
 };
 
 // 删除测试用例
@@ -1263,7 +1384,7 @@ const deleteTestCase = async (row) => {
         });
 
         if (response.ok) {
-            ElMessage.success('删���成功');
+            ElMessage.success('删成功');
             fetchTestCases();
         }
     } catch (error) {
@@ -1274,10 +1395,44 @@ const deleteTestCase = async (row) => {
     }
 };
 
-// 编辑测试用例
+// 修改编辑测试用例的方法
 const editTestCase = (row) => {
-    dialogTitle.value = '编辑接口试用例';
-    testCaseForm.value = { ...row };
+    dialogTitle.value = '编辑接口测试用例';
+    
+    // 设置表单数据
+    testCaseForm.value = {
+        ...row,
+        expected_result: typeof row.expected_result === 'string' 
+            ? row.expected_result 
+            : JSON.stringify(row.expected_result, null, 2)
+    };
+    
+    // 设置请求体类型
+    bodyType.value = row.body_type || 'none';
+    rawContentType.value = row.raw_content_type || 'application/json';
+    
+    // 设置请求头数据
+    if (row.headers && Object.keys(row.headers).length > 0) {
+        headersTableData.value = Object.entries(row.headers).map(([key, value]) => ({
+            enabled: true,
+            key,
+            value: String(value),
+            description: ''
+        }));
+    } else {
+        headersTableData.value = [{ enabled: true, key: '', value: '', description: '' }];
+    }
+    
+    // 设置 form-data 数据
+    if (row.form_data && row.form_data.length > 0) {
+        formDataTableData.value = row.form_data.map(item => ({
+            enabled: true,
+            ...item
+        }));
+    } else {
+        formDataTableData.value = [{ enabled: true, key: '', value: '', description: '' }];
+    }
+    
     showAddDialog.value = true;
 };
 
@@ -1342,7 +1497,7 @@ const formatDate = (dateString) => {
 // 处理新建测试用例
 const handleCreateTestCase = () => {
     dialogTitle.value = '新建接口测试用例';
-    // 重置表数据
+    // 置表数据
     testCaseForm.value = {
         title: '',
         api_path: '',
@@ -1453,7 +1608,7 @@ const addAssertion = (type) => {
     const templates = {
         status: '$.code=200  # 检查响应状态码',
         json: '$.data.id=1  # 检查JSON响应体',
-        header: '$headers.Content-Type=application/json  # 检查响应头'
+        header: '$headers.Content-Type=application/json  # 查响头'
     };
     
     const currentAssertions = testCaseForm.value.assertions || '';
@@ -1462,14 +1617,14 @@ const addAssertion = (type) => {
         templates[type];
 };
 
-// 添加保存测试用例的方法
+// 修改保存测试用例的方法
 const saveTestCase = async () => {
     if (!testCaseFormRef.value) return;
     
     // 如果是 JSON 类型，先验证格式
     if (bodyType.value === 'raw' && rawContentType.value === 'application/json' && testCaseForm.value.body) {
         if (!validateJson(testCaseForm.value.body)) {
-            ElMessage.error('请先修正 JSON 格���错误');
+            ElMessage.error('请先修正 JSON 格式错误');
             return;
         }
     }
@@ -1479,38 +1634,66 @@ const saveTestCase = async () => {
             try {
                 loading.value = true;
                 
+                // 过滤有效的请求头数据
+                const validHeaders = headersTableData.value
+                    .filter(item => item.enabled && item.key.trim() && item.value.trim())
+                    .reduce((acc, curr) => {
+                        acc[curr.key.trim()] = curr.value.trim();
+                        return acc;
+                    }, {});
+
                 // 构建请求数据
                 const requestData = {
-                    ...testCaseForm.value,
+                    title: testCaseForm.value.title,
+                    api_path: testCaseForm.value.api_path,
+                    method: testCaseForm.value.method,
+                    priority: testCaseForm.value.priority,
+                    headers: validHeaders, // 使用过滤后的请求头
+                    body: bodyType.value === 'raw' && testCaseForm.value.body 
+                        ? JSON.parse(testCaseForm.value.body)
+                        : {},
+                    assertions: testCaseForm.value.assertions,
+                    expected_result: testCaseForm.value.expected_result 
+                        ? JSON.parse(testCaseForm.value.expected_result)
+                        : {},
                     project_id: projectId.value,
-                    params: paramsTableData.value.filter(item => item.enabled),
-                    headers: headersTableData.value.filter(item => item.enabled),
                     body_type: bodyType.value,
                     raw_content_type: rawContentType.value,
-                    form_data: formDataTableData.value.filter(item => item.enabled)
+                    // 过滤有效的 form-data
+                    form_data: formDataTableData.value
+                        .filter(item => item.enabled && item.key.trim())
+                        .map(item => ({
+                            key: item.key.trim(),
+                            value: item.value.trim(),
+                            description: item.description?.trim() || ''
+                        }))
                 };
 
-                const response = await axios.post(
-                    'http://localhost:8081/api/testcase/create/',
-                    requestData,
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                            'Content-Type': 'application/json'
-                        }
+                // 根据是否有 case_id 判断是新建还是编辑
+                const url = testCaseForm.value.case_id
+                    ? `http://localhost:8081/api/testcase/update/${testCaseForm.value.case_id}/`
+                    : 'http://localhost:8081/api/testcase/create/';
+
+                const response = await axios({
+                    method: testCaseForm.value.case_id ? 'PUT' : 'POST',
+                    url,
+                    data: requestData,
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
                     }
-                );
+                });
 
                 if (response.data.code === 200) {
-                    ElMessage.success('测试���例保存��功');
+                    ElMessage.success(testCaseForm.value.case_id ? '测试用例更新成功' : '测试用例保存成功');
                     showAddDialog.value = false;
-                    fetchTestCases();
+                    fetchTestCases(); // 刷新列表
                 } else {
-                    ElMessage.error(response.data.message);
+                    throw new Error(response.data.message || '保存失败');
                 }
             } catch (error) {
-                console.error('存失败:', error);
-                ElMessage.error(error.response?.data?.message || '保存失败，请检查网络连接');
+                console.error('保存失败:', error);
+                ElMessage.error(error.response?.data?.message || error.message || '保存失败，请检查网络连接');
             } finally {
                 loading.value = false;
             }
@@ -1524,7 +1707,7 @@ const isResizing = ref(false);
 const startY = ref(0);
 const startHeight = ref(0);
 
-// 添加拖动相关方法
+// 添加动相关方法
 const startResize = (e) => {
     isResizing.value = true;
     startY.value = e.clientY;
@@ -1570,7 +1753,7 @@ onMounted(async () => {
     console.log('TestCases mounted with projectId:', projectId.value);
     console.log('TestCases mounted with projectName:', projectName.value); // 添加日志
     
-    // 确保有项目ID
+    // 确有项目ID
     if (!projectId.value) {
         console.error('No project ID provided');
         ElMessage.error('请选择项目');
@@ -1591,23 +1774,53 @@ onMounted(async () => {
 
 // 添加环境变量相关的响应式数据
 const showEnvDialog = ref(false);
+const envDialogTitle = ref('新建环境变量');
 const envFormRef = ref(null);
 const envForm = ref({
-    name: ''
+  name: '',
+  description: '',
+  envSuiteId: '',
+  variables: [{ key: '', value: '', description: '' }] // 初始化一个空变量
 });
 const envVars = ref([{ key: '', value: '', description: '' }]);
 
-// 添加环境变量表单验证规则
+// 修改环境变量表单验证规则
 const envRules = {
-    name: [
-        { required: true, message: '请输入环境名称', trigger: 'blur' },
-        { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }
-    ]
+  envSuiteId: [
+    { required: true, message: '请选择环境套', trigger: 'change' }
+  ],
+  name: [
+    { required: true, message: '请输入环境变量名称', trigger: 'blur' },
+    { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }
+  ]
+};
+
+// 修改变量相关方法
+const addVariable = () => {
+  envForm.value.variables.push({ key: '', value: '', description: '' });
+};
+
+const removeVariable = (index) => {
+  envForm.value.variables.splice(index, 1);
 };
 
 // 添加环境变相关方法
 const handleCreateEnv = () => {
+  // 重置环境变量表单
+  envForm.value = {
+    name: '',
+    description: '',
+    envSuiteId: '',
+    variables: [{ key: '', value: '', description: '' }] // 初始化一个空变量
+  };
+  
+  // 如果已���环境套，直接打开环境变量对话框
+  if (envSuites.value.length > 0) {
     showEnvDialog.value = true;
+  } else {
+    // 如果没有环境套，先创建环境套
+    showEnvSuiteDialog.value = true;
+  }
 };
 
 const addEnvVar = () => {
@@ -1619,32 +1832,67 @@ const removeEnvVar = (index) => {
 };
 
 const resetEnvForm = () => {
-    if (envFormRef.value) {
-        envFormRef.value.resetFields();
-    }
     envForm.value = {
         name: '',
         description: '',
-        projectId: route.query.projectId,
-        envSuiteId: '', // 重置时也要包含环境套ID
-        variables: []
+        envSuiteId: '', // 确保重置时也清空环境套ID
+        variables: [{ key: '', value: '', description: '' }]
     };
-    envVars.value = [{ key: '', value: '', description: '' }];
 };
 
+// 添加获取环境变量列表的方法
+const fetchEnvList = async () => {
+    try {
+        // 确保先获取环境套列表
+        await fetchEnvSuites();
+        
+        const response = await axios.get(
+            `http://localhost:8081/api/env/list/${projectId.value}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            }
+        );
+
+        if (response.data.code === 200) {
+            // 确保数据包含所需字段
+            envList.value = (response.data.data || []).map(env => ({
+                ...env,
+                envSuiteId: env.envSuiteId || env.env_suite_id, // 兼容不同的字段
+            }));
+            console.log('Environment list updated:', envList.value);
+        } else {
+            ElMessage.error(response.data.message || '获取环境变量列表失败');
+        }
+    } catch (error) {
+        console.error('获取环境变量列表失败:', error);
+        ElMessage.error('获取环境变量列表失，请检查网连接');
+    }
+};
+
+// 修改 submitEnvForm 方法中的相关部分
 const submitEnvForm = async () => {
     if (!envFormRef.value) return;
     
     await envFormRef.value.validate(async (valid) => {
         if (valid) {
             try {
+                // 构建���求数据，确保包含所有已填写的字段
+                const requestData = {
+                    name: envForm.value.name,
+                    description: envForm.value.description,
+                    envSuiteId: envForm.value.envSuiteId,
+                    project_id: projectId.value,
+                    // 过滤掉空的变��
+                    variables: envForm.value.variables.filter(v => v.key || v.value || v.description)
+                };
+
+                console.log('Submitting env form data:', requestData); // 添加调试日志
+
                 const response = await axios.post(
                     'http://localhost:8081/api/env/create',
-                    {
-                        ...envForm.value,
-                        project_id: projectId.value,
-                        variables: envVars.value.filter(v => v.key && v.value) // 只提交有效的变量
-                    },
+                    requestData,
                     {
                         headers: {
                             'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -1656,8 +1904,15 @@ const submitEnvForm = async () => {
                 if (response.data.code === 200) {
                     ElMessage.success('环境变量创建成功');
                     showEnvDialog.value = false;
+                    // 重置表单
+                    resetEnvForm();
+                    // 刷新环境变量列表
+                    if (showEnvListDialog.value) {
+                        // 只有当环境变量列表对话框打开时才刷新列表
+                        await fetchEnvList();
+                    }
                 } else {
-                    ElMessage.error(response.data.message);
+                    ElMessage.error(response.data.message || '创建失败');
                 }
             } catch (error) {
                 console.error('创建环境变量失败:', error);
@@ -1732,26 +1987,13 @@ const validateEnvValue = (key, value) => {
 const showEnvListDialog = ref(false);
 const envList = ref([]);
 
-// 添加查看环境变量方法
+// 修改 handleViewEnv 方法，确保在打开对话框时获取最新数据
 const handleViewEnv = async () => {
     try {
-        const response = await axios.get(
-            `http://localhost:8081/api/env/list/${projectId.value}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            }
-        );
-
-        if (response.data.code === 200) {
-            envList.value = response.data.data || [];
-            showEnvListDialog.value = true;
-        } else {
-            ElMessage.error(response.data.message);
-        }
+        await fetchEnvList(); // 使用新的 fetchEnvList 方法
+        showEnvListDialog.value = true;
     } catch (error) {
-        console.error('获取环境变量失败:', error);
+        console.error('获取环境变量失���:', error);
         ElMessage.error('获取环境变量失败，请检查网络连接');
     }
 };
@@ -1767,7 +2009,7 @@ const editVarForm = ref({
 
 // 修改环境变量编辑方法
 const editEnvVariable = async (variable) => {
-    // 打开编辑弹窗并填充数据
+    // 打开编辑弹窗并填��数据
     editVarForm.value = {
         id: variable.id,
         key: variable.key,
@@ -1808,7 +2050,7 @@ const submitEditVar = async () => {
         }
     } catch (error) {
         console.error('更新变量失败:', error);
-        ElMessage.error('更新变量失败，请检查网络连接');
+        ElMessage.error('新变失败，请检查网络连接');
     }
 };
 
@@ -1886,7 +2128,7 @@ onUnmounted(() => {
 const jsonError = ref('');
 const jsonErrorPosition = ref(null);
 
-// 添加 JSON 格式校验函数
+// 添加 JSON 格��校验函数
 const validateJson = (jsonString) => {
     if (!jsonString) {
         jsonError.value = '';
@@ -1914,7 +2156,7 @@ const validateJson = (jsonString) => {
                 // 找到错误所在行
                 const contextStart = jsonString.indexOf(context);
                 if (contextStart !== -1) {
-                    // 计算行号和列号
+                    // ���算行号和列号
                     const beforeError = jsonString.substring(0, contextStart);
                     const beforeLines = beforeError.split('\n');
                     lineNumber = beforeLines.length;
@@ -1942,7 +2184,7 @@ const validateJson = (jsonString) => {
             }
         }
 
-        // 如果无法解析具体错误，返回通用错误信息
+        // 如果无法解析具体错误，返���通用错误信息
         jsonError.value = `JSON 格式错误: ${e.message}`;
         return false;
     }
@@ -1970,33 +2212,6 @@ const highlightError = () => {
 // 添加获取行数的方法
 const getLineCount = (text) => {
     return text ? text.split('\n').length : 1;
-};
-
-// 添加执行测试用例的方法
-const executeTestCase = async (row) => {
-    try {
-        // 设置执行状态
-        row.executing = true;
-        
-        // 调用执行接口
-        const response = await axios.post(`/api/testcases/${row.id}/execute`, {
-            project_id: projectId.value
-        });
-        
-        if (response.data.code === 200) {
-            ElMessage.success('执行成功');
-            // ��新测��用例状���和最���执行时间
-            row.status = response.data.data.status;
-            row.last_run_time = response.data.data.executed_at;
-        } else {
-            ElMessage.error(response.data.message || '执行失败');
-        }
-    } catch (error) {
-        console.error('执行失败:', error);
-        ElMessage.error(error.response?.data?.message || '执行失败');
-    } finally {
-        row.executing = false;
-    }
 };
 
 // 添加上传相关的方法
@@ -2076,9 +2291,9 @@ const beforeUpload = (file) => {
     return true;
 };
 
-// 修改上传成功的处理方法
+// 修改上传成功的理方法
 const handleUploadSuccess = (response, file) => {
-    // 关闭所有消息提示
+    // 关闭有消息提示
     ElMessage.closeAll();
     
     if (response.code === 200) {
@@ -2124,25 +2339,45 @@ envForm.value = {
   envSuiteId: '', // 新增环境套ID字段
 };
 
-// 获取环境套列表
+// 修改获取环境套列表的方法，确保返回完整的环境套信息
 const fetchEnvSuites = async () => {
-  try {
-    const response = await fetch(`http://localhost:8081/api/env-suite/list/${route.query.projectId}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    const data = await response.json();
-    if (data.code === 200) {
-      envSuites.value = data.data;
+    try {
+        const response = await axios.get(
+            `http://localhost:8081/api/env-suite/list/${projectId.value}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            }
+        );
+
+        if (response.data.code === 200) {
+            // 确保数据包含必要的字段
+            envSuites.value = (response.data.data.items || []).map(suite => ({
+                id: suite.id,
+                name: suite.name,
+                description: suite.description || ''
+            }));
+            
+            // 如果当前选中的环境套不在列表中，清空选择
+            if (envForm.value.envSuiteId && 
+                !envSuites.value.some(suite => suite.id === envForm.value.envSuiteId)) {
+                envForm.value.envSuiteId = '';
+            }
+            
+            // 添加调试日志
+            console.log('Environment suites:', envSuites.value);
+            console.log('Current selected suite:', envForm.value.envSuiteId);
+        } else {
+            ElMessage.error(response.data.message || '获取环境套列表失败');
+        }
+    } catch (error) {
+        console.error('获取环境套列表失败:', error);
+        ElMessage.error('获取环境套列表失败，请检查��络连接');
     }
-  } catch (error) {
-    console.error('获取环境套列表失败:', error);
-    ElMessage.error('获取环境套列表失败');
-  }
 };
 
-// 显示创建环境套对话框
+// 显示创建环境��对话框
 const showCreateEnvSuiteDialog = () => {
   envSuiteDialogTitle.value = '新建环境套';
   envSuiteForm.value = {
@@ -2160,22 +2395,33 @@ const saveEnvSuite = async () => {
   await envSuiteFormRef.value.validate(async (valid) => {
     if (valid) {
       try {
-        const response = await fetch('http://localhost:8081/api/env-suite/create', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
+        const response = await axios.post(
+          'http://localhost:8081/api/env-suite/create',
+          {
+            ...envSuiteForm.value,
+            project_id: projectId.value
           },
-          body: JSON.stringify(envSuiteForm.value)
-        });
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
         
-        const data = await response.json();
-        if (data.code === 200) {
+        if (response.data.code === 200) {
           ElMessage.success('环境套创建成功');
           showEnvSuiteDialog.value = false;
-          fetchEnvSuites(); // 刷新环境套列表
+          await fetchEnvSuites(); // 刷新环境套列表
+          
+          // 修改这里：使用正确的属性路径设置新创建的环境套ID
+          const newSuiteId = response.data.data.id;
+          envForm.value.envSuiteId = newSuiteId;
+          
+          // 打开环境变量创建对话框
+          showEnvDialog.value = true;
         } else {
-          ElMessage.error(data.message || '环境套创建失败');
+          ElMessage.error(response.data.message || '环境套创建失败');
         }
       } catch (error) {
         console.error('创建环境套失败:', error);
@@ -2188,6 +2434,163 @@ const saveEnvSuite = async () => {
 // 在组件挂载时获取环境套列表
 onMounted(() => {
   fetchEnvSuites();
+  // ... 其他已有的 onMounted 代码 ...
+});
+
+// 添加环境套选择变更处理方法
+const handleEnvSuiteChange = (suiteId) => {
+  envForm.value.envSuiteId = suiteId;
+};
+
+// 修改环境变量对话框的模板
+watch(showEnvDialog, (newVal) => {
+    if (!newVal) {
+        resetEnvForm();
+    }
+});
+
+// 添加环境套选择变更的监听
+watch(() => envForm.value.envSuiteId, (newVal) => {
+    console.log('Selected environment suite changed:', newVal);
+});
+
+// ��加表单数据变化的监听（用于调试）
+watch(() => envForm.value, (newVal) => {
+    console.log('Environment form data changed:', newVal);
+}, { deep: true });
+
+// 添加获取环境套名称的方法
+const getEnvSuiteName = (suiteId) => {
+    const suite = envSuites.value.find(s => s.id === suiteId);
+    return suite ? suite.name : '未知环境套';
+};
+
+// 修改格式化响应内容的方法
+const formatResponse = (data) => {
+    console.log('Formatting response data:', data);
+    
+    if (!data) {
+        console.log('No data to format');
+        return '';
+    }
+    
+    try {
+        // 如果是字符串，尝试解析为 JSON
+        if (typeof data === 'string') {
+            console.log('Formatting string data');
+            try {
+                const parsed = JSON.parse(data);
+                return JSON.stringify(parsed, null, 2);
+            } catch (e) {
+                // 如果不是 JSON 字符串，直接返回
+                return data;
+            }
+        }
+        
+        // 如果是对象，直接格式化
+        console.log('Formatting object data');
+        return JSON.stringify(data, null, 2);
+    } catch (e) {
+        console.warn('Format error:', e);
+        // 如果发生错误，返回原始内容
+        return String(data);
+    }
+};
+
+// 修改格式化响应体的方法
+const formatResponseBody = () => {
+    try {
+        // 检查内容类型
+        const contentType = responseData.value.contentType.toLowerCase();
+        console.log('Content type:', contentType);
+        console.log('Response body type:', typeof responseData.value.body);
+        console.log('Response body:', responseData.value.body);
+        
+        // 如果是 JSON 类型
+        if (contentType.includes('application/json')) {
+            // 如果响应体是字符串，尝试解析
+            let jsonData = responseData.value.body;
+            if (typeof jsonData === 'string') {
+                try {
+                    jsonData = JSON.parse(jsonData);
+                } catch (e) {
+                    console.warn('Failed to parse JSON string:', e);
+                }
+            }
+            
+            // 确保是格式化的 JSON 字符串
+            responseData.value.body = JSON.stringify(jsonData, null, 2);
+            ElMessage.success('JSON 格式化成功');
+        }
+        // 如果是 HTML 类型
+        else if (contentType.includes('text/html')) {
+            // 确保响应体是字符串
+            const htmlString = String(responseData.value.body);
+            const formatted = htmlString
+                .replace(/></g, '>\n<')  // 在标签之间添加换行
+                .replace(/\n\s*\n/g, '\n')  // 删除多余的空行
+                .split('\n')
+                .map(line => line.trim())  // 清理每行的空白
+                .join('\n')
+                .replace(/<([^/].*?)>/g, (match) => '  ' + match);  // 添加缩进
+            
+            responseData.value.body = formatted;
+            ElMessage.success('HTML 格式化成功');
+        }
+        // 如果是 XML 类型
+        else if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+            // 确保响应体是字符串
+            const xmlString = String(responseData.value.body);
+            const formatted = xmlString
+                .replace(/></g, '>\n<')
+                .replace(/\n\s*\n/g, '\n')
+                .split('\n')
+                .map(line => line.trim())
+                .join('\n')
+                .replace(/<([^/].*?)>/g, (match) => '  ' + match);
+            
+            responseData.value.body = formatted;
+            ElMessage.success('XML 格式化成功');
+        }
+        // 其他类型
+        else {
+            ElMessage.warning(`不支持格式化 ${contentType} 类型的内容`);
+        }
+    } catch (e) {
+        console.error('Format error:', e);
+        ElMessage.error('格式化失败：' + e.message);
+    }
+};
+
+// 修改复制响应内容的方法
+const copyResponseBody = () => {
+    if (!responseData.value.body) {
+        ElMessage.warning('没有可复制的内容');
+        return;
+    }
+
+    try {
+        navigator.clipboard.writeText(responseData.value.body)
+            .then(() => {
+                ElMessage.success('已复制到剪贴板');
+            })
+            .catch((err) => {
+                console.error('Copy failed:', err);
+                ElMessage.error('复制失败');
+            });
+    } catch (e) {
+        console.error('Copy error:', e);
+        ElMessage.error('复制失败');
+    }
+};
+
+// 添加获取响应内容类型的计算属性
+const responseContentType = computed(() => {
+    const contentType = responseData.value.contentType || '';
+    if (contentType.includes('application/json')) return 'json';
+    if (contentType.includes('text/html')) return 'html';
+    if (contentType.includes('application/xml') || contentType.includes('text/xml')) return 'xml';
+    return 'text';
 });
 </script>
 
@@ -2234,7 +2637,7 @@ onMounted(() => {
     gap: 8px;
     flex-wrap: wrap;
     justify-content: flex-end; /* 修改为 flex-end 使按钮组内部靠右对齐 */
-    width: auto; /* 修改为 auto，不再占满整行 */
+    width: auto; /* 修��为 auto，不再占满整行 */
 }
 
 /* 修改上传按钮容器样式 */
@@ -2313,6 +2716,7 @@ onMounted(() => {
     padding: 16px;
     border-radius: 8px;
     background-color: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color-lighter);
 }
 
 .env-item:last-child {
@@ -2342,6 +2746,7 @@ onMounted(() => {
 /* 表格样式优化 */
 .env-item :deep(.el-table) {
     --el-table-border-color: var(--el-border-color-lighter);
+    margin-top: 12px;
 }
 
 .env-item :deep(.el-table__cell) {
@@ -2375,7 +2780,7 @@ onMounted(() => {
     font-size: 14px;
 }
 
-/* 调整按钮内部图标和文字的间距 */
+/* 调整按钮内部图标和文字��间距 */
 .env-item :deep(.el-button.is-link) {
     height: 28px;
     padding: 4px;  /* 减小内边距 */
@@ -2666,7 +3071,7 @@ onMounted(() => {
     padding: 0 12px;
 }
 
-/* 添加表格相关样式 */
+/* 添加表格相关样��� */
 .case-title {
     display: flex;
     align-items: center;
@@ -2783,5 +3188,571 @@ onMounted(() => {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 20px;
+}
+
+/* 添加新的样式 */
+.env-suite-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.env-suite-section :deep(.el-select) {
+    flex: 1;
+}
+
+.env-vars-table {
+    margin-top: 8px;
+}
+
+.table-actions {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* 确保表格内的选择器和输入框样式正确 */
+.env-vars-table :deep(.el-select),
+.env-vars-table :deep(.el-input) {
+    width: 100%;
+}
+
+.env-vars-table :deep(.el-table) {
+    margin-bottom: 12px;
+}
+
+/* 修改环境变量对话框样式 */
+.env-dialog {
+    :deep(.el-dialog__body) {
+        padding: 20px 24px;
+        max-height: calc(90vh - 150px);
+        overflow-y: auto;
+    }
+}
+
+/* 环��套选��器样式 */
+:deep(.env-suite-select) {
+    max-width: none !important;
+}
+
+/* 变量名选择器样式 */
+:deep(.var-name-select) {
+    max-width: none !important;
+}
+
+.env-vars-table {
+    margin-top: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.env-vars-table :deep(.el-table) {
+    --el-table-border-color: var(--el-border-color-lighter);
+    margin-bottom: 12px;
+}
+
+.env-vars-table :deep(.el-table__header) {
+    background-color: var(--el-fill-color-light);
+}
+
+.env-vars-table :deep(.el-table__cell) {
+    padding: 8px;
+}
+
+/* 确保表格内的选择器和输入框不被遮挡 */
+.env-vars-table :deep(.el-select),
+.env-vars-table :deep(.el-input) {
+    width: 100%;
+    z-index: 1;
+}
+
+/* 调整表格内的下拉选择器样式 */
+.env-vars-table :deep(.el-select .el-input__wrapper) {
+    padding: 0 8px;
+    background-color: var(--el-bg-color);
+}
+
+/* 确保固��列的��式正确 */
+.env-vars-table :deep(.el-table__fixed-right) {
+    height: 100% !important;
+    background-color: var(--el-bg-color);
+    box-shadow: -6px 0 6px -4px rgba(0,0,0,0.12);
+    right: 0; /* 确保固定列位置正确 */
+}
+
+/* 调整表格高度和滚动 */
+.env-vars-table :deep(.el-table__body-wrapper) {
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+/* 优化表格内容布局 */
+.env-vars-table :deep(.el-table__row) {
+    height: 48px; /* 增加行高，给按钮留出足够空间 */
+}
+
+/* 确保删除按钮始终可见 */
+.env-vars-table :deep(.el-table__fixed-right-patch) {
+    background-color: var(--el-fill-color-light);
+}
+
+.table-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.table-actions .el-button {
+    padding: 8px 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* 修改表格内按钮样式 */
+.env-vars-table :deep(.el-button.is-circle) {
+    padding: 6px;
+    margin: 0;
+    position: relative; /* 添加相对定位 */
+    z-index: 2; /* 确保按钮在最上层 */
+}
+
+/* 确保表单项之间有合适的间距 */
+.el-form-item {
+    margin-bottom: 20px;
+}
+
+/* 优化对话框底部按钮样式 */
+.dialog-footer {
+    padding-top: 16px;
+    border-top: 1px solid var(--el-border-color-lighter);
+}
+
+/* 添加环境套选择相关样式 */
+.env-suite-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.env-suite-section :deep(.el-select) {
+    flex: 1;
+}
+
+/* 确保下拉框内容样式正确 */
+:deep(.env-suite-select) {
+    width: auto !important;
+    min-width: 200px !important;
+}
+
+.env-suite-option {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+}
+
+.suite-name {
+    font-size: 14px;
+    color: var(--el-text-color-primary);
+}
+
+.suite-desc {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    word-break: break-all;
+}
+
+/* 调整表单项样式 */
+:deep(.el-form-item__content) {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 确保选择框有合适���高度 */
+.env-suite-section :deep(.el-input__wrapper) {
+    height: 32px;
+    line-height: 32px;
+}
+
+/* 调整选项样式 */
+:deep(.el-select-dropdown__item) {
+    padding: 8px 12px;
+}
+
+/* 确保新建按钮样式正确 */
+.env-suite-section .el-button {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* 添加环境变量��表相关样式 */
+.env-header {
+    margin-bottom: 16px;
+}
+
+.env-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.env-name {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+}
+
+.env-suite-tag {
+    font-weight: normal;
+}
+
+.env-description {
+    font-size: 14px;
+    color: var(--el-text-color-secondary);
+    margin-top: 4px;
+}
+
+/* 优化环境变量列表样式 */
+.env-list-dialog :deep(.el-dialog__body) {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.env-list-container {
+    padding: 0;
+}
+
+.env-item {
+    margin-bottom: 24px;
+    padding: 16px;
+    border-radius: 8px;
+    background-color: var(--el-fill-color-blank);
+    border: 1px solid var(--el-border-color-lighter);
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.env-item:last-child {
+    margin-bottom: 0;
+}
+
+.env-header {
+    margin-bottom: 16px;
+}
+
+.env-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.env-name {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+}
+
+.env-suite-tag {
+    padding: 0 8px;
+    height: 24px;
+    line-height: 22px;
+    font-size: 12px;
+    border-radius: 4px;
+    font-weight: normal;
+}
+
+.env-description {
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+    line-height: 1.4;
+}
+
+/* 表格样式优化 */
+.env-item :deep(.el-table) {
+    --el-table-border-color: var(--el-border-color-lighter);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.env-item :deep(.el-table__header-wrapper) {
+    background-color: var(--el-fill-color-light);
+}
+
+.env-item :deep(.el-table__cell) {
+    padding: 8px;
+}
+
+/* 变量名样式 */
+.variable-key {
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--el-text-color-primary);
+    background-color: var(--el-fill-color-light);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* 操作按钮样式 */
+.env-item :deep(.el-button--small) {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.env-item :deep(.el-button.is-link) {
+    height: 24px;
+}
+
+/* 输入框样式 */
+.env-item :deep(.el-input__wrapper) {
+    padding: 0 8px;
+}
+
+.env-item :deep(.el-input__inner) {
+    height: 28px;
+    line-height: 28px;
+    font-size: 13px;
+}
+
+/* 确保表格内容垂直居中 */
+.env-item :deep(.el-table .cell) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.env-item :deep(.el-table__fixed-right-patch) {
+    background-color: var(--el-fill-color-light);
+}
+
+/* 操作列样式 */
+.env-item :deep(.el-table__fixed-right) {
+    height: 100% !important;
+    background-color: var(--el-bg-color);
+    box-shadow: -6px 0 6px -4px rgba(0,0,0,0.12);
+}
+
+/* 表格hover效果 */
+.env-item :deep(.el-table__row:hover) {
+    background-color: var(--el-table-row-hover-bg-color);
+}
+
+/* 响应内容样式 */
+.response-body {
+    padding: 12px;
+    margin: 0;
+    background-color: var(--el-bg-color-page);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+}
+
+.response-body.html-content {
+    white-space: pre;
+    font-family: monospace;
+}
+
+.response-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--el-fill-color-light);
+    border-radius: 4px 4px 0 0;
+}
+
+.content-type {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+}
+
+/* 响应面板样式 */
+.response-panel {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 50vh; /* 改用视窗高度的百分比 */
+    min-height: 200px; /* 添加最小高度 */
+}
+
+.response-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px; /* 增加左右内边距 */
+    background-color: var(--el-fill-color-light);
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    flex-shrink: 0; /* 防止头部被压缩 */
+}
+
+.response-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.status-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.time-info {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+}
+
+/* 响应内容区域样式 */
+.response-body-wrapper {
+    position: relative;
+    flex: 1;
+    overflow: auto; /* 改为 auto，允许内容滚动 */
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 48px); /* 减去头部高度 */
+}
+
+.response-toolbar {
+    padding: 8px 16px; /* 增加左右内边距 */
+    background-color: var(--el-fill-color-light);
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0; /* 防止工具栏被压缩 */
+}
+
+.content-type {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+}
+
+/* 修改响应内容区域的样式 */
+.response-body {
+    height: 100%;
+    overflow: auto;
+    margin: 0;
+    padding: 16px;
+    background-color: var(--el-bg-color-page);
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border: none;
+    box-sizing: border-box;
+}
+
+/* 响应标签页样式 */
+.response-tabs {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.response-tabs :deep(.el-tabs__header) {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.response-tabs :deep(.el-tabs__content) {
+    flex: 1;
+    overflow: auto;
+    padding: 0;
+    height: calc(100% - 40px); /* 减去标签头部高度 */
+}
+
+.response-tabs :deep(.el-tab-pane) {
+    height: 100%;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 调整对话框内容区域的样式 */
+.test-case-dialog {
+    :deep(.el-dialog__body) {
+        padding: 0;
+        height: 80vh; /* 使用视窗高度 */
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+/* 调整 Postman 布局样式 */
+.postman-layout {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+/* 优化请求面板样式 */
+.request-panel {
+    flex: 1;
+    min-height: 0;
+    padding: 20px;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.response-panel {
+    border-top: 1px solid var(--el-border-color-lighter);
+    background-color: var(--el-bg-color);
+}
+
+/* 调整分隔线样式 */
+.resizer {
+    height: 4px;
+    background-color: var(--el-border-color-lighter);
+    cursor: row-resize;
+    transition: background-color 0.2s;
+    position: relative;
+    z-index: 2;
+    
+    &:hover {
+        background-color: var(--el-color-primary-light-7);
+    }
+    
+    &:active {
+        background-color: var(--el-color-primary-light-5);
+    }
+}
+
+/* 拖动时的全局样式 */
+:global(body.resizing) {
+    cursor: row-resize;
+    user-select: none;
+}
+
+/* 添加不同内容类型的样式 */
+.response-body.json-content {
+    color: var(--el-text-color-primary);
+}
+
+.response-body.html-content {
+    color: #e34c26;
+    white-space: pre;
+}
+
+.response-body.xml-content {
+    color: #2f6f9f;
 }
 </style>

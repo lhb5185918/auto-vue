@@ -143,13 +143,22 @@
                             </el-col>
                             <el-col :span="12">
                                 <el-form-item label="执行环境" prop="envId">
-                                    <el-select v-model="suiteForm.envId" placeholder="请选择执行环境" style="width: 100%">
+                                    <el-select 
+                                        v-model="suiteForm.envId" 
+                                        placeholder="请选择执行环境套" 
+                                        style="width: 100%"
+                                    >
                                         <el-option 
                                             v-for="env in environments" 
                                             :key="env.id" 
                                             :label="env.name" 
                                             :value="env.id"
-                                        />
+                                        >
+                                            <div class="env-option">
+                                                <span class="env-name">{{ env.name }}</span>
+                                                <span class="env-desc" v-if="env.description">{{ env.description }}</span>
+                                            </div>
+                                        </el-option>
                                     </el-select>
                                 </el-form-item>
                             </el-col>
@@ -168,7 +177,7 @@
                     <div class="case-selection-section">
                         <div class="section-title">测试用例配置</div>
                         <el-row :gutter="20">
-                            <!-- 左侧可选用��列表 -->
+                            <!-- 左侧可选用例列表 -->
                             <el-col :span="12">
                                 <div class="case-list-container">
                                     <div class="list-header">
@@ -592,7 +601,7 @@ const fetchTestSuites = async () => {
 const fetchEnvironments = async () => {
     try {
         const response = await axios.get(
-            `http://localhost:8081/api/env/list/${projectId.value}`,
+            `http://localhost:8081/api/env-suite/list/${projectId.value}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -601,11 +610,18 @@ const fetchEnvironments = async () => {
         );
 
         if (response.data.code === 200) {
-            environments.value = response.data.data;
+            // 根据实际返回的数据结构进行映射
+            environments.value = response.data.data.items.map(env => ({
+                id: env.id,
+                name: env.name,
+                description: env.description || '',
+                create_time: env.create_time,
+                update_time: env.update_time
+            }));
         }
     } catch (error) {
-        console.error('获取环境列表失败:', error);
-        ElMessage.error('获取环境列表失败');
+        console.error('获取环境套列表失败:', error);
+        ElMessage.error('获取环境套列表失败');
     }
 };
 
@@ -644,7 +660,7 @@ const fetchTestCases = async () => {
     }
 };
 
-// 获取请求方法对应的类型
+// 获取请求方法��应的类型
 const getMethodType = (method) => {
     const methodMap = {
         'GET': 'success',
@@ -1193,7 +1209,7 @@ const getPriorityType = (priority) => {
   height: 80px;
 }
 
-/* 优化列间距 */
+/* 优化列间 */
 :deep(.el-row) {
   margin: 0 !important;  /* 移除默认外边距 */
 }
@@ -1213,7 +1229,7 @@ const getPriorityType = (priority) => {
   border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
-/* 优���按钮样式 */
+/* 优按钮样式 */
 .list-header .el-button {
   margin-left: 16px;
 }
@@ -1286,7 +1302,7 @@ const getPriorityType = (priority) => {
   color: var(--el-text-color-primary);
 }
 
-/* 用例项��式优化 */
+/* 用例项式优化 */
 .case-item {
   padding: 12px 16px;
   border-bottom: 1px solid var(--el-border-color-lighter);
@@ -1368,5 +1384,27 @@ const getPriorityType = (priority) => {
   .case-list-container {
     height: 500px;
   }
+}
+
+.env-option {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.env-name {
+    font-size: 14px;
+    color: var(--el-text-color-primary);
+}
+
+.env-desc {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+}
+
+/* 确保下拉选项有足够的高度显示描述文本 */
+:deep(.el-select-dropdown__item) {
+    height: auto;
+    padding: 8px 12px;
 }
 </style> 

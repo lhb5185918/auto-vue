@@ -72,7 +72,7 @@
             <template v-else>
               <div class="no-project-tip">
                 <el-icon><InfoFilled /></el-icon>
-                <span>请先选择���目</span>
+                <span>请先选择项目</span>
               </div>
             </template>
           </el-sub-menu>
@@ -122,9 +122,9 @@
                       <span class="project-name">{{ project.name }}</span>
                       <el-tag 
                         size="small" 
-                        :type="project.status === 'active' ? 'success' : 'info'"
+                        :type="project.status === 0 ? 'success' : 'info'"
                       >
-                        {{ project.status === 'active' ? '活跃' : '未活跃' }}
+                        {{ project.status === 0 ? '活跃' : '未活跃' }}
                       </el-tag>
                     </div>
                     <div class="project-option-info">
@@ -133,12 +133,22 @@
                         {{ project.test_cases_count || 0 }} 个用例
                       </span>
                       <span class="info-item">
-                        <el-icon><User /></el-icon>
-                        {{ project.creator?.username }}
+                        <el-icon><Timer /></el-icon>
+                        执行次数: {{ project.execution_count || 0 }}
                       </span>
                       <span class="info-item">
-                        <el-icon><Timer /></el-icon>
-                        {{ formatDate(project.create_time) }}
+                        <el-icon><TrendCharts /></el-icon>
+                        成功率: {{ project.success_rate || 0 }}%
+                      </span>
+                    </div>
+                    <div class="project-meta">
+                      <span class="meta-item">
+                        <el-icon><User /></el-icon>
+                        创建者: {{ project.creator?.username }}
+                      </span>
+                      <span class="meta-item">
+                        <el-icon><Clock /></el-icon>
+                        创建时间: {{ formatDate(project.create_time) }}
                       </span>
                     </div>
                   </div>
@@ -223,7 +233,8 @@ import {
   List,
   TrendCharts,
   InfoFilled,
-  Timer
+  Timer,
+  Clock
 } from '@element-plus/icons-vue';
 
 const route = useRoute();
@@ -284,7 +295,7 @@ const handleProjectChange = (projectId) => {
       // 将选中的项目保存到 localStorage
       localStorage.setItem('currentProject', JSON.stringify(selectedProject));
       
-      // 获取当前路由路径
+      // 获取当前路由
       const currentPath = route.path;
       
       // 需要刷新数据的路由列表
@@ -310,7 +321,7 @@ const handleProjectChange = (projectId) => {
       }
     }
   } else {
-    // 清除选择
+    // 清除选中
     currentProject.value = null;
     currentProjectId.value = null;
     localStorage.removeItem('currentProject');
@@ -360,7 +371,7 @@ const getUserInfo = () => {
   }
 };
 
-// 创建项目方法
+// 修改创建项目方法
 const createProject = async () => {
   if (!projectName.value || !projectDescription.value) {
     ElMessage.warning('请填写完整的信息');
@@ -368,27 +379,33 @@ const createProject = async () => {
   }
 
   try {
-    const response = await fetch('http://localhost:8000/api/project/', {
+    const response = await fetch('http://localhost:8081/api/project/create/', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         name: projectName.value,
         description: projectDescription.value,
-      }),
+        status: 0  // 添加 status 字段，默认为活跃状态(0)
+      })
     });
 
-    if (!response.ok) {
-      throw new Error('网络响应不正常');
-    }
-
     const data = await response.json();
-    ElMessage.success('项目创建成功');
-    showModal.value = false;
-    projectName.value = '';
-    projectDescription.value = '';
-    router.push('/project');
+    
+    if (data.code === 200) {
+      ElMessage.success('项目创建成功');
+      showModal.value = false;
+      projectName.value = '';
+      projectDescription.value = '';
+      // 刷新项目列表
+      fetchProjects();
+      // 跳转到项目列表页
+      router.push('/project');
+    } else {
+      ElMessage.error(data.message || '创建项目失败');
+    }
   } catch (error) {
     console.error('创建项目失败:', error);
     ElMessage.error('创建项目失败，请重试');
@@ -432,7 +449,7 @@ onMounted(() => {
 
 // 添加日期格式化方法
 const formatDate = (dateString) => {
-  if (!dateString) return '';
+  if (!dateString) return '-';
   const date = new Date(dateString);
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
@@ -451,32 +468,40 @@ body {
 .container {
   display: flex;
   height: 100vh;
+  background-color: #f5f7fa;
 }
 
 .sidebar {
   width: 240px;
-  background-color: #333;
+  background: linear-gradient(180deg, #2b2b2b 0%, #333333 100%);
   color: white;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
 }
 
 .logo-area {
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  background-color: #2b2b2b;
+  padding: 24px 20px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .logo-area img {
-  height: 32px;
-  margin-right: 10px;
+  height: 36px;
+  margin-right: 12px;
+  transition: transform 0.3s ease;
+}
+
+.logo-area:hover img {
+  transform: scale(1.05);
 }
 
 .logo-area span {
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 18px;
+  font-weight: 600;
+  background: linear-gradient(45deg, #409EFF, #67C23A);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 /* 菜单样式优化 */
@@ -523,55 +548,66 @@ body {
 
 .header {
   background-color: #fff;
-  padding: 10px 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-  z-index: 1;
+  padding: 12px 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
 .header-content {
+  max-width: 1400px;
+  margin: 0 auto;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
-  width: 100%;
-  height: 60px;
-  padding: 0 20px;
+}
+
+.header-left {
+  flex: 0 0 auto;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-}
-
-.header-items {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+  margin-left: auto;
 }
 
 .action-buttons {
   display: flex;
-  gap: 12px;
+  gap: 16px;
+  margin-right: 24px;
+}
+
+.action-buttons .el-button {
+  padding: 10px 20px;
+  transition: all 0.3s ease;
+}
+
+.action-buttons .el-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .user-info {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background-color: #f5f7fa;
+  transition: all 0.3s ease;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.3s;
 }
 
 .user-info:hover {
-  background-color: var(--el-fill-color-light);
+  background-color: #ecf5ff;
+  transform: translateY(-1px);
 }
 
 .user-info img {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  object-fit: cover;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .user-info span {
@@ -598,9 +634,10 @@ body {
 
 .content {
   flex: 1;
-  padding: 0;  /* 移除内边距，由 PageContainer 控制 */
-  overflow-y: auto;
-  background-color: var(--bg-color);
+  padding: 24px;
+  border-radius: 8px;
+  margin: 16px;
+  background-color: #f5f7fa;
 }
 
 .modal-overlay {
@@ -784,7 +821,7 @@ body {
 .modal-footer button {
   margin-left: 10px;
   padding: 10px 20px;
-  /* 增加按钮内边距 */
+  /* 增加按钮边距 */
   border: none;
   border-radius: 5px;
   cursor: pointer;
@@ -920,61 +957,58 @@ body {
 }
 
 .project-select {
-  width: 300px;
+  width: 340px;
+  transition: all 0.3s ease;
+}
+
+.project-select:hover {
+  transform: translateY(-1px);
 }
 
 :deep(.project-select-dropdown) {
   .el-select-dropdown__item {
-    padding: 8px 12px;
-  }
-  
-  .el-select-dropdown__item.selected {
-    font-weight: normal;
+    padding: 12px 16px;
+    height: auto;
   }
 }
 
 .project-option {
-  padding: 4px 0;
+  padding: 8px 0;
 }
 
 .project-option-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 10px;
 }
 
 .project-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: #303133;
 }
 
 .project-option-info {
-  display: flex;
-  gap: 16px;
+  padding-left: 8px;
+  opacity: 0.85;
 }
 
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
+.project-meta {
+  padding-left: 8px;
+  opacity: 0.85;
 }
 
-.info-item .el-icon {
-  font-size: 14px;
+.info-item, .meta-item {
+  background-color: #f5f7fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
 }
 
-/* 选中项的样式 */
-:deep(.el-select-dropdown__item.selected) {
-  .project-name {
-    color: var(--el-color-primary);
-  }
+.info-item:hover, .meta-item:hover {
+  background-color: #ecf5ff;
 }
 
-/* 悬停效果 */
+/* 选中和悬停效果 */
+:deep(.el-select-dropdown__item.selected),
 :deep(.el-select-dropdown__item:hover) {
   .project-name {
     color: var(--el-color-primary);
@@ -983,17 +1017,17 @@ body {
 
 /* 添加未选择项目时的提示样式 */
 .no-project-tip {
-  padding: 12px 20px;
-  color: #909399;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-left: 3px solid transparent;
+  margin: 8px 16px;
+  padding: 12px 16px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border-left: 3px solid #909399;
+  transition: all 0.3s ease;
 }
 
-.no-project-tip .el-icon {
-  font-size: 16px;
+.no-project-tip:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-left-color: #409EFF;
 }
 
 /* 调整子菜单样式 */
@@ -1018,5 +1052,25 @@ body {
 /* 优化子菜单的背景色 */
 :deep(.el-menu--inline) {
   background-color: #2b2b2b !important;
+}
+
+/* 添加滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f5f7fa;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #dcdfe6;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #c0c4cc;
 }
 </style>
