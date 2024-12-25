@@ -90,7 +90,7 @@
                         </el-upload>
                         <el-button 
                             type="success" 
-                            @click="handleCreateEnv"
+                            @click="showEnvDialog = true"
                             :icon="Setting"
                         >
                             新建环境变量
@@ -493,8 +493,8 @@
                                         </div>
                                         
                                         <div v-for="(extractor, index) in extractors" :key="index" class="extractor-item">
-                                            <el-row :gutter="16">
-                                                <el-col :span="8">
+                                            <el-row :gutter="16" align="middle">
+                                                <el-col :span="6">
                                                     <el-input
                                                         v-model="extractor.variableName"
                                                         placeholder="变量名"
@@ -503,20 +503,68 @@
                                                         <template #prefix>$</template>
                                                     </el-input>
                                                 </el-col>
-                                                <el-col :span="12">
-                                                    <el-input
-                                                        v-model="extractor.jsonPath"
-                                                        placeholder="JSONPath表达式 (例如: $.data.id)"
-                                                        clearable
-                                                    />
+                                                <el-col :span="14">
+                                                    <div class="input-with-button">
+                                                        <el-autocomplete
+                                                            v-model="extractor.jsonPath"
+                                                            :fetch-suggestions="queryJsonPaths"
+                                                            placeholder="输入要提取的字段名"
+                                                            clearable
+                                                            class="json-path-input"
+                                                            @select="handleJsonPathSelect"
+                                                        >
+                                                            <template #prefix>
+                                                                <el-icon><Key /></el-icon>
+                                                            </template>
+                                                            <template #default="{ item }">
+                                                                <div class="suggestion-item">
+                                                                    <span class="path">{{ item.path }}</span>
+                                                                    <span class="value">{{ item.value }}</span>
+                                                                </div>
+                                                            </template>
+                                                        </el-autocomplete>
+                                                        <el-button 
+                                                            type="primary"
+                                                            circle
+                                                            @click="testExtractor(extractor)"
+                                                            :icon="Monitor"
+                                                            class="test-button"
+                                                            :disabled="!hasResponseData"
+                                                            :title="hasResponseData ? '测试提取' : '需要先发送请求'"
+                                                        />
+                                                        <el-button 
+                                                            type="danger" 
+                                                            circle
+                                                            @click="removeExtractor(index)"
+                                                            :icon="Delete"
+                                                            class="delete-button"
+                                                        />
+                                                    </div>
                                                 </el-col>
                                                 <el-col :span="4">
-                                                    <el-button 
-                                                        type="danger" 
-                                                        circle
-                                                        @click="removeExtractor(index)"
-                                                        :icon="Delete"
-                                                    />
+                                                    <div class="extractor-value">
+                                                        <el-tooltip 
+                                                            :content="extractor.extractedValue ? '提取的值' : '未提取到值'" 
+                                                            placement="top"
+                                                        >
+                                                            <el-tag 
+                                                                :type="extractor.extractedValue ? 'success' : 'info'"
+                                                                size="small"
+                                                                class="value-tag"
+                                                            >
+                                                                {{ extractor.extractedValue || '未提取' }}
+                                                            </el-tag>
+                                                        </el-tooltip>
+                                                        <el-button
+                                                            v-if="extractor.extractedValue"
+                                                            type="primary"
+                                                            link
+                                                            size="small"
+                                                            @click="copyExtractedValue(extractor.extractedValue)"
+                                                        >
+                                                            <el-icon><DocumentCopy /></el-icon>
+                                                        </el-button>
+                                                    </div>
                                                 </el-col>
                                             </el-row>
                                         </div>
@@ -601,12 +649,50 @@ $headers.Content-Type=application/json  # ��查响���头"
                                 </el-tab-pane>
                                 <el-tab-pane label="Test Results">
                                     <div class="test-results">
-                                        <div v-for="(result, index) in responseData.testResults" :key="index"
-                                            :class="['test-result', result.passed ? 'passed' : 'failed']">
-                                            <el-icon :class="result.passed ? 'success' : 'error'">
-                                                <component :is="result.passed ? 'SuccessFilled' : 'CircleCloseFilled'" />
-                                            </el-icon>
-                                            <span>{{ result.message }}</span>
+                                        <!-- 添加测试结果统计 -->
+                                        <div class="test-summary" v-if="responseData.testResults && responseData.testResults.length">
+                                            <div class="summary-stats">
+                                                <div class="stat-item">
+                                                    <span class="stat-label">总断言数:</span>
+                                                    <span class="stat-value">{{ responseData.testResults.length }}</span>
+                                                </div>
+                                                <div class="stat-item">
+                                                    <span class="stat-label">通过数:</span>
+                                                    <span class="stat-value pass">
+                                                        {{ responseData.testResults.filter(r => r.passed).length }}
+                                                    </span>
+                                                </div>
+                                                <div class="stat-item">
+                                                    <span class="stat-label">失败数:</span>
+                                                    <span class="stat-value fail">
+                                                        {{ responseData.testResults.filter(r => !r.passed).length }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 测试结果列表 -->
+                                        <div class="test-result-list">
+                                            <div v-for="(result, index) in responseData.testResults" 
+                                                :key="index"
+                                                :class="['test-result-item', result.passed ? 'passed' : 'failed']"
+                                            >
+                                                <div class="result-icon">
+                                                    <el-icon v-if="result.passed" class="success-icon">
+                                                        <CircleCheckFilled />
+                                                    </el-icon>
+                                                    <el-icon v-else class="error-icon">
+                                                        <CircleCloseFilled />
+                                                    </el-icon>
+                                                </div>
+                                                <div class="result-content">
+                                                    <div class="result-assertion">{{ result.assertion }}</div>
+                                                    <div class="result-details">
+                                                        <span class="actual-value">实际值: {{ result.actualValue }}</span>
+                                                        <span class="expected-value">期望值: {{ result.expectedValue }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </el-tab-pane>
@@ -727,7 +813,7 @@ $headers.Content-Type=application/json  # ��查响���头"
                                                 <el-option value="protocol" label="协议(protocol)" />
                                             </el-option-group>
                                             <el-option-group label="认证信息">
-                                                <el-option value="username" label="用户名(username)" />
+                                                <el-option value="username" label="用户�����(username)" />
                                                 <el-option value="password" label="密码(password)" />
                                                 <el-option value="token" label="令牌(token)" />
                                             </el-option-group>
@@ -742,7 +828,7 @@ $headers.Content-Type=application/json  # ��查响���头"
                                     <template #default="{ row }">
                                         <el-input 
                                             v-model="row.value" 
-                                            placeholder="请输入变量值"
+                                            placeholder="请输入变��值"
                                         />
                                     </template>
                                 </el-table-column>
@@ -1011,12 +1097,69 @@ import {
     Search, 
     Refresh, 
     Upload,
-    Folder 
+    Folder,
+    CircleCheckFilled,
+    CircleCloseFilled,
+    Key,
+    DocumentCopy,
+    Monitor
 } from '@element-plus/icons-vue';
 import axios from 'axios';
 
 const router = useRouter();
 const route = useRoute();
+
+// 添加请求拦截器
+axios.interceptors.request.use(
+    config => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+        return config;
+    },
+    error => {
+        return Promise.reject(error);
+    }
+);
+
+// 添加响应拦截器
+axios.interceptors.response.use(
+    response => {
+        return response;
+    },
+    error => {
+        if (error.response) {
+            switch (error.response.status) {
+                case 401:
+                    // token 过期或无效
+                    ElMessage.error('登录已过期，请重新登录');
+                    localStorage.removeItem('token'); // 清除失效的 token
+                    router.push('/login'); // 重定向到登录页
+                    break;
+                case 403:
+                    ElMessage.error('没有权限执行此操作');
+                    break;
+                default:
+                    ElMessage.error(error.response.data.message || '请求失败');
+            }
+        } else {
+            ElMessage.error('网络错误，请检查网络连接');
+        }
+        return Promise.reject(error);
+    }
+);
+
+// 添加检查 token 是否存在的函数
+const checkAuth = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        ElMessage.warning('请先登录');
+        router.push('/login');
+        return false;
+    }
+    return true;
+};
 
 // 定义 props
 const props = defineProps({
@@ -1202,31 +1345,57 @@ const getValueByPath = (obj, path) => {
     }, obj);
 };
 
-// 修改处理响应的方法，添加断言评估
+// 修改 handleResponse 方法
 const handleResponse = (response) => {
     console.log('Raw response:', response);
     
     if (response.data.success) {
-        console.log('Response data before processing:', response.data.data);
-        
-        // 获取实际的响应数据
         const apiResponse = response.data.data;
         
-        // 构建响应数据对象
+        // 构建响应数据对象，只使用 response.body 部分
         const processedResponse = {
             status: apiResponse.response.status_code,
             statusText: apiResponse.status,
             time: apiResponse.duration * 1000,
             headers: apiResponse.response.headers,
-            body: apiResponse.response.body.type === 'html' 
-                ? apiResponse.response.body.content 
-                : apiResponse.response.body,
+            body: apiResponse.response.body, // 只使用 response.body
             contentType: apiResponse.response.content_type,
-            // 添加测试结果
             testResults: evaluateAssertions(response)
         };
         
-        console.log('Processed response data:', processedResponse);
+        // 处理变量提取
+        extractors.value.forEach(extractor => {
+            try {
+                // 直接从 response.body 中提取数据
+                let jsonData = apiResponse.response.body;
+                console.log('Response data for extraction:', jsonData);
+                
+                // 处理 jsonPath
+                const path = extractor.jsonPath.replace(/^\$\./, '').split('.');
+                let value = jsonData;
+                
+                // 遍历路径获取值
+                for (const key of path) {
+                    if (value === undefined || value === null) break;
+                    value = value[key];
+                    console.log(`Extracting ${key}:`, value);
+                }
+                
+                // 更新提取到的值
+                if (value !== undefined && value !== null) {
+                    extractor.extractedValue = typeof value === 'object' 
+                        ? JSON.stringify(value) 
+                        : String(value);
+                    console.log(`Successfully extracted value for ${extractor.variableName}:`, extractor.extractedValue);
+                } else {
+                    extractor.extractedValue = null;
+                    console.warn(`No value found for path ${extractor.jsonPath}`);
+                }
+            } catch (error) {
+                console.error(`提取变量 ${extractor.variableName} 失败:`, error);
+                extractor.extractedValue = null;
+            }
+        });
         
         // 更新响应数据
         responseData.value = processedResponse;
@@ -1246,10 +1415,12 @@ const handleResponse = (response) => {
 
 // 修改提交测试用例的方法
 const submitTestCase = async () => {
+    if (!checkAuth()) return;
+    
     try {
         loading.value = true;
         
-        // 构建请求数据
+        // 构建求数据
         const requestData = {
             ...testCaseForm.value,
             project_id: projectId.value,
@@ -1302,9 +1473,12 @@ const submitTestCase = async () => {
 
 // 修改 fetchTestCases 方法
 const fetchTestCases = async () => {
+    if (!checkAuth()) return;
+    
     console.log('Fetching test cases for project:', projectId.value);
     
     try {
+        loading.value = true;
         const response = await axios.get(
             `http://localhost:8081/api/testcase/list/${projectId.value}`,
             {
@@ -1334,8 +1508,10 @@ const fetchTestCases = async () => {
         if (error.response) {
             console.error('Error response:', error.response.data);
         }
-        ElMessage.error(error.message || '获取测试用例失败，�������查网络连接');
+        ElMessage.error(error.message || '获取测试用例失败，请检查网络连接');
         throw error;
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -1450,7 +1626,7 @@ const handleCurrentChange = (val) => {
 // 标签类型处理
 const getPriorityType = (priority) => {
     const types = {
-        '高': 'danger',
+        '��': 'danger',
         '中': 'warning',
         '低': 'info',
     };
@@ -1685,7 +1861,7 @@ const saveTestCase = async () => {
                 });
 
                 if (response.data.code === 200) {
-                    ElMessage.success(testCaseForm.value.case_id ? '测试用例更新成功' : '测试用例保存成功');
+                    ElMessage.success(testCaseForm.value.case_id ? '测试用例更���成功' : '测试用例保存成功');
                     showAddDialog.value = false;
                     fetchTestCases(); // 刷新列表
                 } else {
@@ -1750,6 +1926,8 @@ onUnmounted(() => {
 });
 
 onMounted(async () => {
+    if (!checkAuth()) return;
+    
     console.log('TestCases mounted with projectId:', projectId.value);
     console.log('TestCases mounted with projectName:', projectName.value); // 添加日志
     
@@ -1878,7 +2056,7 @@ const submitEnvForm = async () => {
     await envFormRef.value.validate(async (valid) => {
         if (valid) {
             try {
-                // 构建���求数据，确保包含所有已填写的字段
+                // 构建求数据，确保包含所有已填写的字段
                 const requestData = {
                     name: envForm.value.name,
                     description: envForm.value.description,
@@ -1941,8 +2119,8 @@ const removeExtractor = (index) => {
 const getValuePlaceholder = (key) => {
     const placeholders = {
         'host': '例如: api.example.com',
-        'port': '例如: 8080',
-        'base_url': '例如: /api/v1',
+        'port': '例��: 8080',
+        'base_url': '���如: /api/v1',
         'protocol': '例如: https',
         'username': '请输入用户名',
         'password': '请输入密码',
@@ -2009,7 +2187,7 @@ const editVarForm = ref({
 
 // 修改环境变量编辑方法
 const editEnvVariable = async (variable) => {
-    // 打开编辑弹窗并填��数据
+    // 打�����辑弹窗并填��数据
     editVarForm.value = {
         id: variable.id,
         key: variable.key,
@@ -2032,7 +2210,7 @@ const submitEditVar = async () => {
                 value: editVarForm.value.value,
                 description: editVarForm.value.description,
                 env_id: editVarForm.value.env_id,  // 传递环境ID
-                project_id: projectId.value  // 传项目ID
+                project_id: projectId.value  // ��项目ID
             },
             {
                 headers: {
@@ -2118,7 +2296,7 @@ onMounted(() => {
     // ... 其他已有的 onMounted 代码
 });
 
-// 在组件卸载时移除事件监听
+// 在组件卸载������移除事件监听
 onUnmounted(() => {
     document.removeEventListener('keydown', handleKeydown);
     // ... 其他已有的 onUnmounted 代码
@@ -2128,7 +2306,7 @@ onUnmounted(() => {
 const jsonError = ref('');
 const jsonErrorPosition = ref(null);
 
-// 添加 JSON 格��校验函数
+// 添加 JSON 格校验函数
 const validateJson = (jsonString) => {
     if (!jsonString) {
         jsonError.value = '';
@@ -2497,7 +2675,7 @@ const formatResponse = (data) => {
     }
 };
 
-// 修改格式化响应体的方法
+// ���改格式化响应体的方法
 const formatResponseBody = () => {
     try {
         // 检查内容类型
@@ -2552,7 +2730,7 @@ const formatResponseBody = () => {
             responseData.value.body = formatted;
             ElMessage.success('XML 格式化成功');
         }
-        // 其他类型
+        // 其���类型
         else {
             ElMessage.warning(`不支持格式化 ${contentType} 类型的内容`);
         }
@@ -2562,7 +2740,7 @@ const formatResponseBody = () => {
     }
 };
 
-// 修改复制响应内容的方法
+// 修���复制响应内容的方法
 const copyResponseBody = () => {
     if (!responseData.value.body) {
         ElMessage.warning('没有可复制的内容');
@@ -2592,6 +2770,98 @@ const responseContentType = computed(() => {
     if (contentType.includes('application/xml') || contentType.includes('text/xml')) return 'xml';
     return 'text';
 });
+
+// 在 script 部分添加相关方法
+const queryJsonPaths = (query, cb) => {
+    axios.get(`/api/json-paths?query=${encodeURIComponent(query)}`, {
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}` // 添加认证头
+        }
+    })
+    .then(response => {
+        cb(response.data.map(item => ({
+            value: item.path,
+            path: item.path,
+            previewValue: item.previewValue
+        })));
+    })
+    .catch(error => {
+        console.error('Error fetching JSON paths:', error);
+        if (error.response?.status === 401) {
+            ElMessage.error('认证失败，请重新登录');
+            // 可以在这里添加重定向到登录页面的逻辑
+        } else {
+            ElMessage.error('获取路径建议失败');
+        }
+        cb([]);
+    });
+};
+
+const handleJsonPathSelect = (item) => {
+    extractors.value.forEach(extractor => {
+        if (extractor.jsonPath === item.value) {
+            extractor.previewValue = item.previewValue;
+        }
+    });
+};
+
+const copyExtractedValue = (value) => {
+    if (!value) return;
+    
+    navigator.clipboard.writeText(value)
+        .then(() => {
+            ElMessage.success('已复制到剪贴板');
+        })
+        .catch(() => {
+            ElMessage.error('复制失败');
+        });
+};
+
+const testExtractor = (extractor) => {
+    try {
+        if (!responseData.value || !responseData.value.body) {
+            ElMessage.warning('请先发送请求获取响应数据');
+            return;
+        }
+
+        // 获取响应体数据
+        let jsonData = responseData.value.body;
+        console.log('Testing extractor with data:', jsonData);
+        console.log('Using path:', extractor.jsonPath);
+        
+        // 处理 jsonPath
+        const path = extractor.jsonPath.replace(/^\$\./, '').split('.');
+        let value = jsonData;
+        
+        // 遍历路径获取值
+        for (const key of path) {
+            if (value === undefined || value === null) break;
+            value = value[key];
+            console.log(`Extracting ${key}:`, value);
+        }
+        
+        // 更新提取到的值
+        if (value !== undefined && value !== null) {
+            extractor.extractedValue = typeof value === 'object' 
+                ? JSON.stringify(value) 
+                : String(value);
+            console.log(`Successfully extracted value:`, extractor.extractedValue);
+            ElMessage.success('提取成功');
+        } else {
+            extractor.extractedValue = null;
+            ElMessage.warning('未找到匹配的值');
+        }
+    } catch (error) {
+        console.error('提取测试失败:', error);
+        ElMessage.error('提取测试失败: ' + error.message);
+        extractor.extractedValue = null;
+    }
+};
+
+const hasResponseData = computed(() => {
+    return responseData.value && responseData.value.body;
+});
+
 </script>
 
 <style scoped>
@@ -2620,7 +2890,7 @@ const responseContentType = computed(() => {
     width: 160px;
 }
 
-/* 操作按钮容器样式 */
+/* 操作按钮容器样��� */
 .operation-container {
     margin-bottom: 20px;
     display: flex;
@@ -2637,7 +2907,7 @@ const responseContentType = computed(() => {
     gap: 8px;
     flex-wrap: wrap;
     justify-content: flex-end; /* 修改为 flex-end 使按钮组内部靠右对齐 */
-    width: auto; /* 修��为 auto，不再占满整行 */
+    width: auto; /* 修��为 auto，���再占满整行 */
 }
 
 /* 修改上传按钮容器样式 */
@@ -2656,7 +2926,7 @@ const responseContentType = computed(() => {
     margin: 0;
 }
 
-/* 修改按钮样式，确保图标居中 */
+/* 修���按钮样式，确保图标居中 */
 .operation-container :deep(.el-button) {
     display: inline-flex;  /* 改为 inline-flex */
     align-items: center;
@@ -2965,17 +3235,25 @@ const responseContentType = computed(() => {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 16px;
 }
 
 .method-select {
     width: 120px;
-    margin-bottom: 0;  /* 覆盖 form-item 的默认下边距 */
 }
 
 .api-input {
     flex: 1;
-    margin-bottom: 0;  /* 覆盖 form-item 的默认下边距 */
+}
+
+/* 修复表单项的样式 */
+.request-url-section :deep(.el-form-item) {
+    margin-bottom: 0;  /* 移除表单项的下边距 */
+}
+
+/* 确保所有元素垂直居中对齐 */
+.request-url-section :deep(.el-form-item__content) {
+    display: flex;
+    align-items: center;
 }
 
 .send-button {
@@ -2985,17 +3263,20 @@ const responseContentType = computed(() => {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    margin-top: 0;  /* 移除顶部边距 */
+    margin-bottom: 0;  /* 移除底部边距 */
 }
 
 /* 请求方法下拉框样式 */
 .method-select :deep(.el-input__wrapper) {
     padding: 0 8px;
+    height: 32px;  /* 确保高度一致 */
 }
 
-.method-select :deep(.el-select-dropdown__item) {
+/* API 输入框样式 */
+.api-input :deep(.el-input__wrapper) {
     padding: 0 12px;
-    height: 32px;
-    line-height: 32px;
+    height: 32px;  /* 确保高度一致 */
 }
 
 /* 请求方法颜色样式 */
@@ -3019,59 +3300,7 @@ const responseContentType = computed(() => {
     color: #909399;
 }
 
-/* API 输入框样式 */
-.api-input :deep(.el-input__wrapper) {
-    padding: 0 12px;
-}
-
-.api-input :deep(.el-input__prefix) {
-    margin-right: 8px;
-}
-
-/* 修改 body 类型选择器的样式 */
-.body-type-selector {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 0;
-}
-
-.body-type-selector :deep(.el-radio-group) {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-}
-
-.body-type-selector :deep(.el-radio-button__inner) {
-    padding: 8px 16px;
-    height: 32px;
-    line-height: 1;
-}
-
-/* 调整 JSON 选择器的样式 */
-.body-type-selector :deep(.el-select) {
-    margin-left: 8px;
-}
-
-.body-type-selector :deep(.el-select .el-input__wrapper) {
-    height: 32px;  /* 与 radio button 保持相同高度 */
-    line-height: 32px;
-    padding: 0 8px;
-}
-
-.body-type-selector :deep(.el-select .el-input__inner) {
-    height: 32px;
-    line-height: 32px;
-}
-
-/* 确保下拉选项的样式统一 */
-.body-type-selector :deep(.el-select-dropdown__item) {
-    height: 32px;
-    line-height: 32px;
-    padding: 0 12px;
-}
-
-/* 添加表格相关样��� */
+/* 添加表格相关样 */
 .case-title {
     display: flex;
     align-items: center;
@@ -3474,7 +3703,7 @@ const responseContentType = computed(() => {
     line-height: 1.4;
 }
 
-/* 表格样式优化 */
+/* 表格样式��化 */
 .env-item :deep(.el-table) {
     --el-table-border-color: var(--el-border-color-lighter);
     border-radius: 4px;
@@ -3754,5 +3983,353 @@ const responseContentType = computed(() => {
 
 .response-body.xml-content {
     color: #2f6f9f;
+}
+
+/* 测试结果样式 */
+.test-results {
+    padding: 16px;
+}
+
+.test-summary {
+    background: var(--el-bg-color-page);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--el-border-color-lighter);
+}
+
+.summary-stats {
+    display: flex;
+    gap: 24px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stat-label {
+    color: var(--el-text-color-secondary);
+    font-size: 14px;
+}
+
+.stat-value {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.stat-value.pass {
+    color: var(--el-color-success);
+}
+
+.stat-value.fail {
+    color: var(--el-color-danger);
+}
+
+.test-result-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.test-result-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--el-border-color-lighter);
+    transition: all 0.3s ease;
+}
+
+.test-result-item.passed {
+    background-color: var(--el-color-success-light-9);
+    border-color: var(--el-color-success-light-5);
+}
+
+.test-result-item.failed {
+    background-color: var(--el-color-danger-light-9);
+    border-color: var(--el-color-danger-light-5);
+}
+
+.result-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}
+
+.success-icon {
+    color: var(--el-color-success);
+    font-size: 20px;
+}
+
+.error-icon {
+    color: var(--el-color-danger);
+    font-size: 20px;
+}
+
+.result-content {
+    flex: 1;
+}
+
+.result-assertion {
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: var(--el-text-color-primary);
+}
+
+.result-details {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+}
+
+.actual-value, .expected-value {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.actual-value::before {
+    content: "•";
+    color: var(--el-text-color-secondary);
+}
+
+.expected-value::before {
+    content: "•";
+    color: var(--el-text-color-secondary);
+}
+
+/* 变量提取器样式 */
+.extractors-section {
+    padding: 16px;
+    background-color: var(--el-bg-color);
+    border-radius: 4px;
+}
+
+.section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.section-title h4 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--el-text-color-primary);
+}
+
+.extractor-item {
+    margin-bottom: 12px;
+    padding: 12px;
+    background-color: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.extractor-item:hover {
+    border-color: var(--el-border-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* 修改行间距和对齐 */
+.extractor-item .el-row {
+    margin-bottom: 0 !important;
+    align-items: center;
+}
+
+/* 输入框样式 */
+.extractor-item :deep(.el-input__wrapper),
+.extractor-item :deep(.el-autocomplete .el-input__wrapper) {
+    box-shadow: none;
+    background-color: var(--el-bg-color);
+    border: 1px solid var(--el-border-color);
+    height: 32px;
+    line-height: 32px;
+}
+
+/* 变量名输入框前缀样式 */
+.extractor-item :deep(.el-input__prefix) {
+    color: var(--el-text-color-secondary);
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* 自动完成下拉框样式 */
+.suggestion-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.suggestion-item .path {
+    font-family: monospace;
+    color: var(--el-text-color-primary);
+}
+
+.suggestion-item .value {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 预览值标签样式 */
+.extractor-item :deep(.el-tag) {
+    width: 100%;
+    text-align: center;
+    margin: 0;
+    font-size: 12px;
+    height: 32px;
+    line-height: 30px;
+    background-color: var(--el-bg-color);
+    border-color: var(--el-border-color);
+    color: var(--el-text-color-secondary);
+}
+
+/* 删除按钮样式 */
+.extractor-item :deep(.el-button.is-circle) {
+    width: 32px;
+    height: 32px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 确保所有列对齐 */
+.extractor-item .el-col {
+    display: flex;
+    align-items: center;
+}
+
+.input-with-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%; /* 添加固定宽度 */
+    position: relative; /* 添加相对定位 */
+}
+
+.json-path-input {
+    flex: 1;
+    width: 100%; /* 添加固定宽度 */
+}
+
+.delete-button {
+    flex-shrink: 0;
+}
+
+/* 修改提取器项样式 */
+.extractor-item {
+    margin-bottom: 12px;
+    padding: 12px;
+    background-color: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+/* 确保行对齐 */
+.extractor-item .el-row {
+    align-items: center;
+}
+
+/* 调整自动完成输入框样式 */
+.json-path-input :deep(.el-input__wrapper) {
+    width: 100%;
+}
+
+/* 删除按钮样式调整 */
+.delete-button {
+    margin-left: 8px;
+    padding: 8px;
+}
+
+/* 确保预览标签垂直居中 */
+.el-col:last-child {
+    display: flex;
+    align-items: center;
+}
+
+.extractor-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.value-tag {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background-color: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color-lighter);
+}
+
+/* 提取值显示样式 */
+.extractor-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.value-tag {
+    flex: 1;
+    text-align: center;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.extractor-value :deep(.el-button--small) {
+    padding: 4px;
+    height: 24px;
+}
+
+.extractor-value :deep(.el-button--small .el-icon) {
+    font-size: 14px;
+}
+
+.test-button {
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.test-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* 调整按钮大小保持一致 */
+.test-button,
+.delete-button {
+    width: 32px;
+    height: 32px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 确保下拉选项不会超出容器 */
+:deep(.el-autocomplete-suggestion) {
+    width: 100% !important;
+}
+
+:deep(.el-autocomplete-suggestion__wrap) {
+    width: 100%;
 }
 </style>
