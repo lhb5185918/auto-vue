@@ -62,7 +62,7 @@
               {{ Math.abs(stat.trend) }}% 
               <el-icon><component :is="stat.trend >= 0 ? 'ArrowUp' : 'ArrowDown'" /></el-icon>
             </span>
-            较���周
+            较上周
           </div>
         </el-card>
       </div>
