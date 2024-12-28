@@ -415,7 +415,11 @@
                                             </div>
                                             <div class="editor-content">
                                                 <div class="line-numbers">
-                                                    <div v-for="i in getLineCount(testCaseForm.body)" :key="i" class="line-number">
+                                                    <div 
+                                                        v-for="i in getLineCount(testCaseForm.body || '')" 
+                                                        :key="i" 
+                                                        class="line-number"
+                                                    >
                                                         {{ i }}
                                                     </div>
                                                 </div>
@@ -544,7 +548,7 @@
                                                 <el-col :span="4">
                                                     <div class="extractor-value">
                                                         <el-tooltip 
-                                                            :content="extractor.extractedValue ? '提取的值' : '未提取到值'" 
+                                                            :content="extractor.extractedValue ? '提取的值' : '未提取到��'" 
                                                             placement="top"
                                                         >
                                                             <el-tag 
@@ -765,7 +769,7 @@ $headers.Content-Type=application/json  # ��查响���头"
                                 @click="showCreateEnvSuiteDialog"
                                 :icon="Plus"
                             >
-                                新建环境套
+                                新建环境���
                             </el-button>
                         </div>
                     </el-form-item>
@@ -812,7 +816,7 @@ $headers.Content-Type=application/json  # ��查响���头"
                                                 <el-option value="base_url" label="基础URL(base_url)" />
                                                 <el-option value="protocol" label="协议(protocol)" />
                                             </el-option-group>
-                                            <el-option-group label="认证信息">
+                                            <el-option-group label="认证��息">
                                                 <el-option value="username" label="用户�����(username)" />
                                                 <el-option value="password" label="密码(password)" />
                                                 <el-option value="token" label="令牌(token)" />
@@ -1415,59 +1419,47 @@ const handleResponse = (response) => {
 
 // 修改提交测试用例的方法
 const submitTestCase = async () => {
-    if (!checkAuth()) return;
-    
     try {
-        loading.value = true;
-        
-        // 构建求数据
-        const requestData = {
-            ...testCaseForm.value,
-            project_id: projectId.value,
-            params: paramsTableData.value.filter(item => item.enabled),
-            headers: headersTableData.value.filter(item => item.enabled),
-            body_type: bodyType.value,
-            raw_content_type: rawContentType.value,
-            form_data: formDataTableData.value.filter(item => item.enabled)
-        };
-        
-        console.log('Request data:', requestData);
+        // 处理请求体数据
+        let requestBody = testCaseForm.value.body; // 修改这里，使用 testCaseForm.value
 
-        const response = await axios.post(
-            'http://localhost:8081/api/testcase/execute_direct/',
-            requestData,
-            {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Content-Type': 'application/json'
+        // 如果是 JSON 类型，需要特殊处理
+        if (bodyType.value === 'raw' && rawContentType.value === 'application/json') {
+            try {
+                // 检查是否为空
+                if (!requestBody) {
+                    ElMessage.error('请输入 JSON 数据');
+                    return;
                 }
+                // 先解析成对象，再转换回字符串，去除格式化带来的换行和空格
+                const parsedBody = JSON.parse(requestBody);
+                requestBody = JSON.stringify(parsedBody);
+            } catch (e) {
+                console.error('JSON parse error:', e);
+                ElMessage.error('JSON 格式错误，请检查输入');
+                return;
             }
-        );
-        
-        console.log('API response:', response);
+        }
 
-        // 先处理响应数据
+        // 构建请求数据
+        const requestData = {
+            ...testCaseForm.value, // 修改这里，使用 testCaseForm.value
+            body: requestBody
+        };
+
+        // 发送请求
+        const response = await axios.post('/api/testcase/execute_direct/', requestData, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': rawContentType.value || 'application/json'
+            }
+        });
+
+        // 处理响应
         handleResponse(response);
-        
-        // 根据响应结果显示消息
-        if (response.data.success) {
-            ElMessage({
-                type: 'success',
-                message: response.data.message || '测试执行成功',
-                duration: 3000
-            });
-        } else {
-            console.error('Request failed:', response.data);
-            ElMessage.error(response.data.message || '请求失败');
-        }
     } catch (error) {
-        console.error('Request error:', error);
-        if (error.response) {
-            console.error('Error response:', error.response.data);
-        }
-        ElMessage.error(error.response?.data?.message || '请求发送失败');
-    } finally {
-        loading.value = false;
+        console.error('执行测试用例失败:', error);
+        ElMessage.error('执行失败: ' + error.message);
     }
 };
 
@@ -1735,7 +1727,7 @@ const resetSearch = () => {
     handleSearch();
 };
 
-// 添加 Body 类相关的响应式数据
+// 添加 Body 类相关的响应式数���
 const bodyType = ref('none');
 const rawContentType = ref('application/json');
 const paramsTableData = ref([{ enabled: true, key: '', value: '', description: '' }]);
@@ -2268,16 +2260,40 @@ const deleteEnvVariable = async (variable) => {
     }
 };
 
-// 添加 JSON 格式化方法
+// 修改 JSON 格式化方法
 const formatJsonInput = () => {
-    if (bodyType.value === 'raw' && rawContentType.value === 'application/json') {
-        try {
-            const jsonObj = JSON.parse(testCaseForm.value.body);
-            testCaseForm.value.body = JSON.stringify(jsonObj, null, 2);
-            ElMessage.success('JSON 格式化成功');
-        } catch (e) {
-            ElMessage.warning('无效的 JSON 格式');
+    try {
+        if (!testCaseForm.value.body) {
+            ElMessage.warning('请先输入 JSON 数据');
+            return;
         }
+        
+        // 先解析成对象
+        const parsed = JSON.parse(testCaseForm.value.body);
+        // 格式化显示用
+        const formatted = JSON.stringify(parsed, null, 2);
+        testCaseForm.value.body = formatted;
+        
+        // 清除错误提示
+        jsonError.value = '';
+        ElMessage.success('JSON 格式化成功');
+    } catch (e) {
+        console.error('JSON 格式化失败:', e);
+        ElMessage.error('JSON 格式错误，请检查输入');
+        validateJson(testCaseForm.value.body);
+    }
+};
+
+// 添加 JSON 验证方法
+const validateJson = (text) => {
+    try {
+        if (!text) return true;
+        JSON.parse(text);
+        jsonError.value = '';
+        return true;
+    } catch (e) {
+        jsonError.value = e.message;
+        return false;
     }
 };
 
@@ -2306,75 +2322,6 @@ onUnmounted(() => {
 const jsonError = ref('');
 const jsonErrorPosition = ref(null);
 
-// 添加 JSON 格校验函数
-const validateJson = (jsonString) => {
-    if (!jsonString) {
-        jsonError.value = '';
-        return true;
-    }
-
-    try {
-        JSON.parse(jsonString);
-        jsonError.value = '';
-        return true;
-    } catch (e) {
-        // 获取错误位置和内容
-        const lines = jsonString.split('\n');
-        let lineNumber = 1;
-        let columnNumber = 0;
-        let errorLine = '';
-        
-        // 分析错误信息
-        const errorMessage = e.message;
-        if (errorMessage.includes('Unexpected token')) {
-            const match = errorMessage.match(/Unexpected token '(.+?)'(,|\s+)(.*)/);
-            if (match) {
-                const [_, token, , context] = match;
-                
-                // 找到错误所在行
-                const contextStart = jsonString.indexOf(context);
-                if (contextStart !== -1) {
-                    // ���算行号和列号
-                    const beforeError = jsonString.substring(0, contextStart);
-                    const beforeLines = beforeError.split('\n');
-                    lineNumber = beforeLines.length;
-                    columnNumber = beforeLines[beforeLines.length - 1].length;
-                    errorLine = lines[lineNumber - 1];
-
-                    // 生成更友好的错误信息
-                    let errorDesc = '';
-                    if (token === ',') {
-                        errorDesc = '多余逗号';
-                    } else if (token === '}' || token === ']') {
-                        errorDesc = '缺少值或提前结束';
-                    } else if (token === ':') {
-                        errorDesc = '缺少键名或键值';
-                    } else {
-                        errorDesc = `无效的字符 '${token}'`;
-                    }
-
-                    // 构建错误提示
-                    jsonError.value = `第 ${lineNumber} 行出现语法错误: ${errorDesc}\n`;
-                    jsonError.value += `${errorLine}\n`;
-                    jsonError.value += `${' '.repeat(columnNumber)}^ 此处有误`;
-                    return false;
-                }
-            }
-        }
-
-        // 如果无法解析具体错误，返���通用错误信息
-        jsonError.value = `JSON 格式错误: ${e.message}`;
-        return false;
-    }
-};
-
-// 修改 handleBodyInput 函数，添加错误位置高亮
-const handleBodyInput = (value) => {
-    if (bodyType.value === 'raw' && rawContentType.value === 'application/json') {
-        validateJson(value);
-    }
-};
-
 // 添加错误位置高亮函数
 const highlightError = () => {
     if (!jsonErrorPosition.value) return;
@@ -2389,7 +2336,25 @@ const highlightError = () => {
 
 // 添加获取行数的方法
 const getLineCount = (text) => {
-    return text ? text.split('\n').length : 1;
+    // 确保输入是字符串
+    const str = String(text || '');
+    return str ? str.split('\n').length : 1;
+};
+
+// 添加 body 类型切换处理
+watch(bodyType, (newType) => {
+    if (newType === 'raw') {
+        // 确保 body 是字符串
+        testCaseForm.body = testCaseForm.body || '';
+    }
+});
+
+// 初始化表单时确保 body 是字符串
+const initForm = () => {
+    testCaseForm.value = {
+        ...testCaseForm.value, // 保留其他字段
+        body: '',  // 确保初始值是空字符串
+    };
 };
 
 // 添加上传相关的方法
@@ -2896,7 +2861,7 @@ const hasResponseData = computed(() => {
     display: flex;
     gap: 16px;
     flex-wrap: wrap;
-    justify-content: flex-end; /* 修改为 flex-end 使按钮靠右对齐 */
+    justify-content: flex-end; /* 修改为 flex-end 使���钮靠右对齐 */
     width: 100%;
 }
 
@@ -2906,7 +2871,7 @@ const hasResponseData = computed(() => {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    justify-content: flex-end; /* 修改为 flex-end 使按钮组内部靠右对齐 */
+    justify-content: flex-end; /* 修改为 flex-end 使按钮组��部靠右对齐 */
     width: auto; /* 修��为 auto，���再占满整行 */
 }
 
@@ -2921,7 +2886,7 @@ const hasResponseData = computed(() => {
     align-items: center;
 }
 
-/* 确保按钮样式一致 */
+/* 确保���钮样式一致 */
 .operation-container :deep(.el-button) {
     margin: 0;
 }
@@ -3570,7 +3535,7 @@ const hasResponseData = computed(() => {
     flex: 1;
 }
 
-/* 确保下拉框内容样式正确 */
+/* ��保下拉框内容样式正确 */
 :deep(.env-suite-select) {
     width: auto !important;
     min-width: 200px !important;

@@ -6,6 +6,8 @@ import Project from '@/views/Project.vue';
 import TestCases from '@/views/TestCases.vue';
 import ProjectAnalysis from '@/views/ProjectAnalysis.vue';
 import AutomationTest from '@/views/AutomationTest.vue'
+import TestPlan from '@/views/TestPlan.vue';
+import ApiTestMindMap from '@/views/ApiTestMindMap.vue';
 
 const routes = [
     {
@@ -80,6 +82,20 @@ const routes = [
                 });
             },
             render: () => null
+        }
+    },
+    {
+        path: '/test-plan',
+        name: 'TestPlan',
+        component: TestPlan
+    },
+    {
+        path: '/mindmap/:projectId',
+        name: 'ApiTestMindMap',
+        component: () => import('@/views/ApiTestMindMap.vue'),
+        meta: {
+            requiresAuth: true,
+            title: '接口自动化脑图'
         }
     }
 ];

@@ -26,5 +26,15 @@ export default defineConfig({
     hmr: {
       overlay: false
     }
+  },
+  optimizeDeps: {
+    include: ['@antv/g6'],
+    exclude: [],
+    force: true
+  },
+  build: {
+    commonjsOptions: {
+      include: [/@antv\/g6/]
+    }
   }
 })

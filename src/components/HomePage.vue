@@ -67,6 +67,14 @@
                 <el-icon><VideoPlay /></el-icon>
                 <span>用例执行</span>
               </el-menu-item>
+
+              <el-menu-item 
+                index="mindmap"
+                @click="handleProjectMenu('mindmap')"
+              >
+                <el-icon><Share /></el-icon>
+                <span>接口自动化脑图</span>
+              </el-menu-item>
             </template>
 
             <template v-else>
@@ -98,7 +106,7 @@
         </el-menu>
       </div>
 
-      <!-- 主内容区域 -->
+      <!-- 主内容区��� -->
       <div class="main-content">
         <div class="header">
           <div class="header-content">
@@ -234,7 +242,8 @@ import {
   TrendCharts,
   InfoFilled,
   Timer,
-  Clock
+  Clock,
+  Share
 } from '@element-plus/icons-vue';
 
 const route = useRoute();
@@ -425,20 +434,32 @@ const logout = () => {
   ElMessage.success('退出成功');
 };
 
-// 处理项目相关菜单点击
-const handleProjectMenu = (path) => {
+// 修改处理项目相关菜单点击的方法
+const handleProjectMenu = (key) => {
+  // 如果没有选择项目，显示提示
   if (!currentProject.value) {
     ElMessage.warning('请先选择项目');
     return;
   }
-  
-  router.push({
-    path,
-    query: {
-      projectId: currentProject.value.id,
-      projectName: currentProject.value.name
-    }
-  });
+
+  switch (key) {
+    case 'mindmap':
+      // 使用当前选中项目的ID
+      const projectId = currentProject.value.id;
+      router.push(`/mindmap/${projectId}`);
+      break;
+      
+    default:
+      // 处理其他菜单项的跳转
+      router.push({
+        path: key,
+        query: {
+          projectId: currentProject.value.id,
+          projectName: currentProject.value.name
+        }
+      });
+      break;
+  }
 };
 
 onMounted(() => {
@@ -457,6 +478,26 @@ const formatDate = (dateString) => {
     day: '2-digit'
   });
 };
+
+// 在菜单配置中添加测试计划
+const menuItems = [
+  {
+    icon: 'House',
+    title: '仪表盘',
+    path: '/'
+  },
+  {
+    icon: 'Files',
+    title: '测试用例',
+    path: '/testcases'
+  },
+  {
+    icon: 'Calendar',  // 或其他合适的图标
+    title: '测试计划',
+    path: '/test-plan'  // 确保这里的路径与路由配置匹配
+  }
+  // ... 其他菜单项
+];
 </script>
 
 <style scoped>
@@ -837,7 +878,7 @@ body {
 .modal-footer button:first-child:hover {
   background-color: #0056b3;
   transform: scale(1.05);
-  /* 悬停时放大 */
+  /* 停时放大 */
 }
 
 .modal-footer button:last-child {

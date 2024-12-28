@@ -9,11 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@antv/g6": "^4.8.24",
     "@element-plus/icons-vue": "^2.3.1",
     "axios": "^1.7.7",
     "chart.js": "^4.4.6",
     "echarts": "^5.5.1",
     "element-plus": "^2.8.8",
+    "jsplumb": "^2.15.6",
+    "kity": "^2.0.4",
+    "kityminder-core": "^1.4.50",
     "vue": "^3.5.12",
     "vue-router": "^4.4.5",
     "vuedraggable": "^4.1.0"
