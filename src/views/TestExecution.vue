@@ -301,7 +301,7 @@ const handleBatchExecute = async () => {
 
   try {
     await ElMessageBox.confirm(`确定要执行选中的 ${selectedRows.value.length} 个用例吗？`, '提示', {
-      confirmButtonText: '确���',
+      confirmButtonText: '确',
       cancelButtonText: '取消',
       type: 'warning'
     });

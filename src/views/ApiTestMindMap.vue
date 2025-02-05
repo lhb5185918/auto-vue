@@ -1102,7 +1102,7 @@ onUnmounted(() => {
 
 .content-container {
   display: grid;
-  grid-template-columns: 300px 1fr 300px;
+  grid-template-columns: 300px 1fr 350px;
   gap: 16px;
   height: calc(100vh - 200px);
   background: #fff;
@@ -1110,8 +1110,6 @@ onUnmounted(() => {
   padding: 16px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05);
   overflow: hidden;
-  border: 1px solid #e4e7ed;
-  position: relative;
 }
 
 .content-container::before,
@@ -1210,7 +1208,8 @@ onUnmounted(() => {
 
 .panel-content {
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
+  position: relative;
 }
 
 .case-option {
@@ -1241,22 +1240,22 @@ onUnmounted(() => {
 }
 
 .extractions-list {
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
 .extraction-item {
+  width: 100%;
+  box-sizing: border-box;
   background-color: var(--el-fill-color-light);
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
   padding: 16px;
-  transition: all 0.3s ease;
-}
-
-.extraction-item:hover {
-  border-color: var(--el-color-primary-light-7);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 12px;
 }
 
 .el-row {
@@ -1303,14 +1302,7 @@ onUnmounted(() => {
 }
 
 :deep(.el-form-item:not(:last-child))::after {
-  content: '';
-  position: absolute;
-  bottom: -10px;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background-color: var(--el-border-color-lighter);
-  opacity: 0.5;
+  display: none;
 }
 
 /* 添加根节点特殊样式 */
@@ -1414,13 +1406,13 @@ onUnmounted(() => {
 }
 
 :deep(.el-form) {
+  height: auto;
   padding: 20px;
   box-sizing: border-box;
 }
 
-:deep(.el-form-item__content) {
-  width: 100%;
-  box-sizing: border-box;
+:deep(.el-form-item) {
+  margin-bottom: 24px;
 }
 
 /* 调整行间距和对齐 */
@@ -1537,5 +1529,40 @@ onUnmounted(() => {
 :deep(.el-button--danger.is-circle .el-icon) {
   margin: 0;
   font-size: 16px;
+}
+
+/* 调整表单项标签的样式 */
+:deep(.el-form-item__label) {
+  padding-bottom: 8px;
+  font-weight: 500;
+}
+
+/* 优化文本域的样式 */
+:deep(.el-textarea__inner) {
+  min-height: 80px;
+}
+
+/* 调整选择器的样式 */
+:deep(.el-select) {
+  width: 100%;
+}
+
+/* 确保表单项内容正确对齐和显示 */
+:deep(.el-form-item__content) {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 调整后置提取区域的样式 */
+:deep(.el-form-item.is-required .el-form-item__label) {
+  color: var(--el-text-color-primary);
+}
+
+/* 确保添加按钮正确显示 */
+.extractions-list .el-button {
+  align-self: flex-start;
+  margin-top: 8px;
 }
 </style> 
