@@ -123,7 +123,7 @@
 
 .login-box {
     background-color: #fff; /* 背景颜色 */
-    padding: 40px; /* 增加内���距 */
+    padding: 40px; /* 增加内距 */
     border-radius: 5px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     width: 300px; /* 设置宽度 */

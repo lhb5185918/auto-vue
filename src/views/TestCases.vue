@@ -144,8 +144,8 @@
                                 <span class="title-text">{{ row.title }}</span>
                                 <el-tag 
                                     size="small" 
-                                    :type="getPriorityType(row.priority)"
-                                    effect="plain"
+                                    :type="getPriorityTagType(row.priority)"
+                                    effect="light"
                                     class="priority-tag"
                                 >
                                     {{ row.priority }}
@@ -170,7 +170,7 @@
                     <el-table-column label="状态" width="100" align="center">
                         <template #default="{ row }">
                             <el-tag 
-                                :type="getStatusType(row.status)"
+                                :type="getStatusTagType(row.status)"
                                 effect="light"
                                 size="small"
                                 class="status-tag"
@@ -179,9 +179,16 @@
                             </el-tag>
                         </template>
                     </el-table-column>
-                    <el-table-column prop="last_run_time" label="最后执行时间" width="160">
+                    <el-table-column prop="last_execution_time" label="最后执行时间" width="160">
                         <template #default="{ row }">
-                            {{ row.last_run_time ? formatDate(row.last_run_time) : '-' }}
+                            <el-tooltip 
+                                v-if="row.last_execution_time" 
+                                :content="formatDateTime(row.last_execution_time)"
+                                placement="top"
+                            >
+                                <span>{{ formatDate(row.last_execution_time) }}</span>
+                            </el-tooltip>
+                            <span v-else>-</span>
                         </template>
                     </el-table-column>
                     <el-table-column label="操作" width="200" fixed="right">
@@ -305,7 +312,7 @@
                                             </el-table-column>
                                             <el-table-column label="KEY">
                                                 <template #default="{ row }">
-                                                    <el-input v-model="row.key" placeholder="����数��" />
+                                                    <el-input v-model="row.key" placeholder="�数��" />
                                                 </template>
                                             </el-table-column>
                                             <el-table-column label="VALUE">
@@ -598,7 +605,7 @@
                                             placeholder="输入测试断言，例如：
 $.code=200  # 检查响应状态码
 $.data.id=1  # 检查JSON响应体
-$headers.Content-Type=application/json  # ��查响���头"
+$headers.Content-Type=application/json  # ��查响头"
                                         />
                                     </div>
                                 </el-tab-pane>
@@ -769,7 +776,7 @@ $headers.Content-Type=application/json  # ��查响���头"
                                 @click="showCreateEnvSuiteDialog"
                                 :icon="Plus"
                             >
-                                新建环境���
+                                新建环境
                             </el-button>
                         </div>
                     </el-form-item>
@@ -817,7 +824,7 @@ $headers.Content-Type=application/json  # ��查响���头"
                                                 <el-option value="protocol" label="协议(protocol)" />
                                             </el-option-group>
                                             <el-option-group label="认证��息">
-                                                <el-option value="username" label="用户�����(username)" />
+                                                <el-option value="username" label="用户��(username)" />
                                                 <el-option value="password" label="密码(password)" />
                                                 <el-option value="token" label="令牌(token)" />
                                             </el-option-group>
@@ -1188,7 +1195,7 @@ const currentPage = ref(1);
 const pageSize = ref(10);
 const total = ref(0);
 const showAddDialog = ref(false);
-const dialogTitle = ref('新建接���测试用例');
+const dialogTitle = ref('新建接测试用例');
 const testCaseFormRef = ref(null);
 
 // 表单验证规则
@@ -1196,7 +1203,7 @@ const rules = {
     title: [{ required: true, message: '请输入用例题', trigger: 'blur' }],
     api_path: [{ required: true, message: '请输入接口路径', trigger: 'blur' }],
     method: [{ required: true, message: '请选择请求方法', trigger: 'change' }],
-    priority: [{ required: true, message: '请选���优先级', trigger: 'change' }],
+    priority: [{ required: true, message: '请选优先级', trigger: 'change' }],
     headers: [{ 
         validator: (rule, value, callback) => {
             if (value) {
@@ -1349,117 +1356,137 @@ const getValueByPath = (obj, path) => {
     }, obj);
 };
 
+// 在 <script setup> 中添加 formatResponse 函数
+const formatResponse = (data) => {
+    if (!data) {
+        return '';
+    }
+    
+    try {
+        // 如果是字符串，尝试解析为 JSON
+        if (typeof data === 'string') {
+            try {
+                const parsed = JSON.parse(data);
+                return JSON.stringify(parsed, null, 2);
+            } catch (e) {
+                // 如果不是 JSON 字符串，直接返回
+                return data;
+            }
+        }
+        
+        // 如果是对象，直接格式化
+        return JSON.stringify(data, null, 2);
+    } catch (e) {
+        console.warn('Format error:', e);
+        // 如果发生错误，返回原始内容
+        return String(data);
+    }
+};
+
 // 修改 handleResponse 方法
 const handleResponse = (response) => {
     console.log('Raw response:', response);
     
     if (response.data.success) {
-        const apiResponse = response.data.data;
+        console.log('Response data before processing:', response.data.data);
         
-        // 构建响应数据对象，只使用 response.body 部分
+        // 构建响应数据对象
         const processedResponse = {
-            status: apiResponse.response.status_code,
-            statusText: apiResponse.status,
-            time: apiResponse.duration * 1000,
-            headers: apiResponse.response.headers,
-            body: apiResponse.response.body, // 只使用 response.body
-            contentType: apiResponse.response.content_type,
-            testResults: evaluateAssertions(response)
+            status: response.data.data.status_code,
+            statusText: response.data.data.response.code === 200 ? 'OK' : 'Error',
+            time: response.data.duration || 0,
+            headers: response.data.data.headers,
+            contentType: response.data.data.headers['Content-Type'] || 'unknown',
+            body: response.data.data.response.data || response.data.data.response
         };
         
-        // 处理变量提取
-        extractors.value.forEach(extractor => {
-            try {
-                // 直接从 response.body 中提取数据
-                let jsonData = apiResponse.response.body;
-                console.log('Response data for extraction:', jsonData);
-                
-                // 处理 jsonPath
-                const path = extractor.jsonPath.replace(/^\$\./, '').split('.');
-                let value = jsonData;
-                
-                // 遍历路径获取值
-                for (const key of path) {
-                    if (value === undefined || value === null) break;
-                    value = value[key];
-                    console.log(`Extracting ${key}:`, value);
-                }
-                
-                // 更新提取到的值
-                if (value !== undefined && value !== null) {
-                    extractor.extractedValue = typeof value === 'object' 
-                        ? JSON.stringify(value) 
-                        : String(value);
-                    console.log(`Successfully extracted value for ${extractor.variableName}:`, extractor.extractedValue);
-                } else {
-                    extractor.extractedValue = null;
-                    console.warn(`No value found for path ${extractor.jsonPath}`);
-                }
-            } catch (error) {
-                console.error(`提取变量 ${extractor.variableName} 失败:`, error);
-                extractor.extractedValue = null;
-            }
-        });
+        console.log('Processed response data:', processedResponse);
         
         // 更新响应数据
         responseData.value = processedResponse;
         showResponse.value = true;
         
-        // 显示测试结果摘要
-        const failedTests = processedResponse.testResults.filter(r => !r.passed).length;
-        if (failedTests > 0) {
-            ElMessage.warning(`${failedTests} 个断言失败`);
-        } else if (processedResponse.testResults.length > 0) {
-            ElMessage.success('所有断言通过');
+        // 如果有断言，执行断言检查
+        if (testCaseForm.value.assertions) {
+            const assertionResults = evaluateAssertions(response);
+            responseData.value.testResults = assertionResults;
+            
+            // 显示断言结果统计
+            const failedAssertions = assertionResults.filter(r => !r.passed).length;
+            if (failedAssertions > 0) {
+                ElMessage.warning(`${failedAssertions} 个断言失败`);
+            } else if (assertionResults.length > 0) {
+                ElMessage.success('所有断言通过');
+            }
         }
     } else {
         console.warn('Response not successful:', response.data);
+        ElMessage.error(response.data.message || '请求失败');
     }
 };
 
 // 修改提交测试用例的方法
 const submitTestCase = async () => {
     try {
-        // 处理请求体数据
-        let requestBody = testCaseForm.value.body; // 修改这里，使用 testCaseForm.value
-
-        // 如果是 JSON 类型，需要特殊处理
-        if (bodyType.value === 'raw' && rawContentType.value === 'application/json') {
-            try {
-                // 检查是否为空
-                if (!requestBody) {
-                    ElMessage.error('请输入 JSON 数据');
-                    return;
-                }
-                // 先解析成对象，再转换回字符串，去除格式化带来的换行和空格
-                const parsedBody = JSON.parse(requestBody);
-                requestBody = JSON.stringify(parsedBody);
-            } catch (e) {
-                console.error('JSON parse error:', e);
-                ElMessage.error('JSON 格式错误，请检查输入');
-                return;
-            }
-        }
-
+        loading.value = true;
+        
         // 构建请求数据
         const requestData = {
-            ...testCaseForm.value, // 修改这里，使用 testCaseForm.value
-            body: requestBody
+            ...testCaseForm.value,
+            project_id: projectId.value,
+            params: paramsTableData.value
+                .filter(item => item.enabled && item.key.trim())
+                .map(item => ({
+                    key: item.key.trim(),
+                    value: item.value.trim(),
+                    description: item.description?.trim() || ''
+                })),
+            headers: headersTableData.value
+                .filter(item => item.enabled && item.key.trim())
+                .map(item => ({
+                    key: item.key.trim(),
+                    value: item.value.trim(),
+                    description: item.description?.trim() || ''
+                })),
+            body_type: bodyType.value,
+            raw_content_type: rawContentType.value,
+            form_data: formDataTableData.value
+                .filter(item => item.enabled && item.key.trim())
+                .map(item => ({
+                    key: item.key.trim(),
+                    value: item.value.trim(),
+                    description: item.description?.trim() || ''
+                }))
         };
+        
+        console.log('Submitting test case:', requestData);
 
-        // 发送请求
-        const response = await axios.post('/api/testcase/execute_direct/', requestData, {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                'Content-Type': rawContentType.value || 'application/json'
+        const response = await axios.post(
+            'http://localhost:8081/api/testcase/execute_direct/',
+            requestData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                }
             }
-        });
-
-        // 处理响应
-        handleResponse(response);
+        );
+        
+        if (response.data.success) {
+            handleResponse(response);
+            ElMessage({
+                type: 'success',
+                message: response.data.message || '测试执行成功',
+                duration: 3000
+            });
+        } else {
+            throw new Error(response.data.message || '请求失败');
+        }
     } catch (error) {
-        console.error('执行测试用例失败:', error);
-        ElMessage.error('执行失败: ' + error.message);
+        console.error('Request error:', error);
+        ElMessage.error(error.response?.data?.message || error.message || '请求发送失败');
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -1567,9 +1594,15 @@ const deleteTestCase = async (row) => {
 const editTestCase = (row) => {
     dialogTitle.value = '编辑接口测试用例';
     
-    // 设置表单数据
+    // 重置表单数据
     testCaseForm.value = {
-        ...row,
+        case_id: row.case_id,
+        title: row.title,
+        api_path: row.api_path,
+        method: row.method,
+        priority: row.priority,
+        body: row.body || '',
+        assertions: row.assertions || '',
         expected_result: typeof row.expected_result === 'string' 
             ? row.expected_result 
             : JSON.stringify(row.expected_result, null, 2)
@@ -1580,26 +1613,44 @@ const editTestCase = (row) => {
     rawContentType.value = row.raw_content_type || 'application/json';
     
     // 设置请求头数据
-    if (row.headers && Object.keys(row.headers).length > 0) {
-        headersTableData.value = Object.entries(row.headers).map(([key, value]) => ({
+    headersTableData.value = Array.isArray(row.headers) 
+        ? row.headers.map(header => ({
             enabled: true,
-            key,
-            value: String(value),
-            description: ''
-        }));
-    } else {
-        headersTableData.value = [{ enabled: true, key: '', value: '', description: '' }];
-    }
+            key: header.key || '',
+            value: header.value || '',
+            description: header.description || ''
+        }))
+        : [{ enabled: true, key: 'Content-Type', value: 'application/json', description: '' }];
+    
+    // 设置参数数据
+    paramsTableData.value = Array.isArray(row.params)
+        ? row.params.map(param => ({
+            enabled: true,
+            key: param.key || '',
+            value: param.value || '',
+            description: param.description || ''
+        }))
+        : [{ enabled: true, key: '', value: '', description: '' }];
     
     // 设置 form-data 数据
-    if (row.form_data && row.form_data.length > 0) {
-        formDataTableData.value = row.form_data.map(item => ({
+    formDataTableData.value = Array.isArray(row.form_data)
+        ? row.form_data.map(item => ({
             enabled: true,
-            ...item
-        }));
-    } else {
-        formDataTableData.value = [{ enabled: true, key: '', value: '', description: '' }];
-    }
+            key: item.key || '',
+            value: item.value || '',
+            description: item.description || ''
+        }))
+        : [{ enabled: true, key: '', value: '', description: '' }];
+    
+    // 打印调试信息
+    console.log('Editing test case:', {
+        testCaseForm: testCaseForm.value,
+        bodyType: bodyType.value,
+        rawContentType: rawContentType.value,
+        headers: headersTableData.value,
+        params: paramsTableData.value,
+        formData: formDataTableData.value
+    });
     
     showAddDialog.value = true;
 };
@@ -1650,16 +1701,28 @@ const getMethodType = (method) => {
 // 格式化日期
 const formatDate = (dateString) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleString('zh-CN', {
+    const date = new Date(dateString.replace(/-/g, '/'));
+    return new Intl.DateTimeFormat('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(date);
+};
+
+// 添加一个更详细的日期时间格式化方法（用于tooltip）
+const formatDateTime = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString.replace(/-/g, '/'));
+    return new Intl.DateTimeFormat('zh-CN', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    });
+        second: '2-digit'
+    }).format(date);
 };
 
 // 处理新建测试用例
@@ -1727,7 +1790,7 @@ const resetSearch = () => {
     handleSearch();
 };
 
-// 添加 Body 类相关的响应式数���
+// 添加 Body 类相关的响应式数
 const bodyType = ref('none');
 const rawContentType = ref('application/json');
 const paramsTableData = ref([{ enabled: true, key: '', value: '', description: '' }]);
@@ -1853,7 +1916,7 @@ const saveTestCase = async () => {
                 });
 
                 if (response.data.code === 200) {
-                    ElMessage.success(testCaseForm.value.case_id ? '测试用例更���成功' : '测试用例保存成功');
+                    ElMessage.success(testCaseForm.value.case_id ? '测试用例更成功' : '测试用例保存成功');
                     showAddDialog.value = false;
                     fetchTestCases(); // 刷新列表
                 } else {
@@ -1984,7 +2047,7 @@ const handleCreateEnv = () => {
     variables: [{ key: '', value: '', description: '' }] // 初始化一个空变量
   };
   
-  // 如果已���环境套，直接打开环境变量对话框
+  // 如果已环境套，直接打开环境变量对话框
   if (envSuites.value.length > 0) {
     showEnvDialog.value = true;
   } else {
@@ -2112,7 +2175,7 @@ const getValuePlaceholder = (key) => {
     const placeholders = {
         'host': '例如: api.example.com',
         'port': '例��: 8080',
-        'base_url': '���如: /api/v1',
+        'base_url': '如: /api/v1',
         'protocol': '例如: https',
         'username': '请输入用户名',
         'password': '请输入密码',
@@ -2163,7 +2226,7 @@ const handleViewEnv = async () => {
         await fetchEnvList(); // 使用新的 fetchEnvList 方法
         showEnvListDialog.value = true;
     } catch (error) {
-        console.error('获取环境变量失���:', error);
+        console.error('获取环境变量失:', error);
         ElMessage.error('获取环境变量失败，请检查网络连接');
     }
 };
@@ -2179,7 +2242,7 @@ const editVarForm = ref({
 
 // 修改环境变量编辑方法
 const editEnvVariable = async (variable) => {
-    // 打�����辑弹窗并填��数据
+    // 打��辑弹窗并填��数据
     editVarForm.value = {
         id: variable.id,
         key: variable.key,
@@ -2312,7 +2375,7 @@ onMounted(() => {
     // ... 其他已有的 onMounted 代码
 });
 
-// 在组件卸载������移除事件监听
+// 在组件卸载移除事件监听
 onUnmounted(() => {
     document.removeEventListener('keydown', handleKeydown);
     // ... 其他已有的 onUnmounted 代码
@@ -2608,133 +2671,31 @@ const getEnvSuiteName = (suiteId) => {
     return suite ? suite.name : '未知环境套';
 };
 
-// 修改格式化响应内容的方法
-const formatResponse = (data) => {
-    console.log('Formatting response data:', data);
-    
-    if (!data) {
-        console.log('No data to format');
-        return '';
-    }
-    
-    try {
-        // 如果是字符串，尝试解析为 JSON
-        if (typeof data === 'string') {
-            console.log('Formatting string data');
-            try {
-                const parsed = JSON.parse(data);
-                return JSON.stringify(parsed, null, 2);
-            } catch (e) {
-                // 如果不是 JSON 字符串，直接返回
-                return data;
-            }
-        }
-        
-        // 如果是对象，直接格式化
-        console.log('Formatting object data');
-        return JSON.stringify(data, null, 2);
-    } catch (e) {
-        console.warn('Format error:', e);
-        // 如果发生错误，返回原始内容
-        return String(data);
-    }
-};
-
-// ���改格式化响应体的方法
+// 添加格式化响应内容的方法
 const formatResponseBody = () => {
+    if (!responseData.value.body) return;
+    
     try {
-        // 检查内容类型
-        const contentType = responseData.value.contentType.toLowerCase();
-        console.log('Content type:', contentType);
-        console.log('Response body type:', typeof responseData.value.body);
-        console.log('Response body:', responseData.value.body);
-        
-        // 如果是 JSON 类型
-        if (contentType.includes('application/json')) {
-            // 如果响应体是字符串，尝试解析
-            let jsonData = responseData.value.body;
-            if (typeof jsonData === 'string') {
-                try {
-                    jsonData = JSON.parse(jsonData);
-                } catch (e) {
-                    console.warn('Failed to parse JSON string:', e);
-                }
-            }
-            
-            // 确保是格式化的 JSON 字符串
-            responseData.value.body = JSON.stringify(jsonData, null, 2);
-            ElMessage.success('JSON 格式化成功');
-        }
-        // 如果是 HTML 类型
-        else if (contentType.includes('text/html')) {
-            // 确保响应体是字符串
-            const htmlString = String(responseData.value.body);
-            const formatted = htmlString
-                .replace(/></g, '>\n<')  // 在标签之间添加换行
-                .replace(/\n\s*\n/g, '\n')  // 删除多余的空行
-                .split('\n')
-                .map(line => line.trim())  // 清理每行的空白
-                .join('\n')
-                .replace(/<([^/].*?)>/g, (match) => '  ' + match);  // 添加缩进
-            
-            responseData.value.body = formatted;
-            ElMessage.success('HTML 格式化成功');
-        }
-        // 如果是 XML 类型
-        else if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
-            // 确保响应体是字符串
-            const xmlString = String(responseData.value.body);
-            const formatted = xmlString
-                .replace(/></g, '>\n<')
-                .replace(/\n\s*\n/g, '\n')
-                .split('\n')
-                .map(line => line.trim())
-                .join('\n')
-                .replace(/<([^/].*?)>/g, (match) => '  ' + match);
-            
-            responseData.value.body = formatted;
-            ElMessage.success('XML 格式化成功');
-        }
-        // 其���类型
-        else {
-            ElMessage.warning(`不支持格式化 ${contentType} 类型的内容`);
-        }
+        const formatted = formatResponse(responseData.value.body);
+        responseData.value.body = formatted;
+        ElMessage.success('格式化成功');
     } catch (e) {
         console.error('Format error:', e);
-        ElMessage.error('格式化失败：' + e.message);
+        ElMessage.warning('格式化失败');
     }
 };
 
-// 修���复制响应内容的方法
+// 添加复制按钮的处理方法
 const copyResponseBody = () => {
     if (!responseData.value.body) {
         ElMessage.warning('没有可复制的内容');
         return;
     }
 
-    try {
-        navigator.clipboard.writeText(responseData.value.body)
-            .then(() => {
-                ElMessage.success('已复制到剪贴板');
-            })
-            .catch((err) => {
-                console.error('Copy failed:', err);
-                ElMessage.error('复制失败');
-            });
-    } catch (e) {
-        console.error('Copy error:', e);
-        ElMessage.error('复制失败');
-    }
+    navigator.clipboard.writeText(responseData.value.body)
+        .then(() => ElMessage.success('已复制到剪贴板'))
+        .catch(() => ElMessage.error('复制失败'));
 };
-
-// 添加获取响应内容类型的计算属性
-const responseContentType = computed(() => {
-    const contentType = responseData.value.contentType || '';
-    if (contentType.includes('application/json')) return 'json';
-    if (contentType.includes('text/html')) return 'html';
-    if (contentType.includes('application/xml') || contentType.includes('text/xml')) return 'xml';
-    return 'text';
-});
 
 // 在 script 部分添加相关方法
 const queryJsonPaths = (query, cb) => {
@@ -2827,6 +2788,36 @@ const hasResponseData = computed(() => {
     return responseData.value && responseData.value.body;
 });
 
+// 获取优先级标签类型
+const getPriorityTagType = (priority) => {
+    switch (priority) {
+        case '高':
+            return 'danger';  // 红色
+        case '中':
+            return 'warning'; // 橙色
+        case '低':
+            return 'info';    // 灰色
+        default:
+            return '';
+    }
+};
+
+// 获取状态标签类型
+const getStatusTagType = (status) => {
+    switch (status) {
+        case 'pass':
+        case '通过':
+            return 'success'; // 绿色
+        case 'fail':
+        case '失败':
+            return 'danger';  // 红色
+        case '未执行':
+            return 'info';    // 灰色
+        default:
+            return '';
+    }
+};
+
 </script>
 
 <style scoped>
@@ -2855,13 +2846,13 @@ const hasResponseData = computed(() => {
     width: 160px;
 }
 
-/* 操作按钮容器样��� */
+/* 操作按钮容器样 */
 .operation-container {
     margin-bottom: 20px;
     display: flex;
     gap: 16px;
     flex-wrap: wrap;
-    justify-content: flex-end; /* 修改为 flex-end 使���钮靠右对齐 */
+    justify-content: flex-end; /* 修改为 flex-end 使钮靠右对齐 */
     width: 100%;
 }
 
@@ -2872,7 +2863,7 @@ const hasResponseData = computed(() => {
     gap: 8px;
     flex-wrap: wrap;
     justify-content: flex-end; /* 修改为 flex-end 使按钮组��部靠右对齐 */
-    width: auto; /* 修��为 auto，���再占满整行 */
+    width: auto; /* 修��为 auto，再占满整行 */
 }
 
 /* 修改上传按钮容器样式 */
@@ -2886,12 +2877,12 @@ const hasResponseData = computed(() => {
     align-items: center;
 }
 
-/* 确保���钮样式一致 */
+/* 确保钮样式一致 */
 .operation-container :deep(.el-button) {
     margin: 0;
 }
 
-/* 修���按钮样式，确保图标居中 */
+/* 修按钮样式，确保图标居中 */
 .operation-container :deep(.el-button) {
     display: inline-flex;  /* 改为 inline-flex */
     align-items: center;
@@ -3565,7 +3556,7 @@ const hasResponseData = computed(() => {
     min-width: 0;
 }
 
-/* 确保选择框有合适���高度 */
+/* 确保选择框有合适高度 */
 .env-suite-section :deep(.el-input__wrapper) {
     height: 32px;
     line-height: 32px;
@@ -4296,5 +4287,54 @@ const hasResponseData = computed(() => {
 
 :deep(.el-autocomplete-suggestion__wrap) {
     width: 100%;
+}
+
+/* 标签样式 */
+.case-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.title-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.priority-tag {
+    flex-shrink: 0;
+    min-width: 40px;
+    text-align: center;
+}
+
+.status-tag {
+    min-width: 60px;
+}
+
+/* 自定义标签颜色 */
+:deep(.el-tag--danger) {
+    --el-tag-bg-color: var(--el-color-danger-light-9);
+    --el-tag-border-color: var(--el-color-danger-light-5);
+    --el-tag-text-color: var(--el-color-danger);
+}
+
+:deep(.el-tag--warning) {
+    --el-tag-bg-color: var(--el-color-warning-light-9);
+    --el-tag-border-color: var(--el-color-warning-light-5);
+    --el-tag-text-color: var(--el-color-warning);
+}
+
+:deep(.el-tag--success) {
+    --el-tag-bg-color: var(--el-color-success-light-9);
+    --el-tag-border-color: var(--el-color-success-light-5);
+    --el-tag-text-color: var(--el-color-success);
+}
+
+:deep(.el-tag--info) {
+    --el-tag-bg-color: var(--el-color-info-light-9);
+    --el-tag-border-color: var(--el-color-info-light-5);
+    --el-tag-text-color: var(--el-color-info);
 }
 </style>

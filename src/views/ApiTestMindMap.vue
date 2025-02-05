@@ -134,166 +134,92 @@
           <div class="panel-header">
             <h3>节点属性</h3>
           </div>
-          <div class="panel-body">
-            <el-scrollbar class="panel-scrollbar">
-              <el-form label-position="top" size="small" class="panel-form">
-                <el-form-item label="节点名称">
-                  <el-input 
-                    v-model="selectedNode.label" 
-                    @input="handleNodeNameChange"
-                    placeholder="请输入节点名称"
-                  />
-                </el-form-item>
+          <el-scrollbar class="panel-content">
+            <el-form label-position="top" size="small">
+              <el-form-item label="节点名称">
+                <el-input 
+                  v-model="selectedNode.label" 
+                  @input="handleNodeNameChange"
+                  placeholder="请输入节点名称"
+                />
+              </el-form-item>
 
-                <!-- 非根节点才显示的属性 -->
-                <template v-if="selectedNode.id !== 'root'">
-                  <el-form-item label="关联用例">
-                    <el-select 
-                      v-model="selectedNode.data.testCase"
-                      filterable
-                      clearable
-                      placeholder="选择关联的测试用例"
+              <!-- 非根节点才显示的属性 -->
+              <template v-if="selectedNode.id !== 'root'">
+                <el-form-item label="关联用例">
+                  <el-select 
+                    v-model="selectedNode.data.testCase"
+                    filterable
+                    clearable
+                    placeholder="选择关联的测试用例"
+                  >
+                    <el-option
+                      v-for="item in testCases"
+                      :key="item.id"
+                      :label="item.title"
+                      :value="item.id"
                     >
-                      <el-option
-                        v-for="item in testCases"
-                        :key="item.id"
-                        :label="item.title"
-                        :value="item.id"
-                      >
-                        <div class="case-option">
-                          <span>{{ item.title }}</span>
-                          <el-tag size="small" :type="getMethodType(item.method)">
-                            {{ item.method }}
-                          </el-tag>
-                        </div>
-                      </el-option>
-                    </el-select>
-                  </el-form-item>
-
-                  <el-form-item label="执行条件">
-                    <el-select 
-                      v-model="selectedNode.data.condition"
-                      placeholder="选择执行条件"
-                    >
-                      <el-option label="无条件" value="none" />
-                      <el-option label="上级成功后" value="parent_success" />
-                      <el-option label="上级失败" value="parent_fail" />
-                      <el-option label="自定义条件" value="custom" />
-                    </el-select>
-                  </el-form-item>
-
-                  <el-form-item label="前置参数">
-                    <div class="params-list">
-                      <div 
-                        v-for="(param, index) in selectedNode.data.params || []" 
-                        :key="index"
-                        class="param-item"
-                      >
-                        <el-row :gutter="10">
-                          <el-col :span="8">
-                            <el-input
-                              v-model="param.name"
-                              placeholder="参数名"
-                            />
-                          </el-col>
-                          <el-col :span="8">
-                            <el-select
-                              v-model="param.source"
-                              placeholder="选择来源变量"
-                              filterable
-                            >
-                              <el-option
-                                v-for="variable in availableVariables"
-                                :key="variable.id"
-                                :label="`${variable.nodeName} - ${variable.name}`"
-                                :value="variable.id"
-                              />
-                            </el-select>
-                          </el-col>
-                          <el-col :span="6">
-                            <el-input
-                              v-model="param.defaultValue"
-                              placeholder="默认值"
-                            />
-                          </el-col>
-                          <el-col :span="2" class="flex-center">
-                            <el-button
-                              type="danger"
-                              circle
-                              @click="removeParam(index)"
-                              :icon="Delete"
-                            />
-                          </el-col>
-                        </el-row>
+                      <div class="case-option">
+                        <span>{{ item.title }}</span>
+                        <el-tag size="small" :type="getMethodType(item.method)">
+                          {{ item.method }}
+                        </el-tag>
                       </div>
-                      
-                      <el-button
-                        type="primary"
-                        plain
-                        @click="addParam"
-                        :icon="Plus"
-                      >
-                        添加参数
-                      </el-button>
-                    </div>
-                  </el-form-item>
-
-                  <el-form-item label="优先级">
-                    <el-select v-model="selectedNode.data.priority">
-                      <el-option label="高" value="high" />
-                      <el-option label="中" value="medium" />
-                      <el-option label="低" value="low" />
-                    </el-select>
-                  </el-form-item>
-                </template>
-
-                <el-form-item label="备注">
-                  <el-input
-                    type="textarea"
-                    v-model="selectedNode.data.notes"
-                    :rows="3"
-                  />
+                    </el-option>
+                  </el-select>
                 </el-form-item>
 
-                <el-form-item label="后置提取">
-                  <div class="extractions-list">
+                <el-form-item label="执行条件">
+                  <el-select 
+                    v-model="selectedNode.data.condition"
+                    placeholder="选择执行条件"
+                  >
+                    <el-option label="无条件" value="none" />
+                    <el-option label="上级成功后" value="parent_success" />
+                    <el-option label="上级失败" value="parent_fail" />
+                    <el-option label="自定义条件" value="custom" />
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="前置参数">
+                  <div class="params-list">
                     <div 
-                      v-for="(extraction, index) in selectedNode.data.extractions" 
+                      v-for="(param, index) in selectedNode.data.params || []" 
                       :key="index"
-                      class="extraction-item"
+                      class="param-item"
                     >
                       <el-row :gutter="10">
                         <el-col :span="8">
                           <el-input
-                            v-model="extraction.name"
-                            placeholder="变量名"
-                            size="small"
+                            v-model="param.name"
+                            placeholder="参数名"
                           />
                         </el-col>
                         <el-col :span="8">
                           <el-select
-                            v-model="extraction.type"
-                            placeholder="提取方式"
-                            size="small"
+                            v-model="param.source"
+                            placeholder="选择来源变量"
+                            filterable
                           >
-                            <el-option label="JSON路径" value="jsonpath" />
-                            <el-option label="正则表达式" value="regex" />
-                            <el-option label="XPath" value="xpath" />
+                            <el-option
+                              v-for="variable in availableVariables"
+                              :key="variable.id"
+                              :label="`${variable.nodeName} - ${variable.name}`"
+                              :value="variable.id"
+                            />
                           </el-select>
                         </el-col>
                         <el-col :span="6">
                           <el-input
-                            v-model="extraction.expression"
-                            placeholder="提取表达式"
-                            size="small"
+                            v-model="param.defaultValue"
+                            placeholder="默认值"
                           />
                         </el-col>
-                        <el-col :span="2">
+                        <el-col :span="2" class="flex-center">
                           <el-button
                             type="danger"
-                            size="small"
                             circle
-                            @click="removeExtraction(index)"
+                            @click="removeParam(index)"
                             :icon="Delete"
                           />
                         </el-col>
@@ -303,17 +229,89 @@
                     <el-button
                       type="primary"
                       plain
-                      size="small"
-                      @click="addExtraction"
+                      @click="addParam"
                       :icon="Plus"
                     >
-                      添加提取规则
+                      添加参数
                     </el-button>
                   </div>
                 </el-form-item>
-              </el-form>
-            </el-scrollbar>
-          </div>
+
+                <el-form-item label="优先级">
+                  <el-select v-model="selectedNode.data.priority">
+                    <el-option label="高" value="high" />
+                    <el-option label="中" value="medium" />
+                    <el-option label="低" value="low" />
+                  </el-select>
+                </el-form-item>
+              </template>
+
+              <el-form-item label="备注">
+                <el-input
+                  type="textarea"
+                  v-model="selectedNode.data.notes"
+                  :rows="3"
+                />
+              </el-form-item>
+
+              <el-form-item label="后置提取">
+                <div class="extractions-list">
+                  <div 
+                    v-for="(extraction, index) in selectedNode.data.extractions" 
+                    :key="index"
+                    class="extraction-item"
+                  >
+                    <el-row :gutter="10">
+                      <el-col :span="8">
+                        <el-input
+                          v-model="extraction.name"
+                          placeholder="变量名"
+                          size="small"
+                        />
+                      </el-col>
+                      <el-col :span="8">
+                        <el-select
+                          v-model="extraction.type"
+                          placeholder="提取方式"
+                          size="small"
+                        >
+                          <el-option label="JSON路径" value="jsonpath" />
+                          <el-option label="正则表达式" value="regex" />
+                          <el-option label="XPath" value="xpath" />
+                        </el-select>
+                      </el-col>
+                      <el-col :span="6">
+                        <el-input
+                          v-model="extraction.expression"
+                          placeholder="提取表达式"
+                          size="small"
+                        />
+                      </el-col>
+                      <el-col :span="2">
+                        <el-button
+                          type="danger"
+                          size="small"
+                          circle
+                          @click="removeExtraction(index)"
+                          :icon="Delete"
+                        />
+                      </el-col>
+                    </el-row>
+                  </div>
+                  
+                  <el-button
+                    type="primary"
+                    plain
+                    size="small"
+                    @click="addExtraction"
+                    :icon="Plus"
+                  >
+                    添加提取规则
+                  </el-button>
+                </div>
+              </el-form-item>
+            </el-form>
+          </el-scrollbar>
         </div>
       </div>
     </PageContainer>
@@ -368,34 +366,6 @@ const filterTestCases = () => {
     testCase.api_path.toLowerCase().includes(keyword) ||
     testCase.method.toLowerCase().includes(keyword)
   );
-};
-
-// 添加键盘事件处理
-const handleKeyDown = (event) => {
-  // 如果没有选中节点，不处理键盘事件
-  if (!selectedNode.value) return;
-  
-  // 如果正在编辑输入框，不处理键盘事件
-  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
-
-  switch (event.key) {
-    case 'Tab': {
-      // 阻止默认的Tab行为
-      event.preventDefault();
-      // 添加子节点
-      addNode();
-      break;
-    }
-    case 'Enter': {
-      // 阻止默认的回车行为
-      event.preventDefault();
-      // 添加平级节点（非根节点时）
-      if (selectedNode.value.id !== 'root') {
-        addParentNode();
-      }
-      break;
-    }
-  }
 };
 
 // 修改初始化思维导图的部分
@@ -515,13 +485,6 @@ const initMindMap = () => {
         }
       });
 
-      // 修改提示信息
-      const tooltip = document.createElement('div');
-      tooltip.className = 'keyboard-tips';
-      tooltip.innerHTML = `
-      `;
-      mindMapContainer.value.appendChild(tooltip);
-
     } catch (error) {
       console.error('初始化思维导图失败:', error);
       ElMessage.error('初始化思维导图失败');
@@ -562,47 +525,56 @@ const fetchTestCases = async () => {
   }
 };
 
-// 修改添加节点方法
+// 添加节点
 const addNode = () => {
-  if (!selectedNode.value) return;
-  
+  if (!selectedNode.value) {
+    ElMessage.warning('请先选择一个节点');
+    return;
+  }
+
   try {
-    const data = graph.value.save();
-    const parentNode = findNode(data, selectedNode.value.id);
-    
-    if (!parentNode) {
-      ElMessage.warning('未找到父节点');
-      return;
-    }
-
-    // 确保 children 数组存在
-    if (!parentNode.children) {
-      parentNode.children = [];
-    }
-
     // 创建新节点
     const newNode = {
       id: `node-${Date.now()}`,
-      label: '新建子节点',
-      children: [],
+      label: '新建节点',
+      type: 'mindmap-node',
       data: {
-        text: '新建子节点',
-        notes: '',
-        params: [],
-        extractions: [],
+        type: 'case',
+        testCase: null,
         condition: 'none',
-        priority: 'medium'
+        priority: 'medium',
+        notes: '',
+        text: '新建节点',
+        extractions: [],  // 添加提取规则数组
+        params: []       // 前置参数
       }
     };
 
-    parentNode.children.push(newNode);
+    // 创建边
+    const newEdge = {
+      source: selectedNode.value.id,
+      target: newNode.id,
+      type: 'cubic-horizontal'
+    };
+
+    // 获取当前数据
+    const data = graph.value.save();
+    
+    // 添加新节点和边
+    data.nodes.push(newNode);
+    data.edges.push(newEdge);
+
+    // 更新图数据
     graph.value.changeData(data);
-    
-    // 自动选中新节点
-    selectedNode.value = newNode;
-    
-    // 更新布局
-    graph.value.fitView();
+
+    // 自选中新节点
+    const newNodeModel = graph.value.findById(newNode.id);
+    if (newNodeModel) {
+      selectedNode.value = newNodeModel.getModel();
+      graph.value.emit('node:click', { item: newNodeModel });
+    }
+
+    ElMessage.success('添加节点成功');
   } catch (error) {
     console.error('添加节点失败:', error);
     ElMessage.error('添加节点失败');
@@ -645,75 +617,41 @@ const removeNodeById = (tree, id) => {
   }
 };
 
-// 修改执行选中用例的方法
+// 执行测试方法
 const executeSelected = async () => {
-  if (!selectedNode.value) {
-    ElMessage.warning('请先选择一个节点');
+  if (!selectedNode.value || !selectedNode.value.data.testCase) {
+    ElMessage.warning('请先选择含测试用例的节点');
     return;
   }
 
   try {
-    const response = await request({
-      url: `/api/testcase/execute/${selectedNode.value.data.testCase}`,
-      method: 'POST'
-    });
-
-    if (response.code === 200) {
-      ElMessage.success({
-        message: '用例执行成功',
-        duration: 2000,
-        showClose: true
-      });
-      
-      // 可以在这里添加更多的成功后的处理逻辑
-      // 比如更新节点状态、显示执行结果等
-    } else {
-      ElMessage.error({
-        message: response.message || '执行失败',
-        duration: 3000,
-        showClose: true
-      });
+    const response = await request.post(`/api/testcase/execute/${selectedNode.value.data.testCase}`);
+    if (response.data.code === 200) {
+      ElMessage.success('执行成功');
     }
   } catch (error) {
-    console.error('执行用例失败:', error);
-    ElMessage.error({
-      message: '执行用例失败: ' + (error.message || '未知错误'),
-      duration: 3000,
-      showClose: true
-    });
+    console.error('执行失败:', error);
+    ElMessage.error('执行失败');
   }
 };
 
-// 修改执行全部用例的方法
 const executeAll = async () => {
-  try {
-    const response = await request({
-      url: '/api/testcases/execute/all/',
-      method: 'POST'
-    });
+  const nodes = graph.value.save().children.filter(node => node.data.testCase);
+  if (nodes.length === 0) {
+    ElMessage.warning('没有可执行的测试用例');
+    return;
+  }
 
-    if (response.code === 200) {
-      ElMessage.success({
-        message: '所有用例执行成功',
-        duration: 2000,
-        showClose: true
-      });
-      
-      // 可以添加更多的成功后的处理逻辑
-    } else {
-      ElMessage.error({
-        message: response.message || '执行失败',
-        duration: 3000,
-        showClose: true
-      });
+  try {
+    const response = await request.post('/api/testcase/batch-execute', {
+      caseIds: nodes.map(node => node.data.testCase)
+    });
+    if (response.data.code === 200) {
+      ElMessage.success('批量执行成功');
     }
   } catch (error) {
-    console.error('执行全部用例失败:', error);
-    ElMessage.error({
-      message: '执行全部用例失败: ' + (error.message || '未知错误'),
-      duration: 3000,
-      showClose: true
-    });
+    console.error('批量执行失败:', error);
+    ElMessage.error('批量执行失败');
   }
 };
 
@@ -924,72 +862,85 @@ const handleNodeNameChange = (value) => {
   }
 };
 
-// 修改添加平级节点方法
+// 添加父节点方法
 const addParentNode = () => {
-  if (!selectedNode.value || selectedNode.value.id === 'root') return;
-  
+  if (!selectedNode.value || selectedNode.value.id === 'root') {
+    ElMessage.warning('根节点不能添加父节点');
+    return;
+  }
+
   try {
-    const data = graph.value.save();
-    const currentNode = findNode(data, selectedNode.value.id);
-    
-    if (!currentNode) {
-      ElMessage.warning('未找到当前节点');
-      return;
-    }
-
-    // 找到父节点
-    const parentNode = findParentNode(data, selectedNode.value.id);
-    if (!parentNode) {
-      ElMessage.warning('未找到父节点');
-      return;
-    }
-
-    // 创建新节点
-    const newNode = {
+    // 创建新的父节点
+    const newParentNode = {
       id: `node-${Date.now()}`,
-      label: '新建平级节点',
-      children: [],
+      label: '新建父节点',
+      children: [], // 存放当前选中的节点
       data: {
-        text: '新建平级节点',
-        notes: '',
-        params: [],
-        extractions: [],
+        type: 'case',
+        testCase: null,
         condition: 'none',
-        priority: 'medium'
+        priority: 'medium',
+        notes: '',
+        text: '新建父节点'
       }
     };
 
-    // 在当前节点后插入新节点
-    const index = parentNode.children.findIndex(node => node.id === selectedNode.value.id);
-    parentNode.children.splice(index + 1, 0, newNode);
+    // 获取当前图数据
+    const data = graph.value.save();
     
-    graph.value.changeData(data);
-    
-    // 自动选中新节点
-    selectedNode.value = newNode;
-    
-    // 更新布局
-    graph.value.fitView();
-  } catch (error) {
-    console.error('添加平级节点失败:', error);
-    ElMessage.error('添加平级节点失败');
-  }
-};
-
-// 添加查找父节点的辅助方法
-const findParentNode = (tree, nodeId) => {
-  if (!tree) return null;
-  
-  if (tree.children) {
-    for (const child of tree.children) {
-      if (child.id === nodeId) {
-        return tree;
+    // 找到当前节点的父节点
+    let currentParent = null;
+    const findParentNode = (tree, targetId) => {
+      if (tree.children) {
+        for (const child of tree.children) {
+          if (child.id === targetId) {
+            currentParent = tree;
+            return true;
+          }
+          if (findParentNode(child, targetId)) {
+            return true;
+          }
+        }
       }
-      const found = findParentNode(child, nodeId);
-      if (found) return found;
+      return false;
+    };
+    
+    findParentNode(data, selectedNode.value.id);
+    
+    if (currentParent) {
+      // 找到当前节点在父节点children中的索引
+      const index = currentParent.children.findIndex(
+        child => child.id === selectedNode.value.id
+      );
+      
+      if (index !== -1) {
+        // 从原父节点中移除当前节点
+        const currentNode = currentParent.children.splice(index, 1)[0];
+        
+        // 将当前节点添加为新父节点的子节点
+        newParentNode.children.push(currentNode);
+        
+        // 将新父节点加到原父节点的children中的相同位置
+        currentParent.children.splice(index, 0, newParentNode);
+        
+        // 更新图数据
+        graph.value.changeData(data);
+        
+        // 自动选中新创建的父节点
+        const newNodeModel = graph.value.findById(newParentNode.id);
+        if (newNodeModel) {
+          selectedNode.value = newNodeModel.getModel();
+          // 触发点击事件以显示属性面板
+          graph.value.emit('node:click', { item: newNodeModel });
+        }
+        
+        ElMessage.success('添加父节点成功');
+      }
     }
+  } catch (error) {
+    console.error('添加父节点失败:', error);
+    ElMessage.error('添加父节点失败');
   }
-  return null;
 };
 
 // 添加提取规则
@@ -1120,17 +1071,12 @@ onMounted(async () => {
   }
   
   initMindMap();
-  
-  // 添加键盘事件监听
-  window.addEventListener('keydown', handleKeyDown);
 });
 
 onUnmounted(() => {
   if (graph.value) {
     graph.value.destroy();
   }
-  // 移除键盘事件监听
-  window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('resize', () => {});
 });
 </script>
@@ -1156,7 +1102,7 @@ onUnmounted(() => {
 
 .content-container {
   display: grid;
-  grid-template-columns: 300px 1fr 300px;
+  grid-template-columns: 300px 1fr 350px;
   gap: 16px;
   height: calc(100vh - 200px);
   background: #fff;
@@ -1164,8 +1110,6 @@ onUnmounted(() => {
   padding: 16px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05);
   overflow: hidden;
-  border: 1px solid #e4e7ed;
-  position: relative;
 }
 
 .content-container::before,
@@ -1180,167 +1124,48 @@ onUnmounted(() => {
 
 .case-list {
   height: 100%;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--el-border-color-light);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .list-header {
   padding: 16px;
-  background: #f8f9fa;
-  border-bottom: 1px solid var(--el-border-color-light);
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .list-header h3 {
-  margin: 0 0 12px 0;
-  font-size: 15px;
+  margin: 0 0 16px 0;
+  font-size: 16px;
   color: var(--el-text-color-primary);
-  font-weight: 500;
-}
-
-.list-header :deep(.el-input) {
-  margin-bottom: 0;
-}
-
-.list-header :deep(.el-input__wrapper) {
-  box-shadow: none !important;
-  border: 1px solid var(--el-border-color);
-  border-radius: 4px;
-}
-
-.list-header :deep(.el-input__wrapper:hover) {
-  border-color: var(--el-color-primary);
 }
 
 .list-content {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 8px;
 }
 
-.case-item {
-  padding: 12px;
-  background: #fff;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-  margin-bottom: 8px;
-  cursor: move;
-  transition: all 0.3s ease;
-}
-
-.case-item:hover {
-  transform: translateX(4px);
-  border-color: var(--el-color-primary-light-7);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-}
-
-.case-item:active {
-  cursor: grabbing;
-}
-
-.case-item.dragging {
-  opacity: 0.6;
-  background: var(--el-color-primary-light-9);
+.custom-tree-node {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
 }
 
 .case-info {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
+  gap: 8px;
+  width: 100%;
 }
 
 .case-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--el-text-color-primary);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: 8px;
-}
-
-:deep(.el-tag) {
-  font-size: 12px;
-  height: 22px;
-  line-height: 20px;
-  padding: 0 6px;
-  border-radius: 3px;
-  font-weight: normal;
-}
-
-.case-path {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding-left: 4px;
-}
-
-.list-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.list-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.list-content::-webkit-scrollbar-thumb {
-  background-color: #e0e0e0;
-  border-radius: 3px;
-  transition: background-color 0.3s;
-}
-
-.list-content::-webkit-scrollbar-thumb:hover {
-  background-color: #d0d0d0;
-}
-
-.list-content:empty::after {
-  content: '暂无测试用例';
-  display: block;
-  text-align: center;
-  color: var(--el-text-color-secondary);
-  padding: 20px 0;
-  font-size: 14px;
-}
-
-.case-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 3px;
-  height: 0;
-  background: var(--el-color-primary);
-  transition: height 0.3s, transform 0.3s;
-  transform: translateY(-50%);
-  opacity: 0;
-}
-
-.case-item:hover::before {
-  height: 70%;
-  opacity: 1;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(-10px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.case-item {
-  animation: slideIn 0.3s ease-out;
-  position: relative;
 }
 
 .mind-map {
@@ -1358,180 +1183,317 @@ onUnmounted(() => {
 .properties-panel {
   border-left: 1px solid var(--el-border-color-lighter);
   background-color: #fff;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.05);
   width: 100%;
-  height: 100%;
   display: flex;
   flex-direction: column;
+  height: 100%;
   overflow: hidden;
 }
 
 .panel-header {
-  flex-shrink: 0;
   padding: 16px 20px;
   border-bottom: 1px solid var(--el-border-color-lighter);
   background-color: #fafafa;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .panel-header h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   color: var(--el-text-color-primary);
 }
 
-.panel-body {
+.panel-content {
   flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  overflow: auto;
   position: relative;
 }
 
-.panel-scrollbar {
-  height: 100%;
+.case-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
 }
 
-:deep(.el-scrollbar__wrap) {
-  overflow-x: hidden !important;
-  margin-right: -17px !important;
+:deep(.el-tree-node__content) {
+  height: 40px;
 }
 
-:deep(.el-scrollbar__view) {
-  padding: 20px;
-  padding-bottom: 60px;
+:deep(.el-tree-node.is-drop-inner > .el-tree-node__content) {
+  background-color: var(--el-color-primary-light-9);
 }
 
-.panel-form {
-  height: auto;
-  min-height: min-content;
+.el-button-group {
+  margin-right: 8px;
 }
 
-:deep(.el-form-item) {
-  margin-bottom: 20px;
+.el-button-group .el-button {
+  margin-left: -1px;
 }
 
-:deep(.el-form-item:last-child) {
-  margin-bottom: 60px;
+.el-button-group .el-button:first-child {
+  margin-left: 0;
 }
 
-.params-list,
 .extractions-list {
   width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin-bottom: 16px;
 }
 
-.param-item,
 .extraction-item {
+  width: 100%;
+  box-sizing: border-box;
   background-color: var(--el-fill-color-light);
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
   padding: 16px;
+  margin-bottom: 12px;
+}
+
+.el-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 !important;
   width: 100%;
   box-sizing: border-box;
 }
 
-:deep(.el-form-item__content) {
-  width: 100%;
-  min-width: 0;
-  flex-shrink: 0;
+:deep(.el-button--small) {
+  padding: 8px 16px;
+  height: 32px;
+  font-size: 13px;
 }
 
-:deep(.el-scrollbar__bar.is-vertical) {
+:deep(.el-button--small.is-circle) {
+  padding: 8px;
+  width: 32px;
+}
+
+:deep(.el-button--primary.is-plain) {
+  width: fit-content;
+  align-self: center;
+  margin-top: 8px;
+}
+
+.panel-content::-webkit-scrollbar {
   width: 6px;
-  right: 2px;
-  opacity: 0;
-  transition: opacity 0.3s;
 }
 
-:deep(.el-scrollbar:hover .el-scrollbar__bar.is-vertical) {
-  opacity: 1;
+.panel-content::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-:deep(.el-select),
-:deep(.el-input) {
-  width: 100%;
+.panel-content::-webkit-scrollbar-thumb {
+  background-color: var(--el-border-color-lighter);
+  border-radius: 3px;
 }
 
+:deep(.el-form-item:not(:last-child)) {
+  position: relative;
+}
+
+:deep(.el-form-item:not(:last-child))::after {
+  display: none;
+}
+
+/* 添加根节点特殊样式 */
+:deep(.root-node) {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* 修改用例列表样式 */
+.case-item {
+  padding: 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  cursor: move;
+  transition: all 0.3s ease;
+  background-color: #fff;
+}
+
+.case-item:hover {
+  background-color: var(--el-color-primary-light-9);
+  transform: translateX(4px);
+}
+
+.case-item.dragging {
+  opacity: 0.5;
+  background-color: var(--el-color-primary-light-8);
+}
+
+.case-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.case-title {
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.case-path {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 优化滚动条样式 */
+.list-content {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--el-border-color-lighter) transparent;
+}
+
+.list-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.list-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.list-content::-webkit-scrollbar-thumb {
+  background-color: var(--el-border-color-lighter);
+  border-radius: 3px;
+}
+
+.params-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.param-item {
+  padding: 10px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 4px;
+  background-color: var(--el-fill-color-lighter);
+}
+
+.param-item .el-row {
+  display: flex;
+  align-items: center;
+}
+
+.param-item .el-button {
+  margin-left: 8px;
+}
+
+/* 调整滚动区域的样式 */
+:deep(.el-scrollbar) {
+  height: 100%;
+}
+
+:deep(.el-scrollbar__wrap) {
+  overflow-x: hidden;
+}
+
+:deep(.el-form) {
+  height: auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 24px;
+}
+
+/* 调整行间距和对齐 */
 .el-row {
   margin: 0 !important;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .el-col {
   padding: 0 4px;
+  box-sizing: border-box;
 }
 
+/* 参数和提取规则卡片样式 */
+.params-list,
+.extractions-list {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.param-item,
+.extraction-item {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 0;
+}
+
+/* 行样式优化 */
+.param-item .el-row,
+.extraction-item .el-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: 100%;
+}
+
+/* 列样式优化 */
+.param-item .el-col,
+.extraction-item .el-col {
+  padding: 0 4px;
+  min-width: 0;
+}
+
+/* 调整最后一列（删除按钮列）的样式 */
 .param-item .el-col:last-child,
 .extraction-item .el-col:last-child {
-  flex: 0 0 32px;
+  flex: 0 0 32px;  /* 减小列宽 */
   width: 32px;
-  padding: 0;
+  padding-right: 0;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-:deep(.el-button--primary.is-plain) {
-  margin-top: 8px;
-  margin-bottom: 8px;
-  width: fit-content;
-  align-self: flex-start;
-}
-
-:deep(.el-form-item:last-child) {
-  margin-bottom: 60px;
-}
-
-.extractions-list:last-child {
-  margin-bottom: 0;
-}
-
-:deep(.el-scrollbar__bar.is-vertical) {
-  width: 6px;
-  right: 2px;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-:deep(.el-scrollbar:hover .el-scrollbar__bar.is-vertical) {
-  opacity: 1;
-}
-
-:deep(.el-form-item + .el-form-item) {
-  margin-top: 20px;
-}
-
-:deep(.el-form-item__content) {
-  width: 100%;
-  min-width: 0;
-  flex-shrink: 0;
-}
-
-:deep(.el-form-item__label) {
-  padding-bottom: 8px;
-  line-height: 1.4;
-}
-
-/* 删除按钮图标样式 */
+/* 删除按钮样式优化 */
 :deep(.el-button--danger.is-circle) {
-  width: 24px;
+  width: 24px;  /* 减小按钮尺寸 */
   height: 24px;
   padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-:deep(.el-button--danger.is-circle .el-icon) {
-  width: 14px;
-  height: 14px;
-  font-size: 14px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0;
+}
+
+/* 缩小删除按钮的图标 */
+:deep(.el-button--danger.is-circle .el-icon) {
+  margin: 0;
+  font-size: 12px;  /* 减小图标大小 */
+  width: 12px;      /* 设置图标宽度 */
+  height: 12px;     /* 设置图标高度 */
 }
 
 /* 优化按钮悬停效果 */
@@ -1540,39 +1502,67 @@ onUnmounted(() => {
   transition: transform 0.2s ease;
 }
 
-/* 确保按钮在点击时不会变形 */
-:deep(.el-button--danger.is-circle:active) {
-  transform: scale(0.95);
+/* 输入框和选择框容器样式 */
+:deep(.el-input__wrapper),
+:deep(.el-select__wrapper) {
+  width: 100%;
+  box-shadow: none !important;
 }
 
-/* 添加执行按钮的loading效果样式 */
-:deep(.el-button.is-loading) {
-  pointer-events: none;
+/* 调整输入框列的宽度比例 */
+.param-item .el-col:nth-child(1),
+.extraction-item .el-col:nth-child(1) {
+  flex: 0 0 30%;  /* 参数名/变量名列 */
 }
 
-:deep(.el-button.is-loading .el-icon) {
-  display: none;
+.param-item .el-col:nth-child(2),
+.extraction-item .el-col:nth-child(2) {
+  flex: 0 0 40%;  /* 来源变量/提取方式列 */
 }
 
-/* 优化消息提示的样式 */
-:deep(.el-message) {
-  min-width: 300px;
-  padding: 12px 20px;
-  border-width: 2px;
+.param-item .el-col:nth-child(3),
+.extraction-item .el-col:nth-child(3) {
+  flex: 0 0 25%;  /* 默认值/提取表达式列 */
 }
 
-:deep(.el-message--success) {
-  background-color: #f0f9eb;
-  border-color: #67c23a;
+/* 确保图标在按钮中居中 */
+:deep(.el-button--danger.is-circle .el-icon) {
+  margin: 0;
+  font-size: 16px;
 }
 
-:deep(.el-message--error) {
-  background-color: #fef0f0;
-  border-color: #f56c6c;
+/* 调整表单项标签的样式 */
+:deep(.el-form-item__label) {
+  padding-bottom: 8px;
+  font-weight: 500;
 }
 
-:deep(.el-message__content) {
-  font-size: 14px;
-  line-height: 1.4;
+/* 优化文本域的样式 */
+:deep(.el-textarea__inner) {
+  min-height: 80px;
+}
+
+/* 调整选择器的样式 */
+:deep(.el-select) {
+  width: 100%;
+}
+
+/* 确保表单项内容正确对齐和显示 */
+:deep(.el-form-item__content) {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 调整后置提取区域的样式 */
+:deep(.el-form-item.is-required .el-form-item__label) {
+  color: var(--el-text-color-primary);
+}
+
+/* 确保添加按钮正确显示 */
+.extractions-list .el-button {
+  align-self: flex-start;
+  margin-top: 8px;
 }
 </style> 
