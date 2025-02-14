@@ -59,57 +59,75 @@
 
                 <!-- 添加操作按钮容器 -->
                 <div class="operation-container">
-                    <el-button-group>
-                        <el-button 
-                            type="primary" 
-                            @click="handleCreateTestCase"
-                            :icon="Plus"
-                        >
-                            新建接口测试用例
-                        </el-button>
-                        <el-upload
-                            class="upload-button"
-                            action="/api/testcase/import/"
-                            :headers="uploadHeaders"
-                            :data="{
-                                project_id: Number(projectId)  // 确保转换为数字
-                            }"
-                            :show-file-list="false"
-                            :on-success="handleUploadSuccess"
-                            :on-error="handleUploadError"
-                            :before-upload="beforeUpload"
-                            accept=".xlsx,.xls"
-                            name="file"
-                        >
+                    <div class="left-operations">
+                        <el-button-group>
                             <el-button 
-                                type="warning"
-                                :icon="Upload"
+                                type="primary" 
+                                @click="handleCreateTestCase"
+                                :icon="Plus"
                             >
-                                上传测试用例
+                                新建接口测试用例
                             </el-button>
-                        </el-upload>
-                        <el-button 
-                            type="success" 
-                            @click="showEnvDialog = true"
-                            :icon="Setting"
+                            <el-upload
+                                class="upload-button"
+                                action="/api/testcase/import/"
+                                :headers="uploadHeaders"
+                                :data="{
+                                    project_id: Number(projectId)  // 确保转换为数字
+                                }"
+                                :show-file-list="false"
+                                :on-success="handleUploadSuccess"
+                                :on-error="handleUploadError"
+                                :before-upload="beforeUpload"
+                                accept=".xlsx,.xls"
+                                name="file"
+                            >
+                                <el-button 
+                                    type="warning"
+                                    :icon="Upload"
+                                >
+                                    上传测试用例
+                                </el-button>
+                            </el-upload>
+                            <el-button 
+                                type="success" 
+                                @click="showEnvDialog = true"
+                                :icon="Setting"
+                            >
+                                新建环境变量
+                            </el-button>
+                            <el-button 
+                                type="info" 
+                                @click="handleViewEnv"
+                                :icon="List"
+                            >
+                                查看环境变量
+                            </el-button>
+                            <el-button 
+                                type="primary" 
+                                @click="showCreateEnvSuiteDialog"
+                                :icon="Plus"
+                            >
+                                新建环境套
+                            </el-button>
+                        </el-button-group>
+                    </div>
+                    <div class="right-operations">
+                        <span class="env-label">当前环境套：</span>
+                        <el-select
+                            v-model="currentEnvId"
+                            placeholder="请选择环境套"
+                            style="width: 200px"
+                            @change="handleEnvChange"
                         >
-                            新建环境变量
-                        </el-button>
-                        <el-button 
-                            type="info" 
-                            @click="handleViewEnv"
-                            :icon="List"
-                        >
-                            查看环境变量
-                        </el-button>
-                        <el-button 
-                            type="primary" 
-                            @click="showCreateEnvSuiteDialog"
-                            :icon="Plus"
-                        >
-                            新建环境套
-                        </el-button>
-                    </el-button-group>
+                            <el-option
+                                v-for="item in envList"
+                                :key="item.id"
+                                :label="item.name"
+                                :value="item.id"
+                            />
+                        </el-select>
+                    </div>
                 </div>
 
                 <!-- 表部分保持不变 -->
@@ -258,13 +276,20 @@
                             <div class="request-url-section">
                                 <el-form-item prop="method" class="method-select">
                                     <el-select v-model="testCaseForm.method" class="method-select">
-                                        <el-option
-                                            v-for="method in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']"
-                                            :key="method"
-                                            :label="method"
-                                            :value="method"
-                                            :class="`method-${method.toLowerCase()}`"
-                                        />
+                                        <template #default>
+                                            <el-option
+                                                v-for="method in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']"
+                                                :key="method"
+                                                :label="method"
+                                                :value="method"
+                                                :class="`method-${method.toLowerCase()}`"
+                                            >
+                                                <span :class="`method-${method.toLowerCase()}`">{{ method }}</span>
+                                            </el-option>
+                                        </template>
+                                        <template #selected>
+                                            <span :class="`method-${testCaseForm.method.toLowerCase()}`">{{ testCaseForm.method }}</span>
+                                        </template>
                                     </el-select>
                                 </el-form-item>
                                 <el-form-item prop="api_path" class="api-input">
@@ -312,7 +337,7 @@
                                             </el-table-column>
                                             <el-table-column label="KEY">
                                                 <template #default="{ row }">
-                                                    <el-input v-model="row.key" placeholder="�数��" />
+                                                    <el-input v-model="row.key" placeholder="数" />
                                                 </template>
                                             </el-table-column>
                                             <el-table-column label="VALUE">
@@ -523,6 +548,7 @@
                                                             clearable
                                                             class="json-path-input"
                                                             @select="handleJsonPathSelect"
+                                                            :disabled="!hasResponseData"
                                                         >
                                                             <template #prefix>
                                                                 <el-icon><Key /></el-icon>
@@ -530,7 +556,9 @@
                                                             <template #default="{ item }">
                                                                 <div class="suggestion-item">
                                                                     <span class="path">{{ item.path }}</span>
-                                                                    <span class="value">{{ item.value }}</span>
+                                                                    <span class="value" v-if="item.previewValue">
+                                                                        值: {{ item.previewValue }}
+                                                                    </span>
                                                                 </div>
                                                             </template>
                                                         </el-autocomplete>
@@ -555,7 +583,7 @@
                                                 <el-col :span="4">
                                                     <div class="extractor-value">
                                                         <el-tooltip 
-                                                            :content="extractor.extractedValue ? '提取的值' : '未提取到��'" 
+                                                            :content="extractor.extractedValue ? '提取的值' : '未提取到'" 
                                                             placement="top"
                                                         >
                                                             <el-tag 
@@ -605,7 +633,7 @@
                                             placeholder="输入测试断言，例如：
 $.code=200  # 检查响应状态码
 $.data.id=1  # 检查JSON响应体
-$headers.Content-Type=application/json  # ��查响头"
+$headers.Content-Type=application/json  # 查响头"
                                         />
                                     </div>
                                 </el-tab-pane>
@@ -613,11 +641,8 @@ $headers.Content-Type=application/json  # ��查响头"
                         </el-form>
                     </div>
 
-                    <!-- 可拖动分隔 -->
-                    <div class="resizer" @mousedown="startResize"></div>
-
-                    <!-- 方响应面板 -->
-                    <div class="response-panel" :style="{ height: `${responsePanelHeight}px` }">
+                    <!-- 下方响应面板 -->
+                    <div class="response-panel">
                         <div class="response-header">
                             <h3 class="response-title">响应信息</h3>
                             <div class="status-info" v-if="showResponse">
@@ -628,7 +653,7 @@ $headers.Content-Type=application/json  # ��查响头"
                             </div>
                         </div>
                         
-                        <!-- 有响应数据时显示应 -->
+                        <!-- 有响应数据时显示响应 -->
                         <template v-if="showResponse">
                             <el-tabs type="border-card" class="response-tabs">
                                 <el-tab-pane label="Body">
@@ -649,7 +674,14 @@ $headers.Content-Type=application/json  # ��查响头"
                                                 </el-button>
                                             </el-button-group>
                                         </div>
-                                        <pre class="response-body">{{ formatResponse(responseData.body) }}</pre>
+                                        <pre 
+                                            class="response-body"
+                                            :style="{ height: `${responsePanelHeight}px` }"
+                                        >{{ formatResponse(responseData.body) }}</pre>
+                                        <div 
+                                            class="resize-handle"
+                                            @mousedown="startResize"
+                                        ></div>
                                     </div>
                                 </el-tab-pane>
                                 <el-tab-pane label="Headers">
@@ -661,22 +693,22 @@ $headers.Content-Type=application/json  # ��查响头"
                                 <el-tab-pane label="Test Results">
                                     <div class="test-results">
                                         <!-- 添加测试结果统计 -->
-                                        <div class="test-summary" v-if="responseData.testResults && responseData.testResults.length">
+                                        <div class="test-summary" v-if="responseData.testResults?.length">
                                             <div class="summary-stats">
                                                 <div class="stat-item">
                                                     <span class="stat-label">总断言数:</span>
-                                                    <span class="stat-value">{{ responseData.testResults.length }}</span>
+                                                    <span class="stat-value">{{ responseData.testResults?.length || 0 }}</span>
                                                 </div>
                                                 <div class="stat-item">
                                                     <span class="stat-label">通过数:</span>
                                                     <span class="stat-value pass">
-                                                        {{ responseData.testResults.filter(r => r.passed).length }}
+                                                        {{ responseData.testResults?.filter(r => r.passed)?.length || 0 }}
                                                     </span>
                                                 </div>
                                                 <div class="stat-item">
                                                     <span class="stat-label">失败数:</span>
                                                     <span class="stat-value fail">
-                                                        {{ responseData.testResults.filter(r => !r.passed).length }}
+                                                        {{ responseData.testResults?.filter(r => !r.passed)?.length || 0 }}
                                                     </span>
                                                 </div>
                                             </div>
@@ -684,26 +716,29 @@ $headers.Content-Type=application/json  # ��查响头"
 
                                         <!-- 测试结果列表 -->
                                         <div class="test-result-list">
-                                            <div v-for="(result, index) in responseData.testResults" 
-                                                :key="index"
-                                                :class="['test-result-item', result.passed ? 'passed' : 'failed']"
-                                            >
-                                                <div class="result-icon">
-                                                    <el-icon v-if="result.passed" class="success-icon">
-                                                        <CircleCheckFilled />
-                                                    </el-icon>
-                                                    <el-icon v-else class="error-icon">
-                                                        <CircleCloseFilled />
-                                                    </el-icon>
-                                                </div>
-                                                <div class="result-content">
-                                                    <div class="result-assertion">{{ result.assertion }}</div>
-                                                    <div class="result-details">
-                                                        <span class="actual-value">实际值: {{ result.actualValue }}</span>
-                                                        <span class="expected-value">期望值: {{ result.expectedValue }}</span>
+                                            <template v-if="responseData.testResults?.length">
+                                                <div v-for="(result, index) in responseData.testResults" 
+                                                    :key="index"
+                                                    :class="['test-result-item', result.passed ? 'passed' : 'failed']"
+                                                >
+                                                    <div class="result-icon">
+                                                        <el-icon v-if="result.passed" class="success-icon">
+                                                            <CircleCheckFilled />
+                                                        </el-icon>
+                                                        <el-icon v-else class="error-icon">
+                                                            <CircleCloseFilled />
+                                                        </el-icon>
+                                                    </div>
+                                                    <div class="result-content">
+                                                        <div class="result-assertion">{{ result.assertion }}</div>
+                                                        <div class="result-details">
+                                                            <span class="actual-value">实际值: {{ result.actualValue }}</span>
+                                                            <span class="expected-value">期望值: {{ result.expectedValue }}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            </template>
+                                            <el-empty v-else description="暂无测试结果" />
                                         </div>
                                     </div>
                                 </el-tab-pane>
@@ -717,7 +752,7 @@ $headers.Content-Type=application/json  # ��查响头"
                                 :image-size="100"
                             >
                                 <template #description>
-                                    <p>点击"发送请求"钮获取响应数据</p>
+                                    <p>点击"发送请求"按钮获取响应数据</p>
                                 </template>
                             </el-empty>
                         </div>
@@ -823,8 +858,8 @@ $headers.Content-Type=application/json  # ��查响头"
                                                 <el-option value="base_url" label="基础URL(base_url)" />
                                                 <el-option value="protocol" label="协议(protocol)" />
                                             </el-option-group>
-                                            <el-option-group label="认证��息">
-                                                <el-option value="username" label="用户��(username)" />
+                                            <el-option-group label="认证信息">
+                                                <el-option value="username" label="用户名(username)" />
                                                 <el-option value="password" label="密码(password)" />
                                                 <el-option value="token" label="令牌(token)" />
                                             </el-option-group>
@@ -839,7 +874,7 @@ $headers.Content-Type=application/json  # ��查响头"
                                     <template #default="{ row }">
                                         <el-input 
                                             v-model="row.value" 
-                                            placeholder="请输入变��值"
+                                            placeholder="请输入变量值"
                                         />
                                     </template>
                                 </el-table-column>
@@ -1022,7 +1057,7 @@ $headers.Content-Type=application/json  # ��查响头"
                                 <el-option value="base_url" label="基础URL(base_url)" />
                                 <el-option value="protocol" label="协议(protocol)" />
                             </el-option-group>
-                            <el-option-group label="认证信">
+                            <el-option-group label="认证信息">
                                 <el-option value="username" label="用户名(username)" />
                                 <el-option value="password" label="密码(password)" />
                                 <el-option value="token" label="令牌(token)" />
@@ -1306,7 +1341,7 @@ const evaluateAssertions = (response) => {
             // 处理不同类型的断言
             if (path === '$.code') {
                 // 从响应数据中获取 code
-                actualValue = response.data.data.response.status_code;
+                actualValue = response.data.data.response.body.code;  // 修改这里，直接从response.body中获取code
             } else if (path.startsWith('$.data.')) {
                 const dataPath = path.replace('$.data.', '');
                 actualValue = getValueByPath(response.data.data, dataPath);
@@ -1392,12 +1427,12 @@ const handleResponse = (response) => {
         
         // 构建响应数据对象
         const processedResponse = {
-            status: response.data.data.status_code,
-            statusText: response.data.data.response.code === 200 ? 'OK' : 'Error',
-            time: response.data.duration || 0,
-            headers: response.data.data.headers,
-            contentType: response.data.data.headers['Content-Type'] || 'unknown',
-            body: response.data.data.response.data || response.data.data.response
+            status: response.data.data.response.status_code,
+            statusText: response.data.data.response.status_code === 200 ? 'OK' : 'Error',
+            time: response.data.data.duration || 0,
+            headers: response.data.data.response.headers,
+            contentType: response.data.data.response.headers['Content-Type'] || 'unknown',
+            body: response.data.data.response.body
         };
         
         console.log('Processed response data:', processedResponse);
@@ -1409,14 +1444,21 @@ const handleResponse = (response) => {
         // 如果有断言，执行断言检查
         if (testCaseForm.value.assertions) {
             const assertionResults = evaluateAssertions(response);
+            console.log('Assertion results:', assertionResults); // 添加调试日志
+            
+            // 更新响应数据中的测试结果
             responseData.value.testResults = assertionResults;
             
             // 显示断言结果统计
             const failedAssertions = assertionResults.filter(r => !r.passed).length;
             if (failedAssertions > 0) {
-                ElMessage.warning(`${failedAssertions} 个断言失败`);
+                ElMessage.error(`测试执行完成，但有 ${failedAssertions} 个断言失败`);
+                // 更新测试用例状态为失败
+                updateTestCaseStatus(testCaseForm.value.case_id, '失败');
             } else if (assertionResults.length > 0) {
-                ElMessage.success('所有断言通过');
+                ElMessage.success('测试执行成功，所有断言通过');
+                // 更新测试用例状态为通过
+                updateTestCaseStatus(testCaseForm.value.case_id, '通过');
             }
         }
     } else {
@@ -1425,66 +1467,103 @@ const handleResponse = (response) => {
     }
 };
 
-// 修改提交测试用例的方法
-const submitTestCase = async () => {
+// 添加更新测试用例状态的方法
+const updateTestCaseStatus = async (caseId, status) => {
     try {
-        loading.value = true;
-        
-        // 构建请求数据
-        const requestData = {
-            ...testCaseForm.value,
-            project_id: projectId.value,
-            params: paramsTableData.value
-                .filter(item => item.enabled && item.key.trim())
-                .map(item => ({
-                    key: item.key.trim(),
-                    value: item.value.trim(),
-                    description: item.description?.trim() || ''
-                })),
-            headers: headersTableData.value
-                .filter(item => item.enabled && item.key.trim())
-                .map(item => ({
-                    key: item.key.trim(),
-                    value: item.value.trim(),
-                    description: item.description?.trim() || ''
-                })),
-            body_type: bodyType.value,
-            raw_content_type: rawContentType.value,
-            form_data: formDataTableData.value
-                .filter(item => item.enabled && item.key.trim())
-                .map(item => ({
-                    key: item.key.trim(),
-                    value: item.value.trim(),
-                    description: item.description?.trim() || ''
-                }))
-        };
-        
-        console.log('Submitting test case:', requestData);
-
-        const response = await axios.post(
-            'http://localhost:8081/api/testcase/execute_direct/',
-            requestData,
+        const response = await axios.put(
+            `http://localhost:8081/api/testcase/status/${caseId}`,
+            {
+                status: status,
+                project_id: projectId.value
+            },
             {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             }
         );
-        
-        if (response.data.success) {
-            handleResponse(response);
-            ElMessage({
-                type: 'success',
-                message: response.data.message || '测试执行成功',
-                duration: 3000
-            });
+
+        if (response.data.code === 200) {
+            console.log(`Test case status updated to: ${status}`);
+            // 刷新测试用例列表
+            fetchTestCases();
         } else {
-            throw new Error(response.data.message || '请求失败');
+            console.error('Failed to update test case status:', response.data);
+        }
+    } catch (error) {
+        console.error('Error updating test case status:', error);
+    }
+};
+
+// 添加 handleBodyInput 方法
+const handleBodyInput = (value) => {
+    if (bodyType.value === 'raw' && rawContentType.value === 'application/json') {
+        validateJson(value);
+    }
+};
+
+// 修改 submitTestCase 方法
+const submitTestCase = async () => {
+    try {
+        loading.value = true;
+        const response = await axios.post(
+            `http://localhost:8081/api/testcase/execute/${testCaseForm.value.case_id}`,
+            {
+                project_id: projectId.value
+            }
+        );
+
+        if (response.data.success === true) {
+            // 构建响应数据对象
+            const processedResponse = {
+                status: response.data.data.response.status_code,
+                statusText: response.data.data.response.status_code === 200 ? 'OK' : 'Error',
+                time: response.data.data.duration * 1000,
+                headers: response.data.data.response.headers || {},
+                body: response.data.data.response.body,
+                contentType: response.data.data.response.headers['Content-Type'] || 'unknown',
+                testResults: [] // 初始化测试结果数组
+            };
+            
+            // 更新响应数据
+            responseData.value = processedResponse;
+            showResponse.value = true;
+
+            // 如果有断言，执行断言检查
+            if (testCaseForm.value.assertions) {
+                const assertionResults = evaluateAssertions(response);
+                console.log('Assertion results:', assertionResults);
+                
+                // 更新响应数据中的测试结果
+                responseData.value.testResults = assertionResults;
+                
+                // 显示断言结果统计
+                const failedAssertions = assertionResults.filter(r => !r.passed).length;
+                if (failedAssertions > 0) {
+                    ElMessage.error(`测试执行完成，但有 ${failedAssertions} 个断言失败`);
+                    // 更新测试用例状态为失败
+                    await updateTestCaseStatus(testCaseForm.value.case_id, '失败');
+                } else if (assertionResults.length > 0) {
+                    ElMessage.success('测试执行成功，所有断言通过');
+                    // 更新测试用例状态为通过
+                    await updateTestCaseStatus(testCaseForm.value.case_id, '通过');
+                }
+            } else {
+                // 如果没有断言，显示执行成功的消息
+                ElMessage.success('请求执行成功');
+            }
+        } else {
+            // 只有在没有断言结果的情况下才显示请求失败的消息
+            if (!testCaseForm.value.assertions) {
+                ElMessage.error(response.data.message || '请求失败');
+            }
         }
     } catch (error) {
         console.error('Request error:', error);
-        ElMessage.error(error.response?.data?.message || error.message || '请求发送失败');
+        // 只有在没有断言结果的情况下才显示请求失败的消息
+        if (!testCaseForm.value.assertions) {
+            ElMessage.error(error.response?.data?.message || error.message || '请求发送失败');
+        }
     } finally {
         loading.value = false;
     }
@@ -1534,37 +1613,45 @@ const fetchTestCases = async () => {
     }
 };
 
-// 添加执行测试用例的方法
+// 修改执行测试用例的方法
 const executeTestCase = async (caseId) => {
-  try {
-    // 显示加载状态
-    loading.value = true;
-    
-    const response = await fetch(`http://localhost:8081/api/testcase/execute/${caseId}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        project_id: route.query.projectId
-      })
-    });
-
-    const data = await response.json();
-    if (data.code === 200) {
-      ElMessage.success('测试用例执行成功');
-      // 可以在这里更新用例状态或刷新列表
-      fetchTestCases();
-    } else {
-      ElMessage.error(data.message || '执行失败');
+    if (!currentEnvId.value) {
+        ElMessage.warning('请先选择环境套');
+        return;
     }
-  } catch (error) {
-    console.error('执行测试用例失败:', error);
-    ElMessage.error('执行测试用例失败');
-  } finally {
-    loading.value = false;
-  }
+
+    try {
+        loading.value = true;
+        
+        const response = await fetch(`http://localhost:8081/api/testcase/execute/${caseId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                project_id: route.query.projectId,
+                env_id: currentEnvId.value
+            })
+        });
+
+        const data = await response.json();
+        if (data.success === true) {
+            ElMessage({
+                type: 'success',
+                message: data.message || '测试用例执行成功',
+                duration: 3000
+            });
+            fetchTestCases();
+        } else {
+            ElMessage.error(data.message || '执行失败');
+        }
+    } catch (error) {
+        console.error('执行测试用例失败:', error);
+        ElMessage.error('执行测试用例失败');
+    } finally {
+        loading.value = false;
+    }
 };
 
 // 删除测试用例
@@ -1601,15 +1688,16 @@ const editTestCase = (row) => {
         api_path: row.api_path,
         method: row.method,
         priority: row.priority,
-        body: row.body || '',
+        // 格式化 body 内容
+        body: formatRequestBody(row.body),
         assertions: row.assertions || '',
         expected_result: typeof row.expected_result === 'string' 
             ? row.expected_result 
             : JSON.stringify(row.expected_result, null, 2)
     };
     
-    // 设置请求体类型
-    bodyType.value = row.body_type || 'none';
+    // 设置 body 类型
+    bodyType.value = row.body_type || 'raw';
     rawContentType.value = row.raw_content_type || 'application/json';
     
     // 设置请求头数据
@@ -1655,6 +1743,31 @@ const editTestCase = (row) => {
     showAddDialog.value = true;
 };
 
+// 添加格式化请求体的方法
+const formatRequestBody = (body) => {
+    if (!body) return '';
+    
+    try {
+        // 如果是字符串，尝试解析为对象后再格式化
+        if (typeof body === 'string') {
+            try {
+                const parsed = JSON.parse(body);
+                return JSON.stringify(parsed, null, 2);
+            } catch {
+                // 如果解析失败，直接返回原字符串
+                return body;
+            }
+        }
+        
+        // 如果是对象，直接格式化
+        return JSON.stringify(body, null, 2);
+    } catch (error) {
+        console.error('Format body error:', error);
+        // 如果发生错误，将对象转换为字符串
+        return JSON.stringify(body) || '';
+    }
+};
+
 // 分页处理
 const handleSizeChange = (val) => {
     pageSize.value = val;
@@ -1669,7 +1782,7 @@ const handleCurrentChange = (val) => {
 // 标签类型处理
 const getPriorityType = (priority) => {
     const types = {
-        '��': 'danger',
+        '': 'danger',
         '中': 'warning',
         '低': 'info',
     };
@@ -1938,7 +2051,7 @@ const isResizing = ref(false);
 const startY = ref(0);
 const startHeight = ref(0);
 
-// 添加动相关方法
+// 修改拖动相关方法
 const startResize = (e) => {
     isResizing.value = true;
     startY.value = e.clientY;
@@ -1949,13 +2062,14 @@ const startResize = (e) => {
     document.addEventListener('mouseup', stopResize);
     
     // 添加拖动时的样式
-    document.body.classList.add('resizing');
+    document.body.style.cursor = 'nw-resize';
+    document.body.style.userSelect = 'none';
 };
 
 const handleResize = (e) => {
     if (!isResizing.value) return;
     
-    const diff = startY.value - e.clientY;
+    const diff = startY.value - e.clientY; // 向上拖动为正（增大），向下拖动为负（减小）
     const newHeight = Math.max(100, Math.min(600, startHeight.value + diff));
     responsePanelHeight.value = newHeight;
 };
@@ -1967,8 +2081,9 @@ const stopResize = () => {
     document.removeEventListener('mousemove', handleResize);
     document.removeEventListener('mouseup', stopResize);
     
-    // 移除拖动时的样式
-    document.body.classList.remove('resizing');
+    // 恢复默认样式
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
 };
 
 // 件卸载时清理件监
@@ -1996,10 +2111,13 @@ onMounted(async () => {
     
     try {
         loading.value = true;
-        await fetchTestCases();
+        await Promise.all([
+            fetchTestCases(),
+            fetchEnvList()  // 添加获取环境套列表
+        ]);
     } catch (error) {
-        console.error('加载测试用例失败:', error);
-        ElMessage.error(error.message || '加载测试用例失败');
+        console.error('初始化失败:', error);
+        ElMessage.error(error.message || '加载失败');
     } finally {
         loading.value = false;
     }
@@ -2013,9 +2131,41 @@ const envForm = ref({
   name: '',
   description: '',
   envSuiteId: '',
-  variables: [{ key: '', value: '', description: '' }] // 初始化一个空变量
+  variables: [{ key: '', value: '', description: '' }]
 });
-const envVars = ref([{ key: '', value: '', description: '' }]);
+
+// 环境套相关的响应式数据
+const currentEnvId = ref('');
+
+// 修改现有的 envList 定义，合并环境变量列表和环境套列表的功能
+const envList = ref([]);
+
+// 获取环境套列表
+const fetchEnvList = async () => {
+    try {
+        const response = await axios.get(
+            `http://localhost:8081/api/env-suite/list/${projectId.value}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            }
+        );
+
+        if (response.data.code === 200) {
+            envList.value = response.data.data.items || [];
+            // 如果有默认环境套，自动选中
+            if (envList.value.length > 0 && !currentEnvId.value) {
+                currentEnvId.value = envList.value[0].id;
+            }
+        } else {
+            ElMessage.error(response.data.message || '获取环境套列表失败');
+        }
+    } catch (error) {
+        console.error('获取环境套列表失败:', error);
+        ElMessage.error('获取环境套列表失败，请检查网络连接');
+    }
+};
 
 // 修改环境变量表单验证规则
 const envRules = {
@@ -2073,37 +2223,6 @@ const resetEnvForm = () => {
     };
 };
 
-// 添加获取环境变量列表的方法
-const fetchEnvList = async () => {
-    try {
-        // 确保先获取环境套列表
-        await fetchEnvSuites();
-        
-        const response = await axios.get(
-            `http://localhost:8081/api/env/list/${projectId.value}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            }
-        );
-
-        if (response.data.code === 200) {
-            // 确保数据包含所需字段
-            envList.value = (response.data.data || []).map(env => ({
-                ...env,
-                envSuiteId: env.envSuiteId || env.env_suite_id, // 兼容不同的字段
-            }));
-            console.log('Environment list updated:', envList.value);
-        } else {
-            ElMessage.error(response.data.message || '获取环境变量列表失败');
-        }
-    } catch (error) {
-        console.error('获取环境变量列表失败:', error);
-        ElMessage.error('获取环境变量列表失，请检查网连接');
-    }
-};
-
 // 修改 submitEnvForm 方法中的相关部分
 const submitEnvForm = async () => {
     if (!envFormRef.value) return;
@@ -2117,7 +2236,7 @@ const submitEnvForm = async () => {
                     description: envForm.value.description,
                     envSuiteId: envForm.value.envSuiteId,
                     project_id: projectId.value,
-                    // 过滤掉空的变��
+                    // 过滤掉空的变
                     variables: envForm.value.variables.filter(v => v.key || v.value || v.description)
                 };
 
@@ -2174,7 +2293,7 @@ const removeExtractor = (index) => {
 const getValuePlaceholder = (key) => {
     const placeholders = {
         'host': '例如: api.example.com',
-        'port': '例��: 8080',
+        'port': '例: 8080',
         'base_url': '如: /api/v1',
         'protocol': '例如: https',
         'username': '请输入用户名',
@@ -2218,18 +2337,6 @@ const validateEnvValue = (key, value) => {
 
 // 添加查看环境变量对话框
 const showEnvListDialog = ref(false);
-const envList = ref([]);
-
-// 修改 handleViewEnv 方法，确保在打开对话框时获取最新数据
-const handleViewEnv = async () => {
-    try {
-        await fetchEnvList(); // 使用新的 fetchEnvList 方法
-        showEnvListDialog.value = true;
-    } catch (error) {
-        console.error('获取环境变量失:', error);
-        ElMessage.error('获取环境变量失败，请检查网络连接');
-    }
-};
 
 // 添加编辑变量相关的响应式数据
 const showEditVarDialog = ref(false);
@@ -2242,7 +2349,7 @@ const editVarForm = ref({
 
 // 修改环境变量编辑方法
 const editEnvVariable = async (variable) => {
-    // 打��辑弹窗并填��数据
+    // 打辑弹窗并填数据
     editVarForm.value = {
         id: variable.id,
         key: variable.key,
@@ -2265,7 +2372,7 @@ const submitEditVar = async () => {
                 value: editVarForm.value.value,
                 description: editVarForm.value.description,
                 env_id: editVarForm.value.env_id,  // 传递环境ID
-                project_id: projectId.value  // ��项目ID
+                project_id: projectId.value  // 项目ID
             },
             {
                 headers: {
@@ -2579,11 +2686,11 @@ const fetchEnvSuites = async () => {
         }
     } catch (error) {
         console.error('获取环境套列表失败:', error);
-        ElMessage.error('获取环境套列表失败，请检查��络连接');
+        ElMessage.error('获取环境套列表失败，请检查网络连接');
     }
 };
 
-// 显示创建环境��对话框
+// 显示创建环境套对话框
 const showCreateEnvSuiteDialog = () => {
   envSuiteDialogTitle.value = '新建环境套';
   envSuiteForm.value = {
@@ -2660,7 +2767,7 @@ watch(() => envForm.value.envSuiteId, (newVal) => {
     console.log('Selected environment suite changed:', newVal);
 });
 
-// ��加表单数据变化的监听（用于调试）
+// 添加表单数据变化的监听（用于调试）
 watch(() => envForm.value, (newVal) => {
     console.log('Environment form data changed:', newVal);
 }, { deep: true });
@@ -2685,42 +2792,81 @@ const formatResponseBody = () => {
     }
 };
 
-// 添加复制按钮的处理方法
+// 修改复制按钮的处理方法
 const copyResponseBody = () => {
     if (!responseData.value.body) {
         ElMessage.warning('没有可复制的内容');
         return;
     }
 
-    navigator.clipboard.writeText(responseData.value.body)
+    // 确保复制的内容是字符串格式
+    const textToCopy = typeof responseData.value.body === 'object' 
+        ? JSON.stringify(responseData.value.body, null, 2)
+        : String(responseData.value.body);
+
+    navigator.clipboard.writeText(textToCopy)
         .then(() => ElMessage.success('已复制到剪贴板'))
         .catch(() => ElMessage.error('复制失败'));
 };
 
 // 在 script 部分添加相关方法
 const queryJsonPaths = (query, cb) => {
-    axios.get(`/api/json-paths?query=${encodeURIComponent(query)}`, {
-        headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}` // 添加认证头
-        }
-    })
-    .then(response => {
-        cb(response.data.map(item => ({
-            value: item.path,
-            path: item.path,
-            previewValue: item.previewValue
-        })));
-    })
-    .catch(error => {
-        console.error('Error fetching JSON paths:', error);
-        if (error.response?.status === 401) {
-            ElMessage.error('认证失败，请重新登录');
-            // 可以在这里添加重定向到登录页面的逻辑
-        } else {
-            ElMessage.error('获取路径建议失败');
-        }
+    if (!responseData.value || !responseData.value.body) {
         cb([]);
-    });
+        return;
+    }
+
+    try {
+        // 获取响应数据
+        const response = responseData.value.body;
+        const paths = [];
+        
+        // 递归遍历对象，生成所有可能的路径
+        const traverse = (obj, path = '') => {
+            if (!obj) return;
+            
+            if (typeof obj === 'object') {
+                for (const key in obj) {
+                    const currentPath = path ? `${path}.${key}` : key;
+                    const fullPath = `$.${currentPath}`;
+                    
+                    // 如果路径包含查询字符串，则添加到结果中
+                    if (!query || currentPath.toLowerCase().includes(query.toLowerCase())) {
+                        paths.push({
+                            value: fullPath,
+                            path: fullPath,
+                            previewValue: typeof obj[key] === 'object' 
+                                ? JSON.stringify(obj[key])
+                                : String(obj[key])
+                        });
+                    }
+                    
+                    // 继续遍历子对象
+                    if (typeof obj[key] === 'object') {
+                        traverse(obj[key], currentPath);
+                    }
+                }
+            }
+        };
+
+        // 特殊处理 code 字段
+        if (!query || 'code'.includes(query.toLowerCase())) {
+            paths.push({
+                value: '$.code',
+                path: '$.code',
+                previewValue: String(response.code || '')
+            });
+        }
+
+        // 遍历响应数据
+        traverse(response);
+
+        // 返回过滤后的路径建议
+        cb(paths);
+    } catch (error) {
+        console.error('生成路径建议失败:', error);
+        cb([]);
+    }
 };
 
 const handleJsonPathSelect = (item) => {
@@ -2759,11 +2905,27 @@ const testExtractor = (extractor) => {
         const path = extractor.jsonPath.replace(/^\$\./, '').split('.');
         let value = jsonData;
         
-        // 遍历路径获取值
-        for (const key of path) {
-            if (value === undefined || value === null) break;
-            value = value[key];
-            console.log(`Extracting ${key}:`, value);
+        // 特殊处理 code 字段
+        if (path[0] === 'code') {
+            value = jsonData.code;
+        } else if (path[0] === 'data') {
+            // 如果路径以 data 开头，从 data 对象开始遍历
+            value = jsonData.data;
+            path.shift(); // 移除 'data'
+            
+            // 遍历剩余路径
+            for (const key of path) {
+                if (value === undefined || value === null) break;
+                value = value[key];
+                console.log(`Extracting ${key}:`, value);
+            }
+        } else {
+            // 直接从根对象开始遍历
+            for (const key of path) {
+                if (value === undefined || value === null) break;
+                value = value[key];
+                console.log(`Extracting ${key}:`, value);
+            }
         }
         
         // 更新提取到的值
@@ -2818,24 +2980,52 @@ const getStatusTagType = (status) => {
     }
 };
 
+// 处理环境套变更
+const handleEnvChange = async (value) => {
+    try {
+        await axios.put('/environment/current/', {
+            env_id: value
+        });
+        ElMessage.success('环境套切换成功');
+    } catch (error) {
+        console.error('切换环境套失败:', error);
+        ElMessage.error('切换环境套失败，请重试');
+        // 恢复原值
+        currentEnvId.value = '';
+    }
+};
+
 </script>
 
 <style scoped>
-/* 表格卡片样式 */
+/* 基础布局样式 */
 .table-card {
-    margin-top: 20px;
-    padding: 24px;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05);
-    background-color: var(--el-bg-color);
+    margin: 16px;
+}
+
+.project-info {
+    margin-bottom: 16px;
+    padding: 8px 0;
+}
+
+.project-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    color: #303133;
 }
 
 /* 搜索栏样式 */
+.table-header {
+    margin-bottom: 16px;
+}
+
 .search-bar {
     display: flex;
-    align-items: center;
     gap: 12px;
-    margin-bottom: 16px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .search-input {
@@ -2846,351 +3036,192 @@ const getStatusTagType = (status) => {
     width: 160px;
 }
 
-/* 操作按钮容器样 */
+/* 操作按钮容器样式 */
 .operation-container {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    justify-content: flex-end; /* 修改为 flex-end 使钮靠右对齐 */
-    width: 100%;
+    justify-content: space-between;
+    align-items: center;
 }
 
-/* 修改按钮组样式 */
-.operation-container .el-button-group {
+.left-operations {
+    display: flex;
+    gap: 8px;
+}
+
+.right-operations {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
-    justify-content: flex-end; /* 修改为 flex-end 使按钮组��部靠右对齐 */
-    width: auto; /* 修��为 auto，再占满整行 */
 }
 
-/* 修改上传按钮容器样式 */
-.upload-button {
-    display: inline-flex;
-    align-items: center;
-}
-
-.upload-button :deep(.el-upload) {
-    display: inline-flex;
-    align-items: center;
-}
-
-/* 确保钮样式一致 */
-.operation-container :deep(.el-button) {
-    margin: 0;
-}
-
-/* 修按钮样式，确保图标居中 */
-.operation-container :deep(.el-button) {
-    display: inline-flex;  /* 改为 inline-flex */
-    align-items: center;
-    justify-content: center; /* 添水平居中 */
-    gap: 8px;
-    padding: 8px 16px;
+.env-label {
     font-size: 14px;
-    height: 32px;  /* 添固定高度 */
+    color: #606266;
 }
 
-/* 修改图标样式 */
-.operation-container :deep(.el-button .el-icon) {
-    margin: 0;
-    font-size: 16px;
-    display: inline-flex;  /* 添加 inline-flex 布局 */
+/* 表格相关样式 */
+.case-title {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    width: 16px;  /* 给定固定宽度 */
-    height: 16px; /* 给定固定高度 */
+    gap: 8px;
 }
 
-/* 确保按钮内容整体居中 */
-.operation-container :deep(.el-button span) {
-    display: inline-flex;
+.title-text {
+    flex: 1;
+}
+
+.priority-tag {
+    flex-shrink: 0;
+}
+
+.api-info {
+    display: flex;
     align-items: center;
+    gap: 8px;
 }
 
-/* 表格中圆形按钮样式 */
-:deep(.el-button.is-circle) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px;
+.method-tag {
+    flex-shrink: 0;
+    min-width: 60px;
+    text-align: center;
 }
 
-:deep(.el-button.is-circle .el-icon) {
-    margin: 0;
-    font-size: 16px;
+.api-path {
+    flex: 1;
+    color: #606266;
+}
+
+.status-tag {
+    min-width: 60px;
 }
 
 /* 分页器样式 */
 .pagination-container {
-    margin-top: 20px;
+    margin-top: 16px;
     display: flex;
     justify-content: flex-end;
 }
 
-/* 环境变量表样式 */
-.env-list-container {
-    max-height: 600px;
-    overflow-y: auto;
-    padding: 0 16px;
+/* 请求方法选择器样式 */
+.method-select {
+    :deep(.el-input__wrapper) {
+        padding: 0 8px;
+    }
+
+    :deep(.el-input__inner) {
+        font-weight: bold;
+        text-align: center;
+    }
+
+    :deep(.el-select__selected-item) {
+        font-weight: bold;
+        text-align: center;
+    }
 }
 
-.env-item {
-    margin-bottom: 24px;
-    padding: 16px;
-    border-radius: 8px;
-    background-color: var(--el-fill-color-light);
-    border: 1px solid var(--el-border-color-lighter);
+/* 方法颜色样式 */
+:deep(.method-get),
+.method-get {
+    color: #67C23A !important;
+    font-weight: bold;
 }
 
-.env-item:last-child {
-    margin-bottom: 0;
+:deep(.method-post),
+.method-post {
+    color: #409EFF !important;
+    font-weight: bold;
 }
 
-/* 表格中的操作按钮样式 */
-.env-item :deep(.el-table .cell) {
+:deep(.method-put),
+.method-put {
+    color: #E6A23C !important;
+    font-weight: bold;
+}
+
+:deep(.method-delete),
+.method-delete {
+    color: #F56C6C !important;
+    font-weight: bold;
+}
+
+:deep(.method-patch),
+.method-patch {
+    color: #909399 !important;
+    font-weight: bold;
+}
+
+/* 下拉选项样式 */
+:deep(.el-select-dropdown__item) {
+    padding: 0 20px !important;
+    text-align: center !important;
+
+    &.selected {
+        background-color: var(--el-fill-color-light);
+    
+    &.method-get {
+        background-color: #f0f9eb;
+    }
+    
+    &.method-post {
+        background-color: #ecf5ff;
+    }
+    
+    &.method-put {
+        background-color: #fdf6ec;
+    }
+    
+    &.method-delete {
+        background-color: #fef0f0;
+    }
+    
+    &.method-patch {
+        background-color: #f4f4f5;
+        }
+    }
+}
+
+/* 上传按钮样式 */
+.upload-button {
+    display: inline-block;
+}
+
+/* 表格内按钮组样式 */
+.el-button-group {
     display: flex;
-    justify-content: center;
-    gap: 8px;
-}
-
-.env-item :deep(.el-button.is-link) {
-    height: 28px;
-    padding: 4px 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.env-item :deep(.el-button.is-link .el-icon) {
-    margin-right: 4px;
-    font-size: 14px;
-}
-
-/* 表格样式优化 */
-.env-item :deep(.el-table) {
-    --el-table-border-color: var(--el-border-color-lighter);
-    margin-top: 12px;
-}
-
-.env-item :deep(.el-table__cell) {
-    padding: 8px;
-}
-
-/* 表头样式 */
-.env-item :deep(.el-table__header) {
-    background-color: var(--el-fill-color-light);
-}
-
-/* 修改表格中的操作按钮样式 */
-.operation-buttons {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;  /* 减小按钮之间的间距 */
-}
-
-.operation-buttons .el-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     gap: 4px;
-    padding: 4px 8px;
-    min-width: 52px;  /* 减小按钮的最小宽度 */
 }
 
-.operation-icon {
-    margin: 0;
-    font-size: 14px;
+/* 状态标签样式 */
+.el-tag.status-tag {
+    min-width: 60px;
+    text-align: center;
 }
 
-/* 调整按钮内部图标和文字��间距 */
-.env-item :deep(.el-button.is-link) {
-    height: 28px;
-    padding: 4px;  /* 减小内边距 */
-    white-space: nowrap;
-}
-
-.env-item :deep(.el-button.is-link .el-icon) {
-    margin-right: 2px;  /* 减小图标和文字的间距 */
-    font-size: 14px;
-}
-
-/* 确保钮文字不换行且对齐 */
-.env-item :deep(.el-button.is-link span) {
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-/* 修改固定样式 */
-.env-item :deep(.el-table__fixed-right) {
-    height: 100% !important;
-    background-color: var(--el-bg-color);
-    box-shadow: -6px 0 6px -4px rgba(0,0,0,0.12);
-}
-
-/* 确保表格内不会被遮挡 */
-.env-item :deep(.el-table__body-wrapper) {
-    overflow: visible;
-}
-
-.env-item :deep(.el-table__fixed-right-patch) {
-    background-color: var(--el-fill-color-light);
-}
-
-/* 调整格单元格内容对齐 */
-.env-item :deep(.el-table .cell) {
-    white-space: nowrap;
-    overflow: visible;
-}
-
-/* 调整钮容对齐 */
-.env-item :deep(.el-button.is-link) {
-    height: 28px;
-    white-space: nowrap;
-}
-
-/* 确保图标和文字对齐 */
-.env-item :deep(.el-button.is-link .el-icon) {
-    vertical-align: middle;
-}
-
-/* 确保按钮文字不换行 */
-.env-item :deep(.el-button.is-link span) {
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-/* 变量值输入框样式 */
-.env-item :deep(.el-input__wrapper) {
-    padding: 0 8px;
-}
-
-.env-item :deep(.el-input__prefix) {
-    color: var(--el-text-color-secondary);
-    font-size: 12px;
-}
-
-.env-item :deep(.el-input.is-focus .el-input__wrapper) {
-    box-shadow: 0 0 0 1px var(--el-color-primary) inset;
-}
-
-/* Body 编辑器工具栏样式 */
-.body-editor {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    position: relative; /* 添加相对定位 */
-    padding-bottom: 16px; /* 底部添加间距 */
-}
-
-.editor-toolbar {
-    display: flex;
-    justify-content: flex-end;
-    padding: 4px;
-    background-color: var(--el-fill-color-light);
-    border-radius: 4px;
-}
-
-.editor-toolbar .el-button {
-    font-size: 12px;
-}
-
-.editor-toolbar .el-button .el-icon {
-    margin-right: 4px;
-    font-size: 14px;
-}
-
-/* 修改 JSON 编辑器相关样式 */
-.json-editor-container {
-    position: relative;
-    margin-bottom: 60px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.editor-toolbar {
-    display: flex;
-    justify-content: flex-end;
-    padding: 4px 8px;
-    background-color: var(--el-fill-color-light);
-    border-radius: 4px;
-}
-
-.editor-content {
-    display: flex;
-    position: relative;
-}
-
-.line-numbers {
-    padding: 12px 0;
-    background-color: var(--el-fill-color-light);
-    border: 1px solid var(--el-border-color);
-    border-right: none;
-    border-radius: 4px 0 0 4px;
-    user-select: none;
-}
-
-.line-number {
+/* 优先级标签样式 */
+.el-tag.priority-tag {
     min-width: 40px;
-    padding: 0 8px;
-    color: var(--el-text-color-secondary);
-    font-family: monospace;
-    font-size: 13px;
-    line-height: 21px;
-    text-align: right;
+    text-align: center;
 }
 
-.editor-wrapper {
-    flex: 1;
-    position: relative;
+/* 表格内图标按钮样式 */
+.el-button.is-circle {
+    margin: 0 4px;
 }
 
-.editor-wrapper :deep(.el-textarea__inner) {
-    font-family: monospace;
-    line-height: 21px;
-    font-size: 13px;
-    tab-size: 2;
-    padding: 12px;
-    border-radius: 0 4px 4px 0;
-    min-height: 100%;
-    resize: vertical;
+/* 测试用例编辑对话框样式 */
+.test-case-dialog {
+    :deep(.el-dialog__body) {
+        padding: 20px;
+    }
 }
 
-.editor-wrapper :deep(.el-textarea__inner.has-error) {
-    border-color: var(--el-color-danger);
-    background-color: var(--el-color-danger-light-9);
-}
-
-.json-error-message {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 100%;
-    margin-top: 8px;
-    z-index: 1;
-}
-
-/* 修改底部按钮样式 */
-.dialog-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    padding-top: 16px;
-}
-
-.dialog-footer .el-button {
-    min-width: 80px;
-}
-
-/* 添加请求 URL 区域的样式 */
+/* 请求 URL 区域样式 */
 .request-url-section {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    gap: 12px;
+    margin-bottom: 16px;
+    align-items: flex-start;
 }
 
 .method-select {
@@ -3201,1140 +3232,440 @@ const getStatusTagType = (status) => {
     flex: 1;
 }
 
-/* 修复表单项的样式 */
-.request-url-section :deep(.el-form-item) {
-    margin-bottom: 0;  /* 移除表单项的下边距 */
-}
-
-/* 确保所有元素垂直居中对齐 */
-.request-url-section :deep(.el-form-item__content) {
-    display: flex;
-    align-items: center;
-}
-
 .send-button {
-    min-width: 80px;
-    height: 32px;
-    padding: 0 16px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 0;  /* 移除顶部边距 */
-    margin-bottom: 0;  /* 移除底部边距 */
+    width: 80px;
 }
 
-/* 请求方法下拉框样式 */
-.method-select :deep(.el-input__wrapper) {
-    padding: 0 8px;
-    height: 32px;  /* 确保高度一致 */
-}
-
-/* API 输入框样式 */
-.api-input :deep(.el-input__wrapper) {
-    padding: 0 12px;
-    height: 32px;  /* 确保高度一致 */
-}
-
-/* 请求方法颜色样式 */
-.method-get {
-    color: #67C23A;
-}
-
-.method-post {
-    color: #409EFF;
-}
-
-.method-put {
-    color: #E6A23C;
-}
-
-.method-delete {
-    color: #F56C6C;
-}
-
-.method-patch {
-    color: #909399;
-}
-
-/* 添加表格相关样 */
-.case-title {
+/* 用例基本信息区域样式 */
+.case-info-section {
     display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.api-path {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.api-path .el-tag {
-    min-width: 60px;
-    text-align: center;
-}
-
-/* 操作按钮组样式 */
-.el-button-group {
-    display: flex;
-    gap: 4px;
-}
-
-.el-button-group .el-button {
-    margin-left: 0 !important;
-}
-
-/* 添加上传按钮样式 */
-.upload-button {
-    display: inline-block;
-}
-
-.upload-button :deep(.el-upload) {
-    display: block;
-}
-
-/* 确保上传按钮与其他按钮样式一致 */
-.upload-button :deep(.el-button) {
-    margin-left: 0;
-}
-
-/* 调整按钮组样式 */
-.operation-container .el-button-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-/* 添加标题样式 */
-.page-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.project-name {
-    font-weight: 600;
-    color: var(--el-color-primary);
-}
-
-.title-divider {
-    color: var(--el-text-color-secondary);
-    margin: 0 4px;
-}
-
-.page-type {
-    color: var(--el-text-color-regular);
-}
-
-/* 添加项目名称显示区域 */
-.project-info {
-    margin-bottom: 20px;
-    padding: 16px;
-    border-radius: 8px;
-    background-color: var(--el-fill-color-light);
-}
-
-.project-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-/* 项目信息样式 */
-.project-info {
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.project-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-    font-size: 18px;
-    color: var(--el-text-color-primary);
-}
-
-.project-title .el-icon {
-    font-size: 20px;
-    color: var(--el-color-primary);
-}
-
-.action-buttons {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-/* 环境套对话框样式 */
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-/* 添加新的样式 */
-.env-suite-section {
-    display: flex;
-    align-items: center;
     gap: 12px;
-    width: 100%;
+    margin-bottom: 16px;
 }
 
-.env-suite-section :deep(.el-select) {
+.case-title-input {
     flex: 1;
 }
 
-.env-vars-table {
-    margin-top: 8px;
+.case-priority-select {
+    width: 120px;
 }
 
-.table-actions {
-    margin-top: 12px;
-    display: flex;
-    justify-content: flex-end;
-}
-
-/* 确保表格内的选择器和输入框样式正确 */
-.env-vars-table :deep(.el-select),
-.env-vars-table :deep(.el-input) {
-    width: 100%;
-}
-
-.env-vars-table :deep(.el-table) {
-    margin-bottom: 12px;
-}
-
-/* 修改环境变量对话框样式 */
-.env-dialog {
-    :deep(.el-dialog__body) {
-        padding: 20px 24px;
-        max-height: calc(90vh - 150px);
-        overflow-y: auto;
+/* 请求配置标签页样式 */
+.request-tabs {
+    margin-bottom: 16px;
+    
+    :deep(.el-tabs__content) {
+        padding: 16px;
     }
 }
 
-/* 环��套选��器样式 */
-:deep(.env-suite-select) {
-    max-width: none !important;
-}
-
-/* 变量名选择器样式 */
-:deep(.var-name-select) {
-    max-width: none !important;
-}
-
-.env-vars-table {
-    margin-top: 8px;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.env-vars-table :deep(.el-table) {
-    --el-table-border-color: var(--el-border-color-lighter);
+/* 参数表格样式 */
+.params-table, .headers-table, .form-data-table {
     margin-bottom: 12px;
-}
 
-.env-vars-table :deep(.el-table__header) {
-    background-color: var(--el-fill-color-light);
-}
-
-.env-vars-table :deep(.el-table__cell) {
-    padding: 8px;
-}
-
-/* 确保表格内的选择器和输入框不被遮挡 */
-.env-vars-table :deep(.el-select),
-.env-vars-table :deep(.el-input) {
-    width: 100%;
-    z-index: 1;
-}
-
-/* 调整表格内的下拉选择器样式 */
-.env-vars-table :deep(.el-select .el-input__wrapper) {
-    padding: 0 8px;
-    background-color: var(--el-bg-color);
-}
-
-/* 确保固��列的��式正确 */
-.env-vars-table :deep(.el-table__fixed-right) {
-    height: 100% !important;
-    background-color: var(--el-bg-color);
-    box-shadow: -6px 0 6px -4px rgba(0,0,0,0.12);
-    right: 0; /* 确保固定列位置正确 */
-}
-
-/* 调整表格高度和滚动 */
-.env-vars-table :deep(.el-table__body-wrapper) {
-    overflow-y: auto;
-    max-height: 400px;
-}
-
-/* 优化表格内容布局 */
-.env-vars-table :deep(.el-table__row) {
-    height: 48px; /* 增加行高，给按钮留出足够空间 */
-}
-
-/* 确保删除按钮始终可见 */
-.env-vars-table :deep(.el-table__fixed-right-patch) {
-    background-color: var(--el-fill-color-light);
+    :deep(.el-table) {
+        margin-bottom: 12px;
+    }
 }
 
 .table-actions {
-    margin-top: 16px;
     display: flex;
-    justify-content: flex-end;
-}
-
-.table-actions .el-button {
-    padding: 8px 16px;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-/* 修改表格内按钮样式 */
-.env-vars-table :deep(.el-button.is-circle) {
-    padding: 6px;
-    margin: 0;
-    position: relative; /* 添加相对定位 */
-    z-index: 2; /* 确保按钮在最上层 */
-}
-
-/* 确保表单项之间有合适的间距 */
-.el-form-item {
-    margin-bottom: 20px;
-}
-
-/* 优化对话框底部按钮样式 */
-.dialog-footer {
-    padding-top: 16px;
-    border-top: 1px solid var(--el-border-color-lighter);
-}
-
-/* 添加环境套选择相关样式 */
-.env-suite-section {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-}
-
-.env-suite-section :deep(.el-select) {
-    flex: 1;
-}
-
-/* ��保下拉框内容样式正确 */
-:deep(.env-suite-select) {
-    width: auto !important;
-    min-width: 200px !important;
-}
-
-.env-suite-option {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 4px 0;
-}
-
-.suite-name {
-    font-size: 14px;
-    color: var(--el-text-color-primary);
-}
-
-.suite-desc {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    word-break: break-all;
-}
-
-/* 调整表单项样式 */
-:deep(.el-form-item__content) {
-    flex: 1;
-    min-width: 0;
-}
-
-/* 确保选择框有合适高度 */
-.env-suite-section :deep(.el-input__wrapper) {
-    height: 32px;
-    line-height: 32px;
-}
-
-/* 调整选项样式 */
-:deep(.el-select-dropdown__item) {
-    padding: 8px 12px;
-}
-
-/* 确保新建按钮样式正确 */
-.env-suite-section .el-button {
-    flex-shrink: 0;
-    white-space: nowrap;
-}
-
-/* 添加环境变量��表相关样式 */
-.env-header {
-    margin-bottom: 16px;
-}
-
-.env-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
-}
-
-.env-name {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--el-text-color-primary);
-}
-
-.env-suite-tag {
-    font-weight: normal;
-}
-
-.env-description {
-    font-size: 14px;
-    color: var(--el-text-color-secondary);
-    margin-top: 4px;
-}
-
-/* 优化环境变量列表样式 */
-.env-list-dialog :deep(.el-dialog__body) {
-    padding: 20px;
-    max-height: 70vh;
-    overflow-y: auto;
-}
-
-.env-list-container {
-    padding: 0;
-}
-
-.env-item {
-    margin-bottom: 24px;
-    padding: 16px;
-    border-radius: 8px;
-    background-color: var(--el-fill-color-blank);
-    border: 1px solid var(--el-border-color-lighter);
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-}
-
-.env-item:last-child {
-    margin-bottom: 0;
-}
-
-.env-header {
-    margin-bottom: 16px;
-}
-
-.env-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
-}
-
-.env-name {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--el-text-color-primary);
-}
-
-.env-suite-tag {
-    padding: 0 8px;
-    height: 24px;
-    line-height: 22px;
-    font-size: 12px;
-    border-radius: 4px;
-    font-weight: normal;
-}
-
-.env-description {
-    font-size: 13px;
-    color: var(--el-text-color-secondary);
-    line-height: 1.4;
-}
-
-/* 表格样式��化 */
-.env-item :deep(.el-table) {
-    --el-table-border-color: var(--el-border-color-lighter);
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.env-item :deep(.el-table__header-wrapper) {
-    background-color: var(--el-fill-color-light);
-}
-
-.env-item :deep(.el-table__cell) {
-    padding: 8px;
-}
-
-/* 变量名样式 */
-.variable-key {
-    font-family: monospace;
-    font-size: 13px;
-    color: var(--el-text-color-primary);
-    background-color: var(--el-fill-color-light);
-    padding: 2px 6px;
-    border-radius: 4px;
-}
-
-/* 操作按钮样式 */
-.env-item :deep(.el-button--small) {
-    padding: 4px 8px;
-    font-size: 12px;
-}
-
-.env-item :deep(.el-button.is-link) {
-    height: 24px;
-}
-
-/* 输入框样式 */
-.env-item :deep(.el-input__wrapper) {
-    padding: 0 8px;
-}
-
-.env-item :deep(.el-input__inner) {
-    height: 28px;
-    line-height: 28px;
-    font-size: 13px;
-}
-
-/* 确保表格内容垂直居中 */
-.env-item :deep(.el-table .cell) {
-    display: flex;
-    align-items: center;
     justify-content: flex-start;
+    padding: 8px 0;
 }
 
-.env-item :deep(.el-table__fixed-right-patch) {
-    background-color: var(--el-fill-color-light);
+/* Body 编辑器样式 */
+.body-content {
+    .body-type-selector {
+        margin-bottom: 16px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .json-editor-container {
+        border: 1px solid #dcdfe6;
+        border-radius: 4px;
+        
+        .editor-toolbar {
+            padding: 8px;
+            border-bottom: 1px solid #dcdfe6;
+            background-color: #f5f7fa;
+        }
+
+        .editor-content {
+            display: flex;
+            
+            .line-numbers {
+                padding: 8px;
+                background-color: #f5f7fa;
+                border-right: 1px solid #dcdfe6;
+                text-align: right;
+                color: #909399;
+                user-select: none;
+            }
+
+            .editor-wrapper {
+                flex: 1;
+                position: relative;
+
+                :deep(.el-textarea__inner) {
+                    border: none;
+                    padding: 8px;
+                    font-family: monospace;
+                    line-height: 1.6;
+                    min-height: 200px;
+                }
+
+                .json-error-message {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                }
+            }
+        }
+    }
 }
 
-/* 操作列样式 */
-.env-item :deep(.el-table__fixed-right) {
-    height: 100% !important;
-    background-color: var(--el-bg-color);
-    box-shadow: -6px 0 6px -4px rgba(0,0,0,0.12);
+/* 提取器区域样式 */
+.extractors-section {
+    .section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .extractor-item {
+        margin-bottom: 12px;
+        padding: 12px;
+        border: 1px solid #dcdfe6;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+
+        :deep(.el-row) {
+            align-items: center;
+        }
+
+        .input-with-button {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+
+            .json-path-input {
+                flex: 1;
+            }
+
+            .test-button,
+            .delete-button {
+                flex-shrink: 0;
+            }
+        }
+
+        .extractor-value {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 32px;  /* 与输入框保持一致的高度 */
+
+            .value-tag {
+                flex: 1;
+                text-overflow: ellipsis;
+                overflow: hidden;
+                display: flex;
+                align-items: center;
+            }
+        }
+    }
 }
 
-/* 表格hover效果 */
-.env-item :deep(.el-table__row:hover) {
-    background-color: var(--el-table-row-hover-bg-color);
+/* 确保自动完成建议框中的图标也垂直居中 */
+:deep(.el-autocomplete-suggestion__list) {
+    .suggestion-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 8px;
+        
+        .path {
+            color: #409EFF;
+            font-family: monospace;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .value {
+            color: #909399;
+            font-size: 12px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    }
 }
 
-/* 响应内容样式 */
-.response-body {
-    padding: 12px;
-    margin: 0;
-    background-color: var(--el-bg-color-page);
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 13px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-x: auto;
-}
-
-.response-body.html-content {
-    white-space: pre;
-    font-family: monospace;
-}
-
-.response-toolbar {
+/* 调整输入框内图标的垂直对齐 */
+:deep(.el-input__prefix) {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
-    background-color: var(--el-fill-color-light);
-    border-radius: 4px 4px 0 0;
 }
 
-.content-type {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
+/* 调整按钮内图标的垂直对齐 */
+:deep(.el-button .el-icon) {
+    vertical-align: middle;
+}
+
+/* 测试结果区域样式 */
+.test-results {
+    padding: 16px;
+
+    .test-summary {
+        margin-bottom: 16px;
+        padding: 12px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        border: 1px solid #e4e7ed;
+
+        .summary-stats {
+            display: flex;
+            gap: 24px;
+
+            .stat-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                .stat-label {
+                    color: #606266;
+                    font-weight: 500;
+                }
+
+                .stat-value {
+                    font-weight: bold;
+                    font-size: 16px;
+                    
+                    &.pass { 
+                        color: #67C23A; 
+                    }
+                    &.fail { 
+                        color: #F56C6C; 
+                    }
+                }
+            }
+        }
+    }
+
+    .test-result-list {
+        .test-result-item {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+
+            &.passed {
+                background-color: #f0f9eb;
+                border-color: #e1f3d8;
+            }
+
+            &.failed {
+                background-color: #fef0f0;
+                border-color: #fde2e2;
+            }
+
+            .result-icon {
+                display: flex;
+                align-items: center;
+                font-size: 20px;
+                
+                .success-icon { 
+                    color: #67C23A; 
+                }
+                .error-icon { 
+                    color: #F56C6C; 
+                }
+            }
+
+            .result-content {
+                flex: 1;
+
+                .result-assertion {
+                    font-weight: bold;
+                    margin-bottom: 8px;
+                    color: #303133;
+                }
+
+                .result-details {
+                    display: flex;
+                    gap: 24px;
+                    color: #606266;
+                    font-size: 14px;
+
+                    .actual-value, .expected-value {
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                        
+                        &::before {
+                            content: '';
+                            display: inline-block;
+                            width: 6px;
+                            height: 6px;
+                            border-radius: 50%;
+                            background-color: currentColor;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /* 响应面板样式 */
 .response-panel {
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    max-height: 50vh; /* 改用视窗高度的百分比 */
-    min-height: 200px; /* 添加最小高度 */
-}
+    border-top: 2px solid #dcdfe6;
+    background-color: #f8f9fa;
 
-.response-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px; /* 增加左右内边距 */
-    background-color: var(--el-fill-color-light);
-    border-bottom: 1px solid var(--el-border-color-lighter);
-    flex-shrink: 0; /* 防止头部被压缩 */
-}
-
-.response-title {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.status-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.time-info {
-    color: var(--el-text-color-secondary);
-    font-size: 12px;
-}
-
-/* 响应内容区域样式 */
-.response-body-wrapper {
-    position: relative;
-    flex: 1;
-    overflow: auto; /* 改为 auto，允许内容滚动 */
-    display: flex;
-    flex-direction: column;
-    height: calc(100% - 48px); /* 减去头部高度 */
-}
-
-.response-toolbar {
-    padding: 8px 16px; /* 增加左右内边距 */
-    background-color: var(--el-fill-color-light);
-    border-bottom: 1px solid var(--el-border-color-lighter);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-shrink: 0; /* 防止工具栏被压缩 */
-}
-
-.content-type {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-}
-
-/* 修改响应内容区域的样式 */
-.response-body {
-    height: 100%;
-    overflow: auto;
-    margin: 0;
-    padding: 16px;
-    background-color: var(--el-bg-color-page);
-    font-family: monospace;
-    font-size: 13px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-    border: none;
-    box-sizing: border-box;
-}
-
-/* 响应标签页样式 */
-.response-tabs {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}
-
-.response-tabs :deep(.el-tabs__header) {
-    margin: 0;
-    flex-shrink: 0;
-}
-
-.response-tabs :deep(.el-tabs__content) {
-    flex: 1;
-    overflow: auto;
-    padding: 0;
-    height: calc(100% - 40px); /* 减去标签头部高度 */
-}
-
-.response-tabs :deep(.el-tab-pane) {
-    height: 100%;
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-/* 调整对话框内容区域的样式 */
-.test-case-dialog {
-    :deep(.el-dialog__body) {
-        padding: 0;
-        height: 80vh; /* 使用视窗高度 */
-        overflow: hidden;
+    .response-header {
         display: flex;
-        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid #dcdfe6;
+
+        .response-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #303133;
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+
+            .time-info {
+                color: #909399;
+            }
+        }
+    }
+
+    .response-body-wrapper {
+        position: relative;
+        
+        .response-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background-color: #f5f7fa;
+            border-bottom: 1px solid #dcdfe6;
+
+            .content-type {
+                color: #606266;
+            }
+        }
+
+        .response-body {
+            padding: 16px;
+            margin: 0;
+            background-color: #fff;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            min-height: 100px;
+            max-height: 600px;
+            user-select: text;
+            position: relative;
+        }
+
+        .resize-handle {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 20px;
+            height: 20px;
+            cursor: nw-resize;
+            background: linear-gradient(135deg, transparent 50%, #e4e7ed 50%);
+            z-index: 1;
+            
+            &:hover {
+                background: linear-gradient(135deg, transparent 50%, #c0c4cc 50%);
+            }
+        }
     }
 }
 
-/* 调整 Postman 布局样式 */
-.postman-layout {
-    height: 100%;
+/* 对话框底部按钮样式 */
+.dialog-footer {
     display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-}
-
-/* 优化请求面板样式 */
-.request-panel {
-    flex: 1;
-    min-height: 0;
-    padding: 20px;
-    overflow-y: auto;
-    position: relative;
-    z-index: 1;
-}
-
-.response-panel {
-    border-top: 1px solid var(--el-border-color-lighter);
-    background-color: var(--el-bg-color);
-}
-
-/* 调整分隔线样式 */
-.resizer {
-    height: 4px;
-    background-color: var(--el-border-color-lighter);
-    cursor: row-resize;
-    transition: background-color 0.2s;
-    position: relative;
-    z-index: 2;
-    
-    &:hover {
-        background-color: var(--el-color-primary-light-7);
-    }
-    
-    &:active {
-        background-color: var(--el-color-primary-light-5);
-    }
-}
-
-/* 拖动时的全局样式 */
-:global(body.resizing) {
-    cursor: row-resize;
-    user-select: none;
-}
-
-/* 添加不同内容类型的样式 */
-.response-body.json-content {
-    color: var(--el-text-color-primary);
-}
-
-.response-body.html-content {
-    color: #e34c26;
-    white-space: pre;
-}
-
-.response-body.xml-content {
-    color: #2f6f9f;
-}
-
-/* 测试结果样式 */
-.test-results {
-    padding: 16px;
-}
-
-.test-summary {
-    background: var(--el-bg-color-page);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 16px;
-    border: 1px solid var(--el-border-color-lighter);
-}
-
-.summary-stats {
-    display: flex;
-    gap: 24px;
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.stat-label {
-    color: var(--el-text-color-secondary);
-    font-size: 14px;
-}
-
-.stat-value {
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.stat-value.pass {
-    color: var(--el-color-success);
-}
-
-.stat-value.fail {
-    color: var(--el-color-danger);
-}
-
-.test-result-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.test-result-item {
-    display: flex;
-    align-items: flex-start;
+    justify-content: flex-end;
     gap: 12px;
-    padding: 12px;
-    border-radius: 6px;
-    border: 1px solid var(--el-border-color-lighter);
-    transition: all 0.3s ease;
+    padding-top: 20px;
 }
 
-.test-result-item.passed {
-    background-color: var(--el-color-success-light-9);
-    border-color: var(--el-color-success-light-5);
-}
-
-.test-result-item.failed {
-    background-color: var(--el-color-danger-light-9);
-    border-color: var(--el-color-danger-light-5);
-}
-
-.result-icon {
+/* 空状态样式 */
+.empty-response {
     display: flex;
-    align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
-}
-
-.success-icon {
-    color: var(--el-color-success);
-    font-size: 20px;
-}
-
-.error-icon {
-    color: var(--el-color-danger);
-    font-size: 20px;
-}
-
-.result-content {
-    flex: 1;
-}
-
-.result-assertion {
-    font-weight: 500;
-    margin-bottom: 4px;
-    color: var(--el-text-color-primary);
-}
-
-.result-details {
-    display: flex;
-    gap: 16px;
-    font-size: 13px;
-    color: var(--el-text-color-secondary);
-}
-
-.actual-value, .expected-value {
-    display: flex;
     align-items: center;
-    gap: 4px;
+    height: 100%;
+    background-color: #fff;
 }
 
-.actual-value::before {
-    content: "•";
-    color: var(--el-text-color-secondary);
-}
-
-.expected-value::before {
-    content: "•";
-    color: var(--el-text-color-secondary);
-}
-
-/* 变量提取器样式 */
-.extractors-section {
-    padding: 16px;
-    background-color: var(--el-bg-color);
-    border-radius: 4px;
-}
-
-.section-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.section-title h4 {
-    margin: 0;
-    font-size: 16px;
-    color: var(--el-text-color-primary);
-}
-
-.extractor-item {
-    margin-bottom: 12px;
-    padding: 12px;
-    background-color: var(--el-fill-color-light);
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: 4px;
-    transition: all 0.3s;
-}
-
-.extractor-item:hover {
-    border-color: var(--el-border-color);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-/* 修改行间距和对齐 */
-.extractor-item .el-row {
-    margin-bottom: 0 !important;
-    align-items: center;
-}
-
-/* 输入框样式 */
-.extractor-item :deep(.el-input__wrapper),
-.extractor-item :deep(.el-autocomplete .el-input__wrapper) {
-    box-shadow: none;
-    background-color: var(--el-bg-color);
-    border: 1px solid var(--el-border-color);
-    height: 32px;
-    line-height: 32px;
-}
-
-/* 变量名输入框前缀样式 */
-.extractor-item :deep(.el-input__prefix) {
-    color: var(--el-text-color-secondary);
-    font-size: 14px;
-    font-weight: bold;
-}
-
-/* 自动完成下拉框样式 */
+/* 添加样式 */
 .suggestion-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 4px 0;
+    
+    .path {
+        color: #409EFF;
+        font-family: monospace;
+    }
+    
+    .value {
+        color: #909399;
+        font-size: 12px;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 }
 
-.suggestion-item .path {
-    font-family: monospace;
-    color: var(--el-text-color-primary);
-}
-
-.suggestion-item .value {
-    color: var(--el-text-color-secondary);
-    font-size: 12px;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* 预览值标签样式 */
-.extractor-item :deep(.el-tag) {
-    width: 100%;
-    text-align: center;
-    margin: 0;
-    font-size: 12px;
-    height: 32px;
-    line-height: 30px;
-    background-color: var(--el-bg-color);
-    border-color: var(--el-border-color);
-    color: var(--el-text-color-secondary);
-}
-
-/* 删除按钮样式 */
-.extractor-item :deep(.el-button.is-circle) {
-    width: 32px;
-    height: 32px;
-    padding: 8px;
-    display: flex;
+/* 圆形按钮中的图标居中样式 */
+:deep(.el-button.is-circle) {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
+    
+    .el-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        vertical-align: middle;
+    }
 }
 
-/* 确保所有列对齐 */
-.extractor-item .el-col {
-    display: flex;
-    align-items: center;
-}
-
-.input-with-button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%; /* 添加固定宽度 */
-    position: relative; /* 添加相对定位 */
-}
-
-.json-path-input {
-    flex: 1;
-    width: 100%; /* 添加固定宽度 */
-}
-
-.delete-button {
-    flex-shrink: 0;
-}
-
-/* 修改提取器项样式 */
-.extractor-item {
-    margin-bottom: 12px;
-    padding: 12px;
-    background-color: var(--el-fill-color-light);
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: 4px;
-    transition: all 0.3s;
-}
-
-/* 确保行对齐 */
-.extractor-item .el-row {
-    align-items: center;
-}
-
-/* 调整自动完成输入框样式 */
-.json-path-input :deep(.el-input__wrapper) {
-    width: 100%;
-}
-
-/* 删除按钮样式调整 */
-.delete-button {
-    margin-left: 8px;
-    padding: 8px;
-}
-
-/* 确保预览标签垂直居中 */
-.el-col:last-child {
-    display: flex;
-    align-items: center;
-}
-
-.extractor-value {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.value-tag {
-    font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    background-color: var(--el-fill-color-light);
-    border: 1px solid var(--el-border-color-lighter);
-}
-
-/* 提取值显示样式 */
-.extractor-value {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-}
-
-.value-tag {
-    flex: 1;
-    text-align: center;
-    max-width: 150px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.extractor-value :deep(.el-button--small) {
-    padding: 4px;
-    height: 24px;
-}
-
-.extractor-value :deep(.el-button--small .el-icon) {
-    font-size: 14px;
-}
-
-.test-button {
-    flex-shrink: 0;
-    margin-left: 8px;
-}
-
-.test-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* 调整按钮大小保持一致 */
-.test-button,
-.delete-button {
-    width: 32px;
-    height: 32px;
-    padding: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* 确保下拉选项不会超出容器 */
-:deep(.el-autocomplete-suggestion) {
-    width: 100% !important;
-}
-
-:deep(.el-autocomplete-suggestion__wrap) {
-    width: 100%;
-}
-
-/* 标签样式 */
-.case-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.title-text {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.priority-tag {
-    flex-shrink: 0;
-    min-width: 40px;
-    text-align: center;
-}
-
-.status-tag {
-    min-width: 60px;
-}
-
-/* 自定义标签颜色 */
-:deep(.el-tag--danger) {
-    --el-tag-bg-color: var(--el-color-danger-light-9);
-    --el-tag-border-color: var(--el-color-danger-light-5);
-    --el-tag-text-color: var(--el-color-danger);
-}
-
-:deep(.el-tag--warning) {
-    --el-tag-bg-color: var(--el-color-warning-light-9);
-    --el-tag-border-color: var(--el-color-warning-light-5);
-    --el-tag-text-color: var(--el-color-warning);
-}
-
-:deep(.el-tag--success) {
-    --el-tag-bg-color: var(--el-color-success-light-9);
-    --el-tag-border-color: var(--el-color-success-light-5);
-    --el-tag-text-color: var(--el-color-success);
-}
-
-:deep(.el-tag--info) {
-    --el-tag-bg-color: var(--el-color-info-light-9);
-    --el-tag-border-color: var(--el-color-info-light-5);
-    --el-tag-text-color: var(--el-color-info);
+/* 确保所有按钮中的图标都垂直居中 */
+:deep(.el-button) {
+    .el-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
+    }
 }
 </style>

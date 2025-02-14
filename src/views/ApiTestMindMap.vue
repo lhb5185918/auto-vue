@@ -627,7 +627,9 @@ const executeSelected = async () => {
   try {
     const response = await request.post(`/api/testcase/execute/${selectedNode.value.data.testCase}`);
     if (response.data.code === 200) {
-      ElMessage.success('执行成功');
+      ElMessage.success('测试用例执行成功');
+    } else {
+      ElMessage.error(response.data.message || '执行失败');
     }
   } catch (error) {
     console.error('执行失败:', error);
@@ -648,6 +650,8 @@ const executeAll = async () => {
     });
     if (response.data.code === 200) {
       ElMessage.success('批量执行成功');
+    } else {
+      ElMessage.error(response.data.message || '批量执行失败');
     }
   } catch (error) {
     console.error('批量执行失败:', error);

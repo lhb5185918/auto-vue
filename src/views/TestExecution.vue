@@ -48,12 +48,30 @@
 
       <!-- 操作按钮 -->
       <div class="table-operations">
-        <el-button type="primary" @click="handleBatchExecute">
-          <el-icon><VideoPlay /></el-icon>批量执行
-        </el-button>
-        <el-button type="success" @click="handleExport">
-          <el-icon><Download /></el-icon>导出结果
-        </el-button>
+        <div class="left-operations">
+          <el-button type="primary" @click="handleBatchExecute">
+            <el-icon><VideoPlay /></el-icon>批量执行
+          </el-button>
+          <el-button type="success" @click="handleExport">
+            <el-icon><Download /></el-icon>导出结果
+          </el-button>
+        </div>
+        <div class="right-operations">
+          <span class="env-label">当前环境套：</span>
+          <el-select
+            v-model="currentEnvId"
+            placeholder="请选择环境套"
+            style="width: 200px"
+            @change="handleEnvChange"
+          >
+            <el-option
+              v-for="item in envList"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id"
+            />
+          </el-select>
+        </div>
       </div>
 
       <!-- 用例列表 -->
@@ -163,7 +181,8 @@ import request from '@/utils/request';
 const searchForm = ref({
   name: '',
   status: '',
-  dateRange: []
+  dateRange: [],
+  envId: ''
 });
 
 // 表格数据
@@ -189,6 +208,23 @@ const logDrawer = ref({
   title: '执行日志',
   content: ''
 });
+
+// 环境套列表
+const envList = ref([]);
+
+// 当前选中的环境套
+const currentEnvId = ref('');
+
+// 获取环境套列表
+const fetchEnvList = async () => {
+  try {
+    const response = await request.get('/environment/list/');
+    envList.value = response.data;
+  } catch (error) {
+    console.error('获取环境套列表失败:', error);
+    ElMessage.error('获取环境套列表失败，请重试');
+  }
+};
 
 // 获取表格数据
 const fetchData = async () => {
@@ -249,7 +285,8 @@ const resetSearch = () => {
   searchForm.value = {
     name: '',
     status: '',
-    dateRange: []
+    dateRange: [],
+    envId: ''
   };
   handleSearch();
 };
@@ -270,8 +307,39 @@ const handleCurrentChange = (val) => {
   fetchData();
 };
 
+// 处理环境套变更
+const handleEnvChange = async (value) => {
+  try {
+    await request.put('/environment/current/', {
+      env_id: value
+    });
+    ElMessage.success('环境套切换成功');
+  } catch (error) {
+    console.error('切换环境套失败:', error);
+    ElMessage.error('切换环境套失败，请重试');
+    // 恢复原值
+    currentEnvId.value = '';
+  }
+};
+
+// 获取当前环境套
+const fetchCurrentEnv = async () => {
+  try {
+    const response = await request.get('/environment/current/');
+    currentEnvId.value = response.data.env_id || '';
+  } catch (error) {
+    console.error('获取当前环境套失败:', error);
+    ElMessage.error('获取当前环境套失败，请重试');
+  }
+};
+
 // 操作方法
 const handleExecute = async (row) => {
+  if (!currentEnvId.value) {
+    ElMessage.warning('请先选择环境套');
+    return;
+  }
+
   try {
     await ElMessageBox.confirm('确定要执行该用例吗？', '提示', {
       confirmButtonText: '确定',
@@ -280,7 +348,9 @@ const handleExecute = async (row) => {
     });
     
     loading.value = true;
-    await request.post(`/testcase/execution/${row.id}/`);
+    await request.post(`/testcase/execution/${row.id}/`, {
+      env_id: currentEnvId.value
+    });
     ElMessage.success('执行成功');
     fetchData();
   } catch (error) {
@@ -299,16 +369,24 @@ const handleBatchExecute = async () => {
     return;
   }
 
+  if (!currentEnvId.value) {
+    ElMessage.warning('请先选择环境套');
+    return;
+  }
+
   try {
     await ElMessageBox.confirm(`确定要执行选中的 ${selectedRows.value.length} 个用例吗？`, '提示', {
-      confirmButtonText: '确',
+      confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     });
     
     loading.value = true;
     const ids = selectedRows.value.map(row => row.id);
-    await request.post('/testcase/execution/batch/', { ids });
+    await request.post('/testcase/execution/batch/', {
+      ids,
+      env_id: currentEnvId.value
+    });
     ElMessage.success('批量执行成功');
     fetchData();
   } catch (error) {
@@ -355,6 +433,8 @@ const showLog = async (row) => {
 
 // 页面加载时获取数据
 onMounted(() => {
+  fetchEnvList();
+  fetchCurrentEnv();
   fetchData();
 });
 </script>
@@ -392,7 +472,24 @@ onMounted(() => {
 .table-operations {
   margin-bottom: 16px;
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.left-operations {
+  display: flex;
   gap: 8px;
+}
+
+.right-operations {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.env-label {
+  font-size: 14px;
+  color: #606266;
 }
 
 .pagination-container {
