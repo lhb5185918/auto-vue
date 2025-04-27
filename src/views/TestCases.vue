@@ -39,26 +39,66 @@
                             clearable
                             class="search-input"
                         />
-                        <el-select
-                            v-model="statusFilter"
-                            placeholder="状态筛选"
-                            clearable
-                            class="filter-select"
-                        >
-                            <el-option label="未执行" value="未执行" />
-                            <el-option label="通过" value="通过" />
-                            <el-option label="失败" value="失败" />
-                        </el-select>
-                        <el-select
-                            v-model="priorityFilter"
-                            placeholder="优先级筛选"
-                            clearable
-                            class="filter-select"
-                        >
-                            <el-option label="高" value="高" />
-                            <el-option label="中" value="中" />
-                            <el-option label="低" value="低" />
-                        </el-select>
+                        <el-tooltip content="选择用例执行状态进行筛选" placement="top">
+                            <el-select
+                                v-model="statusFilter"
+                                placeholder="状态筛选"
+                                clearable
+                                class="filter-select"
+                                popper-class="status-filter-dropdown"
+                            >
+                                <template #prefix>
+                                    <div v-if="statusFilter" class="selected-label">
+                                        状态: {{ statusFilter }}
+                                    </div>
+                                </template>
+                                <el-option label="未执行" value="未执行">
+                                    <el-tooltip content="测试用例尚未执行" placement="right">
+                                        <span>未执行</span>
+                                    </el-tooltip>
+                                </el-option>
+                                <el-option label="通过" value="通过">
+                                    <el-tooltip content="测试用例执行并通过" placement="right">
+                                        <span>通过</span>
+                                    </el-tooltip>
+                                </el-option>
+                                <el-option label="失败" value="失败">
+                                    <el-tooltip content="测试用例执行但未通过" placement="right">
+                                        <span>失败</span>
+                                    </el-tooltip>
+                                </el-option>
+                            </el-select>
+                        </el-tooltip>
+                        <el-tooltip content="选择用例优先级进行筛选" placement="top">
+                            <el-select
+                                v-model="priorityFilter"
+                                placeholder="优先级筛选"
+                                clearable
+                                class="filter-select"
+                                popper-class="priority-filter-dropdown"
+                            >
+                                <template #prefix>
+                                    <div v-if="priorityFilter" class="selected-label">
+                                        优先级: {{ priorityFilter }}
+                                    </div>
+                                </template>
+                                <el-option label="高" value="高">
+                                    <el-tooltip content="高优先级任务，需要优先处理" placement="right">
+                                        <span>高</span>
+                                    </el-tooltip>
+                                </el-option>
+                                <el-option label="中" value="中">
+                                    <el-tooltip content="中等优先级任务" placement="right">
+                                        <span>中</span>
+                                    </el-tooltip>
+                                </el-option>
+                                <el-option label="低" value="低">
+                                    <el-tooltip content="低优先级任务，可延后处理" placement="right">
+                                        <span>低</span>
+                                    </el-tooltip>
+                                </el-option>
+                            </el-select>
+                        </el-tooltip>
                         <el-button 
                             type="primary" 
                             @click="handleSearch"
@@ -287,505 +327,797 @@
                 :close-on-click-modal="false"
                 @closed="resetForm"
                 class="test-case-dialog"
+                top="5vh"
+                :fullscreen="isSmallScreen"
             >
-                <div class="postman-layout">
-                    <!-- 上方请面板 -->
-                    <div class="request-panel" :style="{ height: `calc(100% - ${responsePanelHeight}px - 8px)` }">
-                        <el-form :model="testCaseForm" :rules="rules" ref="testCaseFormRef" label-width="0">
-                            <!-- 请求 URL 区域 -->
-                            <div class="request-url-section">
-                                <el-form-item prop="method" class="method-select">
-                                    <el-select v-model="testCaseForm.method" class="method-select">
-                                        <template #default>
-                                            <el-option
-                                                v-for="method in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']"
-                                                :key="method"
-                                                :label="method"
-                                                :value="method"
-                                                :class="`method-${method.toLowerCase()}`"
+                <div class="dialog-wrapper">
+                    <el-scrollbar height="calc(90vh - 200px)">
+                        <div class="dialog-content">
+                            <el-form 
+                                ref="testCaseFormRef"
+                                :model="testCaseForm"
+                                :rules="rules"
+                                label-position="top"
+                                class="test-case-form"
+                            >
+                                <!-- 基本信息部分 -->
+                                <div class="form-section">
+                                    <h3 class="section-title">基本信息</h3>
+                                    <el-row :gutter="20">
+                                        <el-col :xs="24" :sm="12">
+                                            <el-form-item label="用例标题" prop="title">
+                                                <el-input 
+                                                    v-model="testCaseForm.title" 
+                                                    placeholder="输入测试用例标题" 
+                                                    clearable
+                                                />
+                                            </el-form-item>
+                                        </el-col>
+                                        <el-col :xs="24" :sm="12">
+                                            <el-form-item label="优先级" prop="priority">
+                                                <el-select v-model="testCaseForm.priority" placeholder="请选择优先级" class="w-100">
+                                                    <el-option label="高" value="高" />
+                                                    <el-option label="中" value="中" />
+                                                    <el-option label="低" value="低" />
+                                                </el-select>
+                                            </el-form-item>
+                                        </el-col>
+                                    </el-row>
+                                    
+                                    <el-row :gutter="20">
+                                        <el-col :xs="24" :sm="8">
+                                            <el-form-item label="请求方法" prop="method">
+                                                <el-select v-model="testCaseForm.method" placeholder="请选择方法" class="w-100">
+                                                    <el-option label="GET" value="GET" />
+                                                    <el-option label="POST" value="POST" />
+                                                    <el-option label="PUT" value="PUT" />
+                                                    <el-option label="DELETE" value="DELETE" />
+                                                    <el-option label="PATCH" value="PATCH" />
+                                                    <el-option label="OPTIONS" value="OPTIONS" />
+                                                    <el-option label="HEAD" value="HEAD" />
+                                                </el-select>
+                                            </el-form-item>
+                                        </el-col>
+                                        <el-col :xs="24" :sm="16">
+                                            <el-form-item label="API路径" prop="api_path">
+                                                <el-input 
+                                                    v-model="testCaseForm.api_path" 
+                                                    placeholder="输入API路径，例如：/api/user" 
+                                                    clearable
+                                                />
+                                            </el-form-item>
+                                        </el-col>
+                                    </el-row>
+                                </div>
+                                
+                                <!-- 请求配置部分 -->
+                                <div class="form-section">
+                                    <h3 class="section-title">请求配置</h3>
+                                    <el-tabs v-model="activeTab" class="custom-tabs">
+                                        <!-- 参数标签页 -->
+                                        <el-tab-pane label="Params" name="params"></el-tab-pane>
+                                        <!-- 请求头标签页 -->
+                                        <el-tab-pane label="Headers" name="headers"></el-tab-pane>
+                                        <!-- Body标签页 -->
+                                        <el-tab-pane label="Body" name="body"></el-tab-pane>
+                                        <!-- 提取器标签页 -->
+                                        <el-tab-pane label="Extractors" name="extractors"></el-tab-pane>
+                                        <!-- 测试标签页 -->
+                                        <el-tab-pane label="Tests" name="tests"></el-tab-pane>
+                                    </el-tabs>
+                                    
+                                    <!-- 参数内容 -->
+                                    <div v-if="activeTab === 'params'" class="tab-content">
+                                        <div class="params-toolbar">
+                                            <el-button 
+                                                type="primary" 
+                                                size="small" 
+                                                @click="addParam"
+                                                plain
+                                                icon="Plus"
                                             >
-                                                <span :class="`method-${method.toLowerCase()}`">{{ method }}</span>
-                                            </el-option>
-                                        </template>
-                                        <template #selected>
-                                            <span :class="`method-${testCaseForm.method.toLowerCase()}`">{{ testCaseForm.method }}</span>
-                                        </template>
-                                    </el-select>
-                                </el-form-item>
-                                <el-form-item prop="api_path" class="api-input">
-                                    <el-input 
-                                        v-model="testCaseForm.api_path" 
-                                        placeholder="请输入请求URL"
-                                        :prefix-icon="Link"
-                                    />
-                                </el-form-item>
-                                <el-button type="primary" @click="submitTestCase" class="send-button">
-                                    发送
-                                </el-button>
-                            </div>
-
-                            <!-- 添加用例基本信息区域 -->
-                            <div class="case-info-section">
-                                <el-form-item prop="title" class="case-title-input">
-                                    <el-input 
-                                        v-model="testCaseForm.title" 
-                                        placeholder="请输入用例名称"
-                                    >
-                                        <template #prefix>
-                                            <el-icon><Document /></el-icon>
-                                        </template>
-                                    </el-input>
-                                </el-form-item>
-                                <el-form-item prop="priority" class="case-priority-select">
-                                    <el-select v-model="testCaseForm.priority" placeholder="优先级">
-                                        <el-option label="高" value="高" />
-                                        <el-option label="中" value="中" />
-                                        <el-option label="低" value="低" />
-                                    </el-select>
-                                </el-form-item>
-                            </div>
-
-                            <!-- 请求配置区域 -->
-                            <el-tabs type="border-card" class="request-tabs">
-                                <el-tab-pane label="Params" name="params">
-                                    <div class="params-table">
-                                        <el-table :data="paramsTableData" border style="width: 100%">
-                                            <el-table-column width="40">
-                                                <template #default="{ row }">
-                                                    <el-checkbox v-model="row.enabled" />
-                                                </template>
-                                            </el-table-column>
-                                            <el-table-column label="KEY">
-                                                <template #default="{ row }">
-                                                    <el-input v-model="row.key" placeholder="数" />
-                                                </template>
-                                            </el-table-column>
-                                            <el-table-column label="VALUE">
-                                                <template #default="{ row }">
-                                                    <el-input v-model="row.value" placeholder="参数值" />
-                                                </template>
-                                            </el-table-column>
-                                            <el-table-column label="DESCRIPTION" width="200">
-                                                <template #default="{ row }">
-                                                    <el-input v-model="row.description" placeholder="描述" />
-                                                </template>
-                                            </el-table-column>
-                                            <el-table-column width="50">
-                                                <template #default="{ $index }">
-                                                    <el-button 
-                                                        type="danger" 
-                                                        :icon="Delete" 
-                                                        circle
-                                                        @click="removeParam($index)"
-                                                    />
-                                                </template>
-                                            </el-table-column>
-                                        </el-table>
-                                        <div class="table-actions">
-                                            <el-button type="primary" plain @click="addParam">
                                                 添加参数
                                             </el-button>
                                         </div>
-                                    </div>
-                                </el-tab-pane>
-
-                                <el-tab-pane label="Headers" name="headers">
-                                    <div class="headers-table">
-                                        <el-table :data="headersTableData" border style="width: 100%">
-                                            <el-table-column width="40">
-                                                <template #default="{ row }">
-                                                    <el-checkbox v-model="row.enabled" />
-                                                </template>
-                                            </el-table-column>
-                                            <el-table-column label="KEY">
-                                                <template #default="{ row }">
-                                                    <el-input v-model="row.key" placeholder="Header名" />
-                                                </template>
-                                            </el-table-column>
-                                            <el-table-column label="VALUE">
-                                                <template #default="{ row }">
-                                                    <el-input v-model="row.value" placeholder="Header值" />
-                                                </template>
-                                            </el-table-column>
-                                            <el-table-column label="DESCRIPTION" width="200">
-                                                <template #default="{ row }">
-                                                    <el-input v-model="row.description" placeholder="描述" />
-                                                </template>
-                                            </el-table-column>
+                                        
+                                        <el-table 
+                                            :data="paramsTableData"
+                                            border
+                                            style="width: 100%"
+                                            size="small"
+                                            class="params-table"
+                                        >
                                             <el-table-column width="50">
-                                                <template #default="{ $index }">
+                                                <template #default="scope">
+                                                    <el-checkbox v-model="scope.row.enabled" />
+                                                </template>
+                                            </el-table-column>
+                                            <el-table-column label="参数名" prop="key">
+                                                <template #default="scope">
+                                                    <el-input 
+                                                        v-model="scope.row.key" 
+                                                        placeholder="参数名"
+                                                        size="small"
+                                                    />
+                                                </template>
+                                            </el-table-column>
+                                            <el-table-column label="参数值" prop="value">
+                                                <template #default="scope">
+                                                    <el-input 
+                                                        v-model="scope.row.value" 
+                                                        placeholder="参数值"
+                                                        size="small"
+                                                    />
+                                                </template>
+                                            </el-table-column>
+                                            <el-table-column label="描述" prop="description">
+                                                <template #default="scope">
+                                                    <el-input 
+                                                        v-model="scope.row.description" 
+                                                        placeholder="描述"
+                                                        size="small"
+                                                    />
+                                                </template>
+                                            </el-table-column>
+                                            <el-table-column width="60">
+                                                <template #default="scope">
                                                     <el-button 
                                                         type="danger" 
-                                                        :icon="Delete" 
                                                         circle
-                                                        @click="removeHeader($index)"
+                                                        size="small"
+                                                        @click="removeParam(scope.$index)"
+                                                        icon="Delete"
                                                     />
                                                 </template>
                                             </el-table-column>
                                         </el-table>
-                                        <div class="table-actions">
-                                            <el-button type="primary" plain @click="addHeader">
-                                                添加Header
-                                            </el-button>
+                                    </div>
+                                    
+                                    <!-- 请求头内容 -->
+                                    <div v-if="activeTab === 'headers'" class="tab-content">
+                                        <div class="headers-content">
+                                            <div class="headers-toolbar">
+                                                <el-button 
+                                                    type="primary" 
+                                                    size="small" 
+                                                    @click="addHeader"
+                                                    plain
+                                                    icon="Plus"
+                                                >
+                                                    添加请求头
+                                                </el-button>
+                                            </div>
+                                            
+                                            <el-table 
+                                                :data="headersTableData"
+                                                border
+                                                style="width: 100%"
+                                                size="small"
+                                                class="headers-table"
+                                            >
+                                                <el-table-column width="50">
+                                                    <template #default="scope">
+                                                        <el-checkbox v-model="scope.row.enabled" />
+                                                    </template>
+                                                </el-table-column>
+                                                <el-table-column label="Header名" prop="key">
+                                                    <template #default="scope">
+                                                        <el-input 
+                                                            v-model="scope.row.key" 
+                                                            placeholder="Header名"
+                                                            size="small"
+                                                        />
+                                                    </template>
+                                                </el-table-column>
+                                                <el-table-column label="Header值" prop="value">
+                                                    <template #default="scope">
+                                                        <el-input 
+                                                            v-model="scope.row.value" 
+                                                            placeholder="Header值"
+                                                            size="small"
+                                                        />
+                                                    </template>
+                                                </el-table-column>
+                                                <el-table-column label="描述" prop="description">
+                                                    <template #default="scope">
+                                                        <el-input 
+                                                            v-model="scope.row.description" 
+                                                            placeholder="描述"
+                                                            size="small"
+                                                        />
+                                                    </template>
+                                                </el-table-column>
+                                                <el-table-column width="60">
+                                                    <template #default="scope">
+                                                        <el-button 
+                                                            type="danger" 
+                                                            circle
+                                                            size="small"
+                                                            @click="removeHeader(scope.$index)"
+                                                            icon="Delete"
+                                                        />
+                                                    </template>
+                                                </el-table-column>
+                                            </el-table>
                                         </div>
                                     </div>
-                                </el-tab-pane>
-
-                                <el-tab-pane label="Body" name="body">
-                                    <div class="body-content">
-                                        <div class="body-type-selector">
-                                            <el-radio-group v-model="bodyType">
+                                    
+                                    <!-- Body内容 -->
+                                    <div v-if="activeTab === 'body'" class="tab-content">
+                                        <div class="body-content">
+                                            <!-- Body类型选择 -->
+                                            <el-radio-group v-model="bodyType" class="body-type-selector" @change="handleBodyTypeChange">
                                                 <el-radio-button label="none">none</el-radio-button>
                                                 <el-radio-button label="form-data">form-data</el-radio-button>
                                                 <el-radio-button label="x-www-form-urlencoded">x-www-form-urlencoded</el-radio-button>
                                                 <el-radio-button label="raw">raw</el-radio-button>
                                             </el-radio-group>
-                                            <el-select 
-                                                v-if="bodyType === 'raw'"
-                                                v-model="rawContentType"
-                                                style="width: 120px; margin-left: 8px;"
-                                            >
-                                                <el-option label="JSON" value="application/json" />
-                                                <el-option label="Text" value="text/plain" />
-                                                <el-option label="XML" value="application/xml" />
-                                            </el-select>
-                                        </div>
-                                        
-                                        <div class="json-editor-container" v-if="bodyType === 'raw'">
-                                            <div class="editor-toolbar">
-                                                <el-tooltip content="格式化 JSON (Ctrl+Alt+A)" placement="top">
-                                                    <el-button 
-                                                        type="primary" 
-                                                        link 
-                                                        :icon="Document"
-                                                        @click="formatJsonInput"
-                                                        :disabled="rawContentType !== 'application/json'"
-                                                    >
-                                                        格式化
-                                                    </el-button>
-                                                </el-tooltip>
+                                            
+                                            <!-- raw类型的内容类型显示，仅显示但不可编辑 -->
+                                            <div v-if="bodyType === 'raw'" class="content-type-display">
+                                                <span>Content-Type: {{ rawContentType }}</span>
                                             </div>
-                                            <div class="editor-content">
-                                                <div class="line-numbers">
-                                                    <div 
-                                                        v-for="i in getLineCount(testCaseForm.body || '')" 
-                                                        :key="i" 
-                                                        class="line-number"
-                                                    >
-                                                        {{ i }}
-                                                    </div>
+                                            
+                                            <!-- JSON编辑器(Raw - JSON) -->
+                                            <div v-if="bodyType === 'raw' && rawContentType === 'application/json'" class="json-editor-container">
+                                                <div class="editor-toolbar">
+                                                    <el-button size="small" @click="formatJson" plain>
+                                                        <el-icon><Document /></el-icon> 格式化JSON
+                                                    </el-button>
                                                 </div>
-                                                <div class="editor-wrapper">
+                                                <div class="editor-wrapper" style="position: relative; display: flex;">
+                                                    <div class="line-numbers" style="padding: 8px 0; width: 40px; background-color: #f5f7fa; border-right: 1px solid #dcdfe6; text-align: center; user-select: none; position: absolute; left: 0; top: 0; bottom: 0; z-index: 0;">
+                                                        <div v-for="i in rawBodyLines" :key="i" class="line-number">{{ i }}</div>
+                                                    </div>
                                                     <el-input
-                                                        v-model="testCaseForm.body"
+                                                        v-model="rawBody"
                                                         type="textarea"
                                                         :rows="10"
-                                                        :placeholder="getBodyPlaceholder()"
-                                                        @input="handleBodyInput"
-                                                        :class="{ 'has-error': jsonError }"
+                                                        resize="none"
+                                                        class="json-editor"
+                                                        style="flex: 1; width: 100%; padding-left: 40px; position: relative; z-index: 1;"
+                                                        @input="countRawBodyLines"
                                                     />
-                                                    <div v-if="jsonError" class="json-error-message">
-                                                        <el-alert
-                                                            :title="jsonError"
-                                                            type="error"
-                                                            :closable="false"
-                                                            show-icon
-                                                        />
-                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        
-                                        <div class="form-data-table" v-else-if="bodyType === 'form-data'">
-                                            <el-table :data="formDataTableData" border style="width: 100%">
-                                                <el-table-column width="40">
-                                                    <template #default="{ row }">
-                                                        <el-checkbox v-model="row.enabled" />
-                                                    </template>
-                                                </el-table-column>
-                                                <el-table-column label="KEY">
-                                                    <template #default="{ row }">
-                                                        <el-input v-model="row.key" placeholder="参数名" />
-                                                    </template>
-                                                </el-table-column>
-                                                <el-table-column label="VALUE">
-                                                    <template #default="{ row }">
-                                                        <el-input v-model="row.value" placeholder="参数值" />
-                                                    </template>
-                                                </el-table-column>
-                                                <el-table-column label="DESCRIPTION" width="200">
-                                                    <template #default="{ row }">
-                                                        <el-input v-model="row.description" placeholder="描述" />
-                                                    </template>
-                                                </el-table-column>
-                                                <el-table-column width="50">
-                                                    <template #default="{ $index }">
-                                                        <el-button 
-                                                            type="danger" 
-                                                            :icon="Delete" 
-                                                            circle
-                                                            @click="removeFormData($index)"
-                                                        />
-                                                    </template>
-                                                </el-table-column>
-                                            </el-table>
-                                            <div class="table-actions">
-                                                <el-button type="primary" plain @click="addFormData">
-                                                    添加参数
-                                                </el-button>
+                                            
+                                            <!-- 普通文本编辑器(Raw - Text) -->
+                                            <div v-else-if="bodyType === 'raw'" class="text-editor-container">
+                                                <el-input
+                                                    v-model="rawBody"
+                                                    type="textarea"
+                                                    :rows="10"
+                                                    resize="vertical"
+                                                    class="text-editor"
+                                                />
                                             </div>
-                                        </div>
-                                    </div>
-                                </el-tab-pane>
-
-                                <!-- 新增 Extractors 标签页 -->
-                                <el-tab-pane label="Extractors" name="extractors">
-                                    <div class="extractors-section">
-                                        <div class="section-title">
-                                            <h4>变量提取器配置</h4>
-                                            <el-button type="primary" link @click="addExtractor">
-                                                <el-icon><Plus /></el-icon>添加提取器
-                                            </el-button>
-                                        </div>
-                                        
-                                        <div v-for="(extractor, index) in extractors" :key="index" class="extractor-item">
-                                            <el-row :gutter="16" align="middle">
-                                                <el-col :span="6">
-                                                    <el-input
-                                                        v-model="extractor.variableName"
-                                                        placeholder="变量名"
-                                                        clearable
+                                            
+                                            <!-- 表单数据(form-data或x-www-form-urlencoded) -->
+                                            <div v-else-if="bodyType === 'form-data' || bodyType === 'x-www-form-urlencoded'" class="form-data-container">
+                                                <div class="form-data-toolbar">
+                                                    <el-button 
+                                                        type="primary" 
+                                                        size="small" 
+                                                        @click="addFormItem"
+                                                        plain
+                                                        icon="Plus"
                                                     >
-                                                        <template #prefix>$</template>
-                                                    </el-input>
-                                                </el-col>
-                                                <el-col :span="14">
-                                                    <div class="input-with-button">
-                                                        <el-autocomplete
-                                                            v-model="extractor.jsonPath"
-                                                            :fetch-suggestions="queryJsonPaths"
-                                                            placeholder="输入要提取的字段名"
-                                                            clearable
-                                                            class="json-path-input"
-                                                            @select="handleJsonPathSelect"
-                                                            :disabled="!hasResponseData"
-                                                        >
-                                                            <template #prefix>
-                                                                <el-icon><Key /></el-icon>
-                                                            </template>
-                                                            <template #default="{ item }">
-                                                                <div class="suggestion-item">
-                                                                    <span class="path">{{ item.path }}</span>
-                                                                    <span class="value" v-if="item.previewValue">
-                                                                        值: {{ item.previewValue }}
-                                                                    </span>
-                                                                </div>
-                                                            </template>
-                                                        </el-autocomplete>
-                                                        <el-button 
-                                                            type="primary"
-                                                            circle
-                                                            @click="testExtractor(extractor)"
-                                                            :icon="Monitor"
-                                                            class="test-button"
-                                                            :disabled="!hasResponseData"
-                                                            :title="hasResponseData ? '测试提取' : '需要先发送请求'"
-                                                        />
-                                                        <el-button 
-                                                            type="danger" 
-                                                            circle
-                                                            @click="removeExtractor(index)"
-                                                            :icon="Delete"
-                                                            class="delete-button"
-                                                        />
-                                                    </div>
-                                                </el-col>
-                                                <el-col :span="4">
-                                                    <div class="extractor-value">
-                                                        <el-tooltip 
-                                                            :content="extractor.extractedValue ? '提取的值' : '未提取到'" 
-                                                            placement="top"
-                                                        >
-                                                            <el-tag 
-                                                                :type="extractor.extractedValue ? 'success' : 'info'"
-                                                                size="small"
-                                                                class="value-tag"
-                                                            >
-                                                                {{ extractor.extractedValue || '未提取' }}
-                                                            </el-tag>
-                                                        </el-tooltip>
-                                                        <el-button
-                                                            v-if="extractor.extractedValue"
-                                                            type="primary"
-                                                            link
-                                                            size="small"
-                                                            @click="copyExtractedValue(extractor.extractedValue)"
-                                                        >
-                                                            <el-icon><DocumentCopy /></el-icon>
-                                                        </el-button>
-                                                    </div>
-                                                </el-col>
-                                            </el-row>
-                                        </div>
-                                    </div>
-                                </el-tab-pane>
-
-                                <el-tab-pane label="Tests" name="tests">
-                                    <div class="tests-editor">
-                                        <div class="tests-toolbar">
-                                            <el-button-group>
-                                                <el-button @click="addAssertion('status')">
-                                                    Status Code
-                                                </el-button>
-                                                <el-button @click="addAssertion('json')">
-                                                    JSON Path
-                                                </el-button>
-                                                <el-button @click="addAssertion('header')">
-                                                    Header
-                                                </el-button>
-                                            </el-button-group>
-                                        </div>
-                                        
-                                        <el-input
-                                            v-model="testCaseForm.assertions"
-                                            type="textarea"
-                                            :rows="8"
-                                            placeholder="输入测试断言，例如：
-$.code=200  # 检查响应状态码
-$.data.id=1  # 检查JSON响应体
-$headers.Content-Type=application/json  # 查响头"
-                                        />
-                                    </div>
-                                </el-tab-pane>
-                            </el-tabs>
-                        </el-form>
-                    </div>
-
-                    <!-- 下方响应面板 -->
-                    <div class="response-panel">
-                        <div class="response-header">
-                            <h3 class="response-title">响应信息</h3>
-                            <div class="status-info" v-if="showResponse">
-                                <el-tag :type="getResponseStatusType()">
-                                    {{ responseData.status }} {{ responseData.statusText }}
-                                </el-tag>
-                                <span class="time-info">{{ responseData.time }}ms</span>
-                            </div>
-                        </div>
-                        
-                        <!-- 有响应数据时显示响应 -->
-                        <template v-if="showResponse">
-                            <el-tabs type="border-card" class="response-tabs">
-                                <el-tab-pane label="Body">
-                                    <div class="response-body-wrapper">
-                                        <div class="response-toolbar">
-                                            <span class="content-type">
-                                                Content-Type: {{ responseData.contentType || 'unknown' }}
-                                            </span>
-                                            <el-button-group>
-                                                <el-button 
-                                                    size="small" 
-                                                    @click="formatResponseBody"
+                                                        添加表单项
+                                                    </el-button>
+                                                </div>
+                                                
+                                                <el-table 
+                                                    :data="formDataTableData"
+                                                    border
+                                                    style="width: 100%"
+                                                    size="small"
+                                                    class="form-data-table"
                                                 >
-                                                    Format
-                                                </el-button>
-                                                <el-button size="small" @click="copyResponseBody">
-                                                    Copy
-                                                </el-button>
-                                            </el-button-group>
-                                        </div>
-                                        <pre 
-                                            class="response-body"
-                                            :style="{ height: `${responsePanelHeight}px` }"
-                                        >{{ formatResponse(responseData.body) }}</pre>
-                                        <div 
-                                            class="resize-handle"
-                                            @mousedown="startResize"
-                                        ></div>
-                                    </div>
-                                </el-tab-pane>
-                                <el-tab-pane label="Headers">
-                                    <el-table :data="responseHeadersList" border style="width: 100%">
-                                        <el-table-column prop="key" label="Header" width="200" />
-                                        <el-table-column prop="value" label="Value" />
-                                    </el-table>
-                                </el-tab-pane>
-                                <el-tab-pane label="Test Results">
-                                    <div class="test-results">
-                                        <!-- 添加测试结果统计 -->
-                                        <div class="test-summary" v-if="responseData.testResults?.length">
-                                            <div class="summary-stats">
-                                                <div class="stat-item">
-                                                    <span class="stat-label">总断言数:</span>
-                                                    <span class="stat-value">{{ responseData.testResults?.length || 0 }}</span>
-                                                </div>
-                                                <div class="stat-item">
-                                                    <span class="stat-label">通过数:</span>
-                                                    <span class="stat-value pass">
-                                                        {{ responseData.testResults?.filter(r => r.passed)?.length || 0 }}
-                                                    </span>
-                                                </div>
-                                                <div class="stat-item">
-                                                    <span class="stat-label">失败数:</span>
-                                                    <span class="stat-value fail">
-                                                        {{ responseData.testResults?.filter(r => !r.passed)?.length || 0 }}
-                                                    </span>
-                                                </div>
+                                                    <!-- 启用/禁用列 -->
+                                                    <el-table-column width="60">
+                                                        <template #default="scope">
+                                                            <el-checkbox v-model="scope.row.enabled" />
+                                                        </template>
+                                                    </el-table-column>
+                                                    
+                                                    <!-- 参数名列 -->
+                                                    <el-table-column label="参数名" prop="name">
+                                                        <template #default="scope">
+                                                            <el-input 
+                                                                v-model="scope.row.name" 
+                                                                placeholder="参数名"
+                                                                size="small"
+                                                            />
+                                                        </template>
+                                                    </el-table-column>
+                                                    
+                                                    <!-- 参数值列 -->
+                                                    <el-table-column label="参数值" prop="value">
+                                                        <template #default="scope">
+                                                            <el-input 
+                                                                v-model="scope.row.value" 
+                                                                placeholder="参数值"
+                                                                size="small"
+                                                            />
+                                                        </template>
+                                                    </el-table-column>
+                                                    
+                                                    <!-- 描述列 -->
+                                                    <el-table-column label="描述" prop="description">
+                                                        <template #default="scope">
+                                                            <el-input 
+                                                                v-model="scope.row.description" 
+                                                                placeholder="描述"
+                                                                size="small"
+                                                            />
+                                                        </template>
+                                                    </el-table-column>
+                                                    
+                                                    <!-- 操作列 -->
+                                                    <el-table-column width="70">
+                                                        <template #default="scope">
+                                                            <el-button
+                                                                type="danger"
+                                                                size="small"
+                                                                circle
+                                                                @click.prevent="removeFormItem(scope.$index)"
+                                                            >
+                                                                <el-icon><Delete /></el-icon>
+                                                            </el-button>
+                                                        </template>
+                                                    </el-table-column>
+                                                </el-table>
+                                            </div>
+                                            
+                                            <!-- 无Body内容时的提示 -->
+                                            <div v-else-if="bodyType === 'none'" class="no-body-message">
+                                                <el-empty description="请求不包含任何Body内容" />
                                             </div>
                                         </div>
-
-                                        <!-- 测试结果列表 -->
-                                        <div class="test-result-list">
-                                            <template v-if="responseData.testResults?.length">
-                                                <div v-for="(result, index) in responseData.testResults" 
-                                                    :key="index"
-                                                    :class="['test-result-item', result.passed ? 'passed' : 'failed']"
+                                    </div>
+                                    
+                                    <!-- 提取器内容 -->
+                                    <div v-if="activeTab === 'extractors'" class="tab-content">
+                                        <div class="extractors-content">
+                                            <div class="extractors-toolbar">
+                                                <el-button 
+                                                    type="primary" 
+                                                    size="small" 
+                                                    @click="addExtractor"
+                                                    plain
+                                                    icon="Plus"
                                                 >
-                                                    <div class="result-icon">
-                                                        <el-icon v-if="result.passed" class="success-icon">
-                                                            <CircleCheckFilled />
-                                                        </el-icon>
-                                                        <el-icon v-else class="error-icon">
-                                                            <CircleCloseFilled />
-                                                        </el-icon>
+                                                    添加提取器
+                                                </el-button>
+                                                <el-popover
+                                                    placement="top"
+                                                    width="300"
+                                                    trigger="hover"
+                                                >
+                                                    <template #reference>
+                                                        <el-button size="small" icon="QuestionFilled" circle style="display: flex; align-items: center; justify-content: center;"></el-button>
+                                                    </template>
+                                                    <div>
+                                                        <h4>提取器使用说明</h4>
+                                                        <p>提取器允许从响应中提取值并保存为变量，以便在后续请求中使用。</p>
+                                                        <ul>
+                                                            <li><b>JSON提取器:</b> 使用JSONPath表达式提取JSON值</li>
+                                                            <li><b>正则提取器:</b> 使用正则表达式提取文本</li>
+                                                            <li><b>XPath提取器:</b> 使用XPath表达式提取XML值</li>
+                                                        </ul>
+                                                        <p>提取的变量可以在其他请求中通过 <code>{{变量名}}</code> 引用</p>
                                                     </div>
-                                                    <div class="result-content">
-                                                        <div class="result-assertion">{{ result.assertion }}</div>
-                                                        <div class="result-details">
-                                                            <span class="actual-value">实际值: {{ result.actualValue }}</span>
-                                                            <span class="expected-value">期望值: {{ result.expectedValue }}</span>
+                                                </el-popover>
+                                            </div>
+                                            
+                                            <el-empty v-if="!extractors || extractors.length === 0" description="暂无提取器" />
+                                            
+                                            <div v-else class="extractors-list">
+                                                <el-collapse accordion>
+                                                    <el-collapse-item v-for="(extractor, index) in extractors" :key="index" :name="index">
+                                                        <template #title>
+                                                            <div class="extractor-item-header">
+                                                                <el-tag :type="extractor.enabled ? 'success' : 'info'" size="small">
+                                                                    {{ extractor.type }}
+                                                                </el-tag>
+                                                                <span class="extractor-name">{{ extractor.name || '未命名提取器' }}</span>
+                                                            </div>
+                                                        </template>
+                                                        <div class="extractor-form">
+                                                            <el-form label-position="top" size="small">
+                                                                <div class="extractor-form-row">
+                                                                    <el-form-item label="启用">
+                                                                        <el-switch v-model="extractor.enabled" />
+                                                                    </el-form-item>
+                                                                    <el-form-item label="提取器名称" class="flex-grow">
+                                                                        <el-input v-model="extractor.name" placeholder="变量名称" />
+                                                                    </el-form-item>
+                                                                </div>
+                                                                <div class="extractor-form-row">
+                                                                    <el-form-item label="提取器类型">
+                                                                        <el-select v-model="extractor.type" placeholder="选择提取器类型">
+                                                                            <el-option label="JSONPath" value="jsonpath" />
+                                                                            <el-option label="正则表达式" value="regex" />
+                                                                            <el-option label="XPath" value="xpath" />
+                                                                        </el-select>
+                                                                    </el-form-item>
+                                                                    <el-form-item label="默认值 (提取失败时)" class="flex-grow">
+                                                                        <el-input v-model="extractor.defaultValue" placeholder="默认值" />
+                                                                    </el-form-item>
+                                                                </div>
+                                                                <el-form-item label="提取表达式">
+                                                                    <el-input 
+                                                                        v-model="extractor.expression" 
+                                                                        :placeholder="getExpressionPlaceholder(extractor.type)"
+                                                                    />
+                                                                </el-form-item>
+                                                                <el-form-item>
+                                                                    <div class="extractor-buttons">
+                                                                        <el-button 
+                                                                            type="primary" 
+                                                                            @click="testExtractor(extractor)" 
+                                                                            size="small"
+                                                                            :disabled="!hasResponseData"
+                                                                        >
+                                                                            测试提取器
+                                                                        </el-button>
+                                                                        <el-button 
+                                                                            type="danger" 
+                                                                            @click="removeExtractor(index)" 
+                                                                            size="small"
+                                                                        >
+                                                                            删除提取器
+                                                                        </el-button>
+                                                                    </div>
+                                                                </el-form-item>
+                                                                <el-form-item v-if="extractor.extractedValue !== null">
+                                                                    <div class="extracted-value">
+                                                                        <div class="extracted-value-label">提取结果:</div>
+                                                                        <div class="extracted-value-content">
+                                                                            <el-input
+                                                                                type="textarea"
+                                                                                v-model="extractor.extractedValue"
+                                                                                readonly
+                                                                                rows="3"
+                                                                            ></el-input>
+                                                                            <el-button
+                                                                                size="small"
+                                                                                type="primary"
+                                                                                @click="copyExtractedValue(extractor.extractedValue)"
+                                                                                icon="Document"
+                                                                                circle
+                                                                            ></el-button>
+                                                                        </div>
+                                                                    </div>
+                                                                </el-form-item>
+                                                            </el-form>
+                                                        </div>
+                                                    </el-collapse-item>
+                                                </el-collapse>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 测试内容 -->
+                                    <div v-if="activeTab === 'tests'" class="tab-content">
+                                        <div class="tests-content">
+                                            <div class="tests-toolbar">
+                                                <el-button 
+                                                    type="primary" 
+                                                    size="small" 
+                                                    @click="addTest"
+                                                    plain
+                                                    icon="Plus"
+                                                >
+                                                    添加测试
+                                                </el-button>
+                                                <el-popover
+                                                    placement="top"
+                                                    width="300"
+                                                    trigger="hover"
+                                                >
+                                                    <template #reference>
+                                                        <el-button size="small" icon="QuestionFilled" circle style="display: flex; align-items: center; justify-content: center;"></el-button>
+                                                    </template>
+                                                    <div>
+                                                        <h4>测试使用说明</h4>
+                                                        <p>测试允许您验证API响应是否符合预期。</p>
+                                                        <p>常用测试类型:</p>
+                                                        <ul>
+                                                            <li><b>状态码测试:</b> 验证HTTP状态码</li>
+                                                            <li><b>响应时间测试:</b> 验证响应时间</li>
+                                                            <li><b>JSON值测试:</b> 验证JSON响应中的值</li>
+                                                            <li><b>包含文本测试:</b> 验证响应中是否包含特定文本</li>
+                                                        </ul>
+                                                    </div>
+                                                </el-popover>
+                                            </div>
+                                            
+                                            <el-empty v-if="!tests || tests.length === 0" description="暂无测试" />
+                                            
+                                            <div v-else class="tests-list">
+                                                <el-collapse accordion>
+                                                    <el-collapse-item v-for="(test, index) in tests" :key="index" :name="index">
+                                                        <template #title>
+                                                            <div class="test-item-header">
+                                                                <el-tag :type="test.enabled ? 'success' : 'info'" size="small">
+                                                                    {{ test.type === 'statusCode' ? '状态码测试' : 
+                                                                       test.type === 'responseTime' ? '响应时间测试' : 
+                                                                       test.type === 'jsonValue' ? 'JSON值测试' : 
+                                                                       test.type === 'containsText' ? '包含文本测试' : 
+                                                                       test.type === 'customScript' ? '自定义脚本测试' : test.type }}
+                                                                </el-tag>
+                                                                <span class="test-name">{{ test.name || '未命名测试' }}</span>
+                                                                <el-tag 
+                                                                    v-if="test.lastResult" 
+                                                                    :type="test.lastResult.passed ? 'success' : 'danger'" 
+                                                                    size="small"
+                                                                    class="test-result-tag"
+                                                                >
+                                                                    {{ test.lastResult.passed ? '通过' : '失败' }}
+                                                                </el-tag>
+                                                            </div>
+                                                        </template>
+                                                        <div class="test-form">
+                                                            <el-form label-position="top" size="small">
+                                                                <div class="test-form-row">
+                                                                    <el-form-item label="启用">
+                                                                        <el-switch v-model="test.enabled" />
+                                                                    </el-form-item>
+                                                                    <el-form-item label="测试名称" class="flex-grow">
+                                                                        <el-input v-model="test.name" placeholder="测试名称" />
+                                                                    </el-form-item>
+                                                                </div>
+                                                                <div class="test-form-row">
+                                                                    <el-form-item label="测试类型">
+                                                                        <el-select v-model="test.type" placeholder="选择测试类型">
+                                                                            <el-option label="状态码测试" value="statusCode" />
+                                                                            <el-option label="响应时间测试" value="responseTime" />
+                                                                            <el-option label="JSON值测试" value="jsonValue" />
+                                                                            <el-option label="包含文本测试" value="containsText" />
+                                                                            <el-option label="自定义脚本测试" value="customScript" />
+                                                                        </el-select>
+                                                                    </el-form-item>
+                                                                </div>
+                                                                
+                                                                <!-- 状态码测试 -->
+                                                                <template v-if="test.type === 'statusCode'">
+                                                                    <div class="test-form-row">
+                                                                        <el-form-item label="条件">
+                                                                            <el-select v-model="test.condition" placeholder="选择条件">
+                                                                                <el-option label="等于" value="equals" />
+                                                                                <el-option label="不等于" value="notEquals" />
+                                                                                <el-option label="大于" value="greaterThan" />
+                                                                                <el-option label="小于" value="lessThan" />
+                                                                            </el-select>
+                                                                        </el-form-item>
+                                                                        <el-form-item label="预期状态码" class="flex-grow">
+                                                                            <el-input-number v-model="test.expected" :min="100" :max="599" />
+                                                                        </el-form-item>
+                                                                    </div>
+                                                                </template>
+                                                                
+                                                                <!-- 响应时间测试 -->
+                                                                <template v-if="test.type === 'responseTime'">
+                                                                    <div class="test-form-row">
+                                                                        <el-form-item label="条件">
+                                                                            <el-select v-model="test.condition" placeholder="选择条件">
+                                                                                <el-option label="小于" value="lessThan" />
+                                                                                <el-option label="大于" value="greaterThan" />
+                                                                            </el-select>
+                                                                        </el-form-item>
+                                                                        <el-form-item label="预期响应时间(毫秒)" class="flex-grow">
+                                                                            <el-input-number v-model="test.expected" :min="1" :step="100" />
+                                                                        </el-form-item>
+                                                                    </div>
+                                                                </template>
+                                                                
+                                                                <!-- JSON值测试 -->
+                                                                <template v-if="test.type === 'jsonValue'">
+                                                                    <div class="test-form-row">
+                                                                        <el-form-item label="JSONPath表达式" class="flex-grow">
+                                                                            <el-input 
+                                                                                v-model="test.jsonPath" 
+                                                                                placeholder="$.data.id"
+                                                                            />
+                                                                        </el-form-item>
+                                                                    </div>
+                                                                    <div class="test-form-row">
+                                                                        <el-form-item label="条件">
+                                                                            <el-select v-model="test.condition" placeholder="选择条件">
+                                                                                <el-option label="等于" value="equals" />
+                                                                                <el-option label="不等于" value="notEquals" />
+                                                                                <el-option label="包含" value="contains" />
+                                                                                <el-option label="存在" value="exists" />
+                                                                                <el-option label="不存在" value="notExists" />
+                                                                            </el-select>
+                                                                        </el-form-item>
+                                                                        <el-form-item v-if="test.condition !== 'exists' && test.condition !== 'notExists'" label="预期值" class="flex-grow">
+                                                                            <el-input v-model="test.expected" placeholder="预期值" />
+                                                                        </el-form-item>
+                                                                    </div>
+                                                                </template>
+                                                                
+                                                                <!-- 包含文本测试 -->
+                                                                <template v-if="test.type === 'containsText'">
+                                                                    <div class="test-form-row">
+                                                                        <el-form-item label="条件">
+                                                                            <el-select v-model="test.condition" placeholder="选择条件">
+                                                                                <el-option label="包含" value="contains" />
+                                                                                <el-option label="不包含" value="notContains" />
+                                                                            </el-select>
+                                                                        </el-form-item>
+                                                                    </div>
+                                                                    <el-form-item label="文本内容">
+                                                                        <el-input 
+                                                                            v-model="test.text" 
+                                                                            placeholder="要检查的文本"
+                                                                            type="textarea"
+                                                                            :rows="3"
+                                                                        />
+                                                                    </el-form-item>
+                                                                </template>
+                                                                
+                                                                <!-- 自定义脚本测试 -->
+                                                                <template v-if="test.type === 'customScript'">
+                                                                    <el-form-item label="自定义JavaScript脚本">
+                                                                        <el-input 
+                                                                            v-model="test.script" 
+                                                                            type="textarea"
+                                                                            :rows="5"
+                                                                            placeholder="// 变量 response 包含响应对象&#10;// 返回true表示测试通过，false表示失败&#10;return response.status === 200 && response.data.success === true;"
+                                                                        />
+                                                                    </el-form-item>
+                                                                </template>
+                                                                
+                                                                <el-form-item>
+                                                                    <div class="test-buttons">
+                                                                        <el-button 
+                                                                            type="primary" 
+                                                                            @click="saveTest(test, index)" 
+                                                                            size="small"
+                                                                            :disabled="!test.name"
+                                                                        >
+                                                                            保存测试
+                                                                        </el-button>
+                                                                        <el-button 
+                                                                            type="danger" 
+                                                                            @click="removeTest(index)" 
+                                                                            size="small"
+                                                                        >
+                                                                            删除测试
+                                                                        </el-button>
+                                                                    </div>
+                                                                </el-form-item>
+                                                            </el-form>
+                                                        </div>
+                                                    </el-collapse-item>
+                                                </el-collapse>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </el-form>
+                            
+                            <!-- 响应结果 -->
+                            <div v-if="showResponse" class="response-container">
+                                <div class="response-header">
+                                    <h3 class="response-title">响应结果</h3>
+                                    <div class="response-status">
+                                        <el-tag 
+                                            :type="responseData.status >= 200 && responseData.status < 300 ? 'success' : 'danger'"
+                                        >
+                                            {{ responseData.status }} {{ responseData.statusText }}
+                                        </el-tag>
+                                        <span class="response-time">{{ responseData.time }}ms</span>
+                                    </div>
+                                </div>
+                                
+                                <el-tabs type="border-card" class="response-tabs">
+                                    <el-tab-pane label="Body">
+                                        <div class="response-body-wrapper">
+                                            <div class="response-toolbar">
+                                                <span class="content-type">
+                                                    Content-Type: {{ responseData.contentType || 'unknown' }}
+                                                </span>
+                                                <el-button-group>
+                                                    <el-button 
+                                                        size="small" 
+                                                        @click="formatResponseBody"
+                                                    >
+                                                        Format
+                                                    </el-button>
+                                                    <el-button size="small" @click="copyResponseBody">
+                                                        Copy
+                                                    </el-button>
+                                                </el-button-group>
+                                            </div>
+                                            <pre 
+                                                class="response-body"
+                                                :style="{ height: `${responsePanelHeight}px` }"
+                                            >{{ formatResponse(responseData.body) }}</pre>
+                                            <div 
+                                                class="resize-handle"
+                                                @mousedown="startResize"
+                                            ></div>
+                                        </div>
+                                    </el-tab-pane>
+                                    <el-tab-pane label="Headers">
+                                        <div class="headers-wrapper">
+                                            <div class="header-item" v-for="(value, key) in responseData.headers" :key="key">
+                                                <div class="header-key">{{ key }}:</div>
+                                                <div class="header-value">{{ value }}</div>
+                                            </div>
+                                        </div>
+                                    </el-tab-pane>
+                                    <el-tab-pane label="Test Results">
+                                        <div class="test-results-container">
+                                            <!-- 测试结果统计 -->
+                                            <div class="test-results-summary">
+                                                <div class="summary-stats">
+                                                    <div class="stat-item">
+                                                        <span class="stat-label">总断言数:</span>
+                                                        <span class="stat-value">{{ responseData.testResults?.length || 0 }}</span>
+                                                    </div>
+                                                    <div class="stat-item">
+                                                        <span class="stat-label">通过数:</span>
+                                                        <span class="stat-value pass">
+                                                            {{ responseData.testResults?.filter(r => r.passed)?.length || 0 }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="stat-item">
+                                                        <span class="stat-label">失败数:</span>
+                                                        <span class="stat-value fail">
+                                                            {{ responseData.testResults?.filter(r => !r.passed)?.length || 0 }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- 测试结果列表 -->
+                                            <div class="test-result-list">
+                                                <template v-if="responseData.testResults?.length">
+                                                    <div v-for="(result, index) in responseData.testResults" 
+                                                        :key="index"
+                                                        :class="['test-result-item', result.passed ? 'passed' : 'failed']"
+                                                    >
+                                                        <div class="result-icon">
+                                                            <el-icon v-if="result.passed" class="success-icon">
+                                                                <CircleCheckFilled />
+                                                            </el-icon>
+                                                            <el-icon v-else class="error-icon">
+                                                                <CircleCloseFilled />
+                                                            </el-icon>
+                                                        </div>
+                                                        <div class="result-content">
+                                                            <div class="result-assertion">{{ result.assertion }}</div>
+                                                            <div class="result-details">
+                                                                <span class="actual-value">实际值: {{ result.actualValue }}</span>
+                                                                <span class="expected-value">期望值: {{ result.expectedValue }}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </template>
-                                            <el-empty v-else description="暂无测试结果" />
+                                                </template>
+                                                <el-empty v-else description="暂无测试结果" />
+                                            </div>
                                         </div>
-                                    </div>
-                                </el-tab-pane>
-                            </el-tabs>
-                        </template>
-                        
-                        <!-- 无响应数据时显示空状态 -->
-                        <div v-else class="empty-response">
-                            <el-empty 
-                                description="暂无响应数据" 
-                                :image-size="100"
-                            >
-                                <template #description>
-                                    <p>点击"发送请求"按钮获取响应数据</p>
-                                </template>
-                            </el-empty>
+                                    </el-tab-pane>
+                                </el-tabs>
+                            </div>
                         </div>
-                    </div>
+                    </el-scrollbar>
                 </div>
                 
-                <!-- 添加底部操作按钮 -->
                 <template #footer>
-                    <div class="dialog-footer">
+                    <span class="dialog-footer">
                         <el-button @click="showAddDialog = false">取消</el-button>
-                        <el-button type="primary" @click="saveTestCase">保存</el-button>
-                        <el-button type="success" @click="submitTestCase">发送请求</el-button>
-                    </div>
+                        <el-button type="primary" @click="submitTestCase" :loading="loading">
+                            运行
+                        </el-button>
+                        <el-button type="success" @click="saveTestCase" :loading="loading">
+                            保存
+                        </el-button>
+                    </span>
                 </template>
             </el-dialog>
 
@@ -1004,12 +1336,7 @@ $headers.Content-Type=application/json  # 查响头"
                                     show-overflow-tooltip
                                 >
                                     <template #default="{ row }">
-                                        <el-input
-                                            v-model="row.value"
-                                            size="small"
-                                            :placeholder="getValuePlaceholder(row.key)"
-                                            clearable
-                                        />
+                                        <span>{{ row.value }}</span>
                                     </template>
                                 </el-table-column>
                                 <el-table-column 
@@ -1047,6 +1374,12 @@ $headers.Content-Type=application/json  # 查响头"
                         </div>
                     </template>
                 </div>
+                <template #footer>
+                    <div class="dialog-footer">
+                        <el-button @click="showEnvListDialog = false">关闭</el-button>
+                        <el-button type="primary" @click="handleCreateEnv">新建环境变量</el-button>
+                    </div>
+                </template>
             </el-dialog>
 
             <!-- 添加环境变量编辑对话框 -->
@@ -1354,43 +1687,112 @@ const evaluateAssertions = (response) => {
 
     return assertions.map(assertion => {
         try {
-            // 分割断言语句为路径和期望值，并去除注释
+            // 处理注释
             const [fullAssertion] = assertion.split('#').map(s => s.trim());
-            const [path, expectedValue] = fullAssertion.split('=').map(s => s.trim());
-            let actualValue;
-
-            // 处理不同类型的断言
-            if (path === '$.code') {
-                // 从响应数据中获取 code
-                actualValue = response.data.data.response.body.code;  // 修改这里，直接从response.body中获取code
-            } else if (path.startsWith('$.data.')) {
-                const dataPath = path.replace('$.data.', '');
-                actualValue = getValueByPath(response.data.data, dataPath);
-            } else if (path.startsWith('$headers.')) {
-                const headerName = path.replace('$headers.', '');
-                actualValue = response.data.data.response.headers[headerName];
-            }
-
-            console.log('Assertion check:', {
-                path,
-                expectedValue,
-                actualValue,
-                fullAssertion,
-                responseData: response.data.data.response, // 添加完整的响应数据日志
-                passed: String(actualValue) === String(expectedValue)
-            });
-
-            // 比较值（将两边都转换为字符串进行比较）
-            const passed = String(actualValue) === String(expectedValue);
             
-            return {
-                passed,
-                message: `${path}=${expectedValue}${passed ? ' ✓' : ' ✗'} (实际值: ${actualValue})`,
-                assertion: fullAssertion,
-                actualValue,
-                expectedValue,
-                path
-            };
+            // 检查是否为自定义脚本
+            if (fullAssertion.includes('$.code') || fullAssertion.includes('$.status') || fullAssertion.includes('response.status')) {
+                // 自定义脚本断言
+                let passed = false;
+                let actualValue;
+                let expectedValue;
+                
+                try {
+                    // 创建一个安全的执行环境
+                    const $ = {
+                        // code指向响应体中的code字段
+                        code: response.data.data.response.body?.code,
+                        // status指向HTTP状态码
+                        status: response.data.data.response.status_code,
+                        data: response.data.data.response.body,
+                        body: response.data.data.response.body,
+                        headers: response.data.data.response.headers
+                    };
+                    
+                    // 响应对象
+                    const responseObj = {
+                        status: response.data.data.response.status_code,
+                        headers: response.data.data.response.headers,
+                        body: response.data.data.response.body,
+                        data: response.data.data.response.body
+                    };
+                    
+                    // 执行脚本，使用Function构造器创建函数
+                    const scriptFn = new Function('$', 'response', `return (${fullAssertion})`);
+                    passed = scriptFn($, responseObj);
+                    
+                    // 记录实际值和预期值（对于自定义脚本，可以是简化的描述）
+                    actualValue = passed ? 'true' : 'false';
+                    expectedValue = 'true';
+                } catch (error) {
+                    console.error('自定义脚本执行错误:', error);
+                    passed = false;
+                    actualValue = '脚本执行错误';
+                    expectedValue = '脚本执行成功';
+                }
+                
+                return {
+                    passed,
+                    message: `${fullAssertion} ${passed ? '✓' : '✗'}`,
+                    assertion: fullAssertion,
+                    actualValue,
+                    expectedValue,
+                    path: '自定义脚本'
+                };
+            } else if (fullAssertion.includes('=')) {
+                // 标准断言处理
+                const [path, expectedValue] = fullAssertion.split('=').map(s => s.trim());
+                let actualValue;
+
+                // 处理不同类型的断言
+                if (path === '$.code') {
+                    // 从响应体中获取code字段
+                    actualValue = response.data.data.response.body?.code;
+                } else if (path === '$.status' || path === '$.statusCode') {
+                    // 获取HTTP状态码
+                    actualValue = response.data.data.response.status_code;
+                } else if (path.startsWith('$.data.')) {
+                    const dataPath = path.replace('$.data.', '');
+                    actualValue = getValueByPath(response.data.data.response.body, dataPath);
+                } else if (path.startsWith('$headers.')) {
+                    const headerName = path.replace('$headers.', '');
+                    actualValue = response.data.data.response.headers[headerName];
+                } else {
+                    // 尝试从响应体中获取值
+                    actualValue = getValueByPath(response.data.data.response.body, path);
+                }
+
+                console.log('Assertion check:', {
+                    path,
+                    expectedValue,
+                    actualValue,
+                    fullAssertion,
+                    responseData: response.data.data.response, 
+                    passed: String(actualValue) === String(expectedValue)
+                });
+
+                // 比较值（将两边都转换为字符串进行比较）
+                const passed = String(actualValue) === String(expectedValue);
+                
+                return {
+                    passed,
+                    message: `${path}=${expectedValue}${passed ? ' ✓' : ' ✗'} (实际值: ${actualValue})`,
+                    assertion: fullAssertion,
+                    actualValue,
+                    expectedValue,
+                    path
+                };
+            } else {
+                // 其他类型断言处理
+                return {
+                    passed: false,
+                    message: `断言格式无法识别: ${fullAssertion}`,
+                    assertion: fullAssertion,
+                    actualValue: '未知',
+                    expectedValue: '未知',
+                    path: '未知'
+                };
+            }
         } catch (e) {
             console.error('Assertion evaluation error:', e, {
                 response: response.data.data.response
@@ -1399,7 +1801,10 @@ const evaluateAssertions = (response) => {
                 passed: false,
                 message: `断言格式错误: ${assertion} (${e.message})`,
                 assertion,
-                error: e.message
+                error: e.message,
+                actualValue: '错误',
+                expectedValue: '正确格式',
+                path: '未知'
             };
         }
     });
@@ -1657,13 +2062,29 @@ const executeTestCase = async (caseId) => {
         });
 
         const data = await response.json();
+        console.log('Test case execution response:', data);
+        
         if (data.success === true) {
+            // 找到当前执行的测试用例
+            const testCase = testCases.value.find(tc => tc.case_id === caseId);
+            if (testCase) {
+                // 更新测试用例状态和执行时间
+                testCase.status = data.data.status === 'FAIL' ? '失败' : '通过';
+                testCase.last_execution_time = data.data.execution_time;
+                
+                // 记录响应数据
+                testCase.last_response = {
+                    status_code: data.data.response.status_code,
+                    duration: data.data.duration,
+                    body: data.data.response.body
+                };
+            }
+            
             ElMessage({
                 type: 'success',
                 message: data.message || '测试用例执行成功',
                 duration: 3000
             });
-            fetchTestCases();
         } else {
             ElMessage.error(data.message || '执行失败');
         }
@@ -1701,6 +2122,10 @@ const deleteTestCase = async (row) => {
 // 修改编辑测试用例的方法
 const editTestCase = (row) => {
     dialogTitle.value = '编辑接口测试用例';
+    console.log('Original test case data:', row);
+    
+    // 处理 body 内容格式化
+    const formattedBody = formatRequestBody(row.body);
     
     // 重置表单数据
     testCaseForm.value = {
@@ -1709,58 +2134,109 @@ const editTestCase = (row) => {
         api_path: row.api_path,
         method: row.method,
         priority: row.priority,
-        // 格式化 body 内容
-        body: formatRequestBody(row.body),
+        // body处理放到下面
         assertions: row.assertions || '',
         expected_result: typeof row.expected_result === 'string' 
             ? row.expected_result 
-            : JSON.stringify(row.expected_result, null, 2)
+            : JSON.stringify(row.expected_result, null, 2),
+        tests: row.tests || [] // 保存原始测试数据
     };
     
     // 设置 body 类型
     bodyType.value = row.body_type || 'raw';
-    rawContentType.value = row.raw_content_type || 'application/json';
+    rawContentType.value = row.content_type || 'application/json';
+    
+    // 初始化rawBody值
+    rawBody.value = formattedBody;
+    if (rawBody.value) {
+        countRawBodyLines();
+    }
+    
+    // 设置表单的body值
+    testCaseForm.value.body = formattedBody;
     
     // 设置请求头数据
-    headersTableData.value = Array.isArray(row.headers) 
-        ? row.headers.map(header => ({
-            enabled: true,
-            key: header.key || '',
-            value: header.value || '',
-            description: header.description || ''
-        }))
-        : [{ enabled: true, key: 'Content-Type', value: 'application/json', description: '' }];
+    if (row.headers) {
+        try {
+            const headers = typeof row.headers === 'string' 
+                ? JSON.parse(row.headers) 
+                : row.headers;
+            
+            // 转换为表格数据格式
+            headersTableData.value = Object.entries(headers).map(([key, value]) => ({
+                enabled: true,
+                key,
+                value: typeof value === 'object' ? JSON.stringify(value) : value,
+                description: ''
+            }));
+        } catch (error) {
+            console.error('Failed to parse headers:', error);
+            headersTableData.value = [];
+        }
+    } else {
+        headersTableData.value = [];
+    }
     
     // 设置参数数据
-    paramsTableData.value = Array.isArray(row.params)
-        ? row.params.map(param => ({
-            enabled: true,
-            key: param.key || '',
-            value: param.value || '',
-            description: param.description || ''
-        }))
-        : [{ enabled: true, key: '', value: '', description: '' }];
+    if (row.params) {
+        try {
+            const params = typeof row.params === 'string' 
+                ? JSON.parse(row.params) 
+                : row.params;
+            
+            // 转换为表格数据格式
+            paramsTableData.value = Object.entries(params).map(([key, value]) => ({
+                enabled: true,
+                key,
+                value: typeof value === 'object' ? JSON.stringify(value) : value,
+                description: ''
+            }));
+        } catch (error) {
+            console.error('Failed to parse params:', error);
+            paramsTableData.value = [];
+        }
+    } else {
+        paramsTableData.value = [];
+    }
     
-    // 设置 form-data 数据
-    formDataTableData.value = Array.isArray(row.form_data)
-        ? row.form_data.map(item => ({
+    // 设置 Form Data
+    if (row.form_data && Array.isArray(row.form_data)) {
+        formDataTableData.value = row.form_data.map(item => ({
             enabled: true,
-            key: item.key || '',
-            value: item.value || '',
+            key: item.key,
+            value: item.value,
             description: item.description || ''
-        }))
-        : [{ enabled: true, key: '', value: '', description: '' }];
+        }));
+    } else {
+        formDataTableData.value = [];
+    }
     
-    // 打印调试信息
-    console.log('Editing test case:', {
-        testCaseForm: testCaseForm.value,
-        bodyType: bodyType.value,
-        rawContentType: rawContentType.value,
-        headers: headersTableData.value,
-        params: paramsTableData.value,
-        formData: formDataTableData.value
-    });
+    // 设置提取器数据
+    if (row.extractors && Array.isArray(row.extractors)) {
+        extractors.value = row.extractors.map(item => ({
+            name: item.name,
+            type: item.type || 'jsonpath',
+            expression: item.expression || '',
+            defaultValue: item.defaultValue || '',
+            enabled: item.enabled !== undefined ? item.enabled : true,
+            extractedValue: null
+        }));
+    } else {
+        extractors.value = [];
+    }
     
+    // 设置测试断言数据
+    if (row.tests && Array.isArray(row.tests)) {
+        tests.value = row.tests.map(item => ({
+            ...item,
+            saved: true, // 标记为已保存
+            lastResult: null
+        }));
+    } else {
+        tests.value = [];
+    }
+    
+    // 显示对话框
     showAddDialog.value = true;
 };
 
@@ -1771,6 +2247,8 @@ const formatRequestBody = (body) => {
     try {
         // 如果是字符串，尝试解析为对象后再格式化
         if (typeof body === 'string') {
+            if (body.trim() === '') return '';
+            
             try {
                 const parsed = JSON.parse(body);
                 return JSON.stringify(parsed, null, 2);
@@ -1778,6 +2256,11 @@ const formatRequestBody = (body) => {
                 // 如果解析失败，直接返回原字符串
                 return body;
             }
+        }
+        
+        // 如果是对象但没有内容
+        if (typeof body === 'object' && Object.keys(body).length === 0) {
+            return '';
         }
         
         // 如果是对象，直接格式化
@@ -1874,6 +2357,11 @@ const handleCreateTestCase = () => {
         expected_result: '',
         assertions: ''
     };
+    
+    // 重置rawBody
+    rawBody.value = '';
+    rawBodyLines.value = 1;
+    
     showAddDialog.value = true;
 };
 
@@ -1901,6 +2389,10 @@ const resetForm = () => {
     formDataTableData.value = [{ enabled: true, key: '', value: '', description: '' }];
     showResponse.value = false;
     extractors.value = [];
+    
+    // 重置rawBody
+    rawBody.value = '';
+    rawBodyLines.value = 1;
 };
 
 // 添加搜索和筛选相关的响应式变量
@@ -1930,6 +2422,18 @@ const rawContentType = ref('application/json');
 const paramsTableData = ref([{ enabled: true, key: '', value: '', description: '' }]);
 const headersTableData = ref([{ enabled: true, key: '', value: '', description: '' }]);
 const formDataTableData = ref([{ enabled: true, key: '', value: '', description: '' }]);
+// 添加tests响应式变量
+const tests = ref([]);
+// 添加extractors响应式变量
+const extractors = ref([]);
+// 添加rawBody相关变量
+const rawBody = ref('');
+const rawBodyLines = ref(1);
+
+// 添加countRawBodyLines方法
+const countRawBodyLines = () => {
+    rawBodyLines.value = getLineCount(rawBody.value);
+};
 
 // 添加获取 Body 占位符的方法
 const getBodyPlaceholder = () => {
@@ -1960,11 +2464,11 @@ const removeHeader = (index) => {
 };
 
 // 添加 Form Data 相关方法
-const addFormData = () => {
+const addFormItem = () => {
     formDataTableData.value.push({ enabled: true, key: '', value: '', description: '' });
 };
 
-const removeFormData = (index) => {
+const removeFormItem = (index) => {
     formDataTableData.value.splice(index, 1);
 };
 
@@ -1993,6 +2497,9 @@ const saveTestCase = async () => {
             return;
         }
     }
+    
+    // 确保测试断言数据已更新到表单中
+    updateTestsInForm();
     
     await testCaseFormRef.value.validate(async (valid) => {
         if (valid) {
@@ -2031,7 +2538,19 @@ const saveTestCase = async () => {
                             key: item.key.trim(),
                             value: item.value.trim(),
                             description: item.description?.trim() || ''
-                        }))
+                        })),
+                    // 添加提取器数据
+                    extractors: extractors.value
+                        .filter(item => item.name.trim()) // 只保存有名称的提取器
+                        .map(item => ({
+                            name: item.name.trim(),
+                            type: item.type,
+                            expression: item.expression,
+                            defaultValue: item.defaultValue || '',
+                            enabled: item.enabled
+                        })),
+                    // 添加测试断言数据
+                    tests: testCaseForm.value.tests || []
                 };
 
                 // 根据是否有 case_id 判断是新建还是编辑
@@ -2251,7 +2770,7 @@ const submitEnvForm = async () => {
     await envFormRef.value.validate(async (valid) => {
         if (valid) {
             try {
-                // 构建求数据，确保包含所有已填写的字段
+                // 构建请求数据，确保包含所有已填写的字段
                 const requestData = {
                     name: envForm.value.name,
                     description: envForm.value.description,
@@ -2295,19 +2814,35 @@ const submitEnvForm = async () => {
     });
 };
 
-// 添加提取器相关的响应式数据
-const extractors = ref([]);
 
 // 添加提取器相关方法
 const addExtractor = () => {
     extractors.value.push({
-        variableName: '',
-        jsonPath: ''
+        enabled: true,
+        name: '',
+        type: 'jsonpath',
+        expression: '',
+        defaultValue: '',
+        extractedValue: null
     });
 };
 
 const removeExtractor = (index) => {
     extractors.value.splice(index, 1);
+};
+
+// 添加获取表达式占位符的方法
+const getExpressionPlaceholder = (type) => {
+    switch (type) {
+        case 'jsonpath':
+            return '$.data.id';
+        case 'regex':
+            return '正则表达式，例如：value":"(.*?)"';
+        case 'xpath':
+            return '/root/data/item[1]';
+        default:
+            return '请输入提取表达式';
+    }
 };
 
 // 添加获取变量值提示的方法
@@ -2459,8 +2994,22 @@ const formatJsonInput = () => {
             return;
         }
         
+        let jsonStr = testCaseForm.value.body.trim();
+        
+        // 修复常见的JSON错误格式
+        // 如果开头是 [ 但内容没有包装在 {} 中
+        if (jsonStr.startsWith('[') && !jsonStr.includes('{')) {
+            // 检查是否包含键值对格式 (如 "key":value)
+            if (/"[^"]+"\s*:/.test(jsonStr)) {
+                // 将内容包装在 {} 中
+                jsonStr = jsonStr.replace(/^\[\s*/, '[{\n  ').replace(/\s*\]$/, '\n}]');
+                // 修复可能的逗号缺失
+                jsonStr = jsonStr.replace(/("\w+"\s*:\s*[^,{}\[\]]+)(?=\s*"\w+"\s*:)/g, '$1,');
+            }
+        }
+        
         // 先解析成对象
-        const parsed = JSON.parse(testCaseForm.value.body);
+        const parsed = JSON.parse(jsonStr);
         // 格式化显示用
         const formatted = JSON.stringify(parsed, null, 2);
         testCaseForm.value.body = formatted;
@@ -2479,11 +3028,34 @@ const formatJsonInput = () => {
 const validateJson = (text) => {
     try {
         if (!text) return true;
-        JSON.parse(text);
+        
+        // 尝试修复常见错误
+        let jsonText = text.trim();
+        // 对于简单的错误进行自动修复 (仅用于验证，不修改实际内容)
+        
+        // 检查有无包裹对象的数组
+        if (jsonText.startsWith('[') && /"[^"]+"\s*:/.test(jsonText) && !jsonText.includes('{')) {
+            jsonError.value = '数组格式错误，请使用 [{...}] 格式';
+            return false;
+        }
+        
+        // 检查缺少逗号的情况
+        if (/"[^"]+"\s*:\s*[^,{}\[\]]+\s*"[^"]+"\s*:/.test(jsonText)) {
+            jsonError.value = '属性之间缺少逗号分隔';
+            return false;
+        }
+        
+        // 尝试解析
+        JSON.parse(jsonText);
         jsonError.value = '';
         return true;
     } catch (e) {
         jsonError.value = e.message;
+        // 获取错误位置以便高亮
+        const match = e.message.match(/position\s+(\d+)/i);
+        if (match && match[1]) {
+            jsonErrorPosition.value = parseInt(match[1]);
+        }
         return false;
     }
 };
@@ -2529,14 +3101,36 @@ const highlightError = () => {
 const getLineCount = (text) => {
     // 确保输入是字符串
     const str = String(text || '');
-    return str ? str.split('\n').length : 1;
+    // 计算行数并确保至少有1行
+    return Math.max(str.split('\n').length, 1);
 };
 
-// 添加 body 类型切换处理
-watch(bodyType, (newType) => {
-    if (newType === 'raw') {
-        // 确保 body 是字符串
-        testCaseForm.body = testCaseForm.body || '';
+// 添加处理 Body 类型变更的方法
+const handleBodyTypeChange = (value) => {
+    if (value === 'raw') {
+        // 默认使用 application/json
+        rawContentType.value = 'application/json';
+        
+        // 如果表单中有 Content-Type 的请求头，更新它
+        const contentTypeHeader = headersTableData.value.find(h => h.key.toLowerCase() === 'content-type');
+        if (contentTypeHeader) {
+            contentTypeHeader.value = rawContentType.value;
+        } else {
+            // 如果没有 Content-Type 请求头，添加一个
+            headersTableData.value.push({
+                enabled: true,
+                key: 'Content-Type',
+                value: rawContentType.value,
+                description: '自动设置的内容类型'
+            });
+        }
+    }
+};
+
+// 监听rawBody变化，同步到testCaseForm.body
+watch(rawBody, (newValue) => {
+    if (bodyType.value === 'raw') {
+        testCaseForm.value.body = newValue;
     }
 });
 
@@ -2759,7 +3353,6 @@ const saveEnvSuite = async () => {
         }
       } catch (error) {
         console.error('创建环境套失败:', error);
-        ElMessage.error('创建环境套失败');
       }
     }
   });
@@ -2795,6 +3388,7 @@ watch(() => envForm.value, (newVal) => {
 
 // 添加获取环境套名称的方法
 const getEnvSuiteName = (suiteId) => {
+    if (!suiteId) return '未分配';
     const suite = envSuites.value.find(s => s.id === suiteId);
     return suite ? suite.name : '未知环境套';
 };
@@ -2892,7 +3486,7 @@ const queryJsonPaths = (query, cb) => {
 
 const handleJsonPathSelect = (item) => {
     extractors.value.forEach(extractor => {
-        if (extractor.jsonPath === item.value) {
+        if (extractor.expression === item.value) {
             extractor.previewValue = item.previewValue;
         }
     });
@@ -2920,33 +3514,51 @@ const testExtractor = (extractor) => {
         // 获取响应体数据
         let jsonData = responseData.value.body;
         console.log('Testing extractor with data:', jsonData);
-        console.log('Using path:', extractor.jsonPath);
+        console.log('Using expression:', extractor.expression);
         
-        // 处理 jsonPath
-        const path = extractor.jsonPath.replace(/^\$\./, '').split('.');
-        let value = jsonData;
+        let value;
         
-        // 特殊处理 code 字段
-        if (path[0] === 'code') {
-            value = jsonData.code;
-        } else if (path[0] === 'data') {
-            // 如果路径以 data 开头，从 data 对象开始遍历
-            value = jsonData.data;
-            path.shift(); // 移除 'data'
+        // 根据提取器类型处理
+        if (extractor.type === 'jsonpath') {
+            // 处理 JSONPath 表达式
+            const path = extractor.expression.replace(/^\$\./, '').split('.');
+            value = jsonData;
             
-            // 遍历剩余路径
-            for (const key of path) {
-                if (value === undefined || value === null) break;
-                value = value[key];
-                console.log(`Extracting ${key}:`, value);
+            // 特殊处理 code 字段
+            if (path[0] === 'code') {
+                value = jsonData.code;
+            } else if (path[0] === 'data') {
+                // 如果路径以 data 开头，从 data 对象开始遍历
+                value = jsonData.data;
+                path.shift(); // 移除 'data'
+                
+                // 遍历剩余路径
+                for (const key of path) {
+                    if (value === undefined || value === null) break;
+                    value = value[key];
+                    console.log(`Extracting ${key}:`, value);
+                }
+            } else {
+                // 直接从根对象开始遍历
+                for (const key of path) {
+                    if (value === undefined || value === null) break;
+                    value = value[key];
+                    console.log(`Extracting ${key}:`, value);
+                }
             }
-        } else {
-            // 直接从根对象开始遍历
-            for (const key of path) {
-                if (value === undefined || value === null) break;
-                value = value[key];
-                console.log(`Extracting ${key}:`, value);
+        } else if (extractor.type === 'regex') {
+            // 处理正则表达式提取
+            const contentStr = typeof jsonData === 'object' ? JSON.stringify(jsonData) : String(jsonData);
+            const regex = new RegExp(extractor.expression);
+            const match = contentStr.match(regex);
+            
+            if (match && match.length > 1) {
+                value = match[1]; // 获取第一个捕获组
             }
+        } else if (extractor.type === 'xpath') {
+            // 处理 XPath 提取 (这里只是一个简化实现，实际需要使用XPath库)
+            ElMessage.warning('XPath提取器暂未实现');
+            return;
         }
         
         // 更新提取到的值
@@ -2957,7 +3569,7 @@ const testExtractor = (extractor) => {
             console.log(`Successfully extracted value:`, extractor.extractedValue);
             ElMessage.success('提取成功');
         } else {
-            extractor.extractedValue = null;
+            extractor.extractedValue = extractor.defaultValue || null;
             ElMessage.warning('未找到匹配的值');
         }
     } catch (error) {
@@ -3018,197 +3630,921 @@ const handleEnvChange = async (value) => {
 
 // 修复 getStatusCount 计算属性
 const getStatusCount = (status) => {
-    return testCases.value.filter(c => c.status === status).length;
+    if (!testCases.value || !Array.isArray(testCases.value)) {
+        return 0;
+    }
+    
+    // 状态映射，确保匹配不同格式的状态值
+    const statusMap = {
+        '通过': ['通过', 'pass'],
+        '失败': ['失败', 'fail'],
+        '未执行': ['未执行', 'pending', null, undefined, '']
+    };
+    
+    // 获取状态对应的可能值数组
+    const validStatusValues = statusMap[status] || [status];
+    
+    // 统计符合状态的用例数量
+    return testCases.value.filter(item => 
+        validStatusValues.includes(item.status)
+    ).length;
 };
 
-</script>
+// 添加响应式变量
+const isSmallScreen = ref(window.innerWidth < 768);
+const activeTab = ref('params');
 
-<style scoped>
-/* 全局样式优化 */
-.table-card {
-    margin-bottom: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-    transition: all 0.3s;
+// 将handleResize窗口大小调整函数重命名，避免重复声明
+const handleWindowResize = () => {
+    isSmallScreen.value = window.innerWidth < 768;
+};
+
+// 修改监听窗口大小变化，使用重命名后的函数
+onMounted(() => {
+    window.addEventListener('resize', handleWindowResize);
+    document.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('resize', handleWindowResize);
+    document.removeEventListener('keydown', handleKeydown);
+});
+
+// 添加JSON格式化方法
+const formatJson = () => {
+    try {
+        if (!rawBody.value) return;
+        
+        // 解析并格式化JSON
+        const parsedJson = JSON.parse(rawBody.value);
+        rawBody.value = JSON.stringify(parsedJson, null, 2);
+        
+        // 更新行数
+        countRawBodyLines();
+        
+        ElMessage.success('JSON格式化成功');
+    } catch (error) {
+        console.error('JSON格式化失败:', error);
+        ElMessage.error('JSON格式化失败: ' + error.message);
+    }
+};
+
+// 添加查看环境变量的方法
+const handleViewEnv = async () => {
+    try {
+        loading.value = true;
+        
+        // 1. 获取环境套列表
+        const suitesResponse = await axios.get(
+            `http://localhost:8081/api/env-suite/list/${projectId.value}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            }
+        );
+
+        if (suitesResponse.data.code === 200) {
+            // 保存环境套数据
+            const suites = suitesResponse.data.data.items || [];
+            console.log('Environment suites:', suites);
+            
+            // 更新环境套的全局状态
+            envSuites.value = suites;
+            
+            // 2. 获取环境变量列表 - 使用正确的API
+            const variablesResponse = await axios.get(
+                `http://localhost:8081/api/env/variable/${projectId.value}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                }
+            );
+            
+            if (variablesResponse.data.code === 200) {
+                // 新的响应格式处理
+                const envItems = Array.isArray(variablesResponse.data.data) 
+                    ? variablesResponse.data.data 
+                    : [variablesResponse.data.data];
+                
+                console.log('Environment variable response:', envItems);
+                
+                // 3. 将环境变量按环境套分组并格式化
+                const formattedEnvList = envItems.map(env => ({
+                    id: env.id,
+                    name: env.name,
+                    description: env.description || '',
+                    envSuiteId: env.env_suite_id,
+                    variables: env.variables || []
+                }));
+                
+                // 打印调试信息
+                console.log('Formatted environment list:', formattedEnvList);
+                
+                // 更新环境变量列表
+                envList.value = formattedEnvList;
+                
+                // 如果没有数据，显示提示
+                if (formattedEnvList.length === 0) {
+                    console.log('No environment variables found');
+                }
+            } else {
+                ElMessage.error(variablesResponse.data.message || '获取环境变量列表失败');
+            }
+            
+            // 打开环境变量列表对话框
+            showEnvListDialog.value = true;
+        } else {
+            ElMessage.error(suitesResponse.data.message || '获取环境套列表失败');
+        }
+    } catch (error) {
+        console.error('获取环境变量列表失败:', error);
+        ElMessage.error('获取环境变量列表失败，请检查网络连接');
+    } finally {
+        loading.value = false;
+    }
+};
+
+// 添加测试相关方法
+const addTest = () => {
+    tests.value.push({
+        enabled: true,
+        name: '',
+        type: 'statusCode',
+        condition: 'equals',
+        expected: 200,
+        jsonPath: '',
+        text: '',
+        script: '',
+        saved: false,
+        lastResult: null
+    });
+};
+
+const removeTest = (index) => {
+    tests.value.splice(index, 1);
+};
+
+const saveTest = (test, index) => {
+    if (!test.name) {
+        ElMessage.warning('请先填写测试名称');
+        return;
+    }
+    
+    // 验证测试必填字段
+    if (!validateTest(test)) {
+        return;
+    }
+    
+    // 标记为已保存
+    test.saved = true;
+    
+    // 更新主表单中的测试数据
+    updateTestsInForm();
+    
+    ElMessage.success(`测试 "${test.name}" 已保存`);
+};
+
+// 验证测试数据
+const validateTest = (test) => {
+    if (!test.type) {
+        ElMessage.warning('请选择测试类型');
+        return false;
+    }
+    
+    if (test.type === 'statusCode') {
+        if (!test.condition) {
+            ElMessage.warning('请选择状态码条件');
+            return false;
+        }
+        if (test.expected === undefined || test.expected === null) {
+            ElMessage.warning('请输入预期状态码');
+            return false;
+        }
+    } else if (test.type === 'responseTime') {
+        if (!test.condition) {
+            ElMessage.warning('请选择响应时间条件');
+            return false;
+        }
+        if (test.expected === undefined || test.expected === null) {
+            ElMessage.warning('请输入预期响应时间');
+            return false;
+        }
+    } else if (test.type === 'jsonValue') {
+        if (!test.jsonPath) {
+            ElMessage.warning('请输入JSONPath表达式');
+            return false;
+        }
+        if (!test.condition) {
+            ElMessage.warning('请选择JSON值条件');
+            return false;
+        }
+        if ((test.condition !== 'exists' && test.condition !== 'notExists') && 
+            (test.expected === undefined || test.expected === null || test.expected === '')) {
+            ElMessage.warning('请输入预期JSON值');
+            return false;
+        }
+    } else if (test.type === 'containsText') {
+        if (!test.condition) {
+            ElMessage.warning('请选择文本条件');
+            return false;
+        }
+        if (!test.text) {
+            ElMessage.warning('请输入要检查的文本');
+            return false;
+        }
+    } else if (test.type === 'customScript') {
+        if (!test.script) {
+            ElMessage.warning('请输入自定义脚本');
+            return false;
+        }
+    }
+    
+    return true;
+};
+
+// 将测试数据更新到主表单中
+const updateTestsInForm = () => {
+    // 过滤出启用和已保存的测试，格式化为断言字符串
+    const assertions = tests.value
+        .filter(test => test.enabled && test.saved)
+        .map(test => {
+            // 根据测试类型生成断言字符串
+            if (test.type === 'statusCode') {
+                return `$.code ${getOperator(test.condition)} ${test.expected}  # ${test.name}`;
+            } else if (test.type === 'responseTime') {
+                return `$.responseTime ${getOperator(test.condition)} ${test.expected}  # ${test.name}`;
+            } else if (test.type === 'jsonValue') {
+                if (test.condition === 'exists') {
+                    return `$.exists(${test.jsonPath})  # ${test.name}`;
+                } else if (test.condition === 'notExists') {
+                    return `$.notExists(${test.jsonPath})  # ${test.name}`;
+                } else {
+                    return `${test.jsonPath} ${getOperator(test.condition)} ${test.expected}  # ${test.name}`;
+                }
+            } else if (test.type === 'containsText') {
+                const operator = test.condition === 'contains' ? 'contains' : 'notContains';
+                return `$.${operator}("${test.text}")  # ${test.name}`;
+            } else if (test.type === 'customScript') {
+                // 自定义脚本直接使用脚本内容，不添加包装
+                return `${test.script}  # ${test.name}`;
+            }
+            return null;
+        })
+        .filter(Boolean)
+        .join('\n');
+    
+    // 更新主表单中的断言字段
+    testCaseForm.value.assertions = assertions;
+    
+    // 保存测试列表到表单的tests字段（可选，如果后端需要原始测试数据）
+    testCaseForm.value.tests = formatTestsForSaving(tests.value);
+    
+    console.log('Updated assertions in form:', testCaseForm.value.assertions);
+    console.log('Updated tests in form:', testCaseForm.value.tests);
+};
+
+// 格式化测试数据用于保存
+const formatTestsForSaving = (testsArray) => {
+    return testsArray
+        .filter(test => test.enabled && test.saved)
+        .map(test => {
+            // 移除UI相关的临时属性
+            const { lastResult, ...cleanTest } = test;
+            return cleanTest;
+        });
+};
+
+// 获取条件操作符
+const getOperator = (condition) => {
+    const operatorMap = {
+        'equals': '==',
+        'notEquals': '!=',
+        'greaterThan': '>',
+        'lessThan': '<',
+        'contains': 'contains',
+        'notContains': 'notContains'
+    };
+    return operatorMap[condition] || '==';
+};
+  </script>
+
+  <style>
+
+/* 环境变量列表样式 */
+.env-list-container {
+    max-height: 60vh;
+    overflow-y: auto;
 }
 
-/* 项目信息区样式改进 */
-.project-info {
-    padding: 12px 0;
-    margin-bottom: 16px;
-    border-bottom: 1px solid #ebeef5;
+.env-item {
+    margin-bottom: 20px;
+    padding: 16px;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 4px;
+    background-color: var(--el-fill-color-lighter);
+}
+
+.env-header {
     display: flex;
-    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    gap: 20px;
+    margin-bottom: 12px;
+}
+
+.env-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.env-name {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--el-color-primary);
+}
+
+.env-suite-tag {
+    background-color: var(--el-color-info-light-9);
+}
+
+.env-description {
+    color: var(--el-text-color-secondary);
+    font-size: 14px;
+}
+
+.variable-key {
+    font-weight: 500;
+    color: var(--el-color-primary);
+}
+
+/* 确保环境变量列表对话框有足够的空间 */
+.env-list-dialog :deep(.el-dialog__body) {
+    padding: 15px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* 红框区域的搜索栏样式 */
+.el-card .el-input,
+.el-card .el-select {
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .el-card .el-input,
+    .el-card .el-select {
+        margin-bottom: 0;
+        margin-right: 10px;
+        width: auto;
+    }
+    
+    .el-card .el-button-group {
+        display: inline-flex;
+    }
+    
+    /* 红框内的搜索区域水平排列 */
+    .el-card > div > .el-input,
+    .el-card > div > .el-select,
+    .el-card > div > .el-button-group {
+        display: inline-flex;
+        vertical-align: middle;
+        margin-right: 10px;
+    }
+}
+
+/* 普通文本编辑器样式 */
+.text-editor-container {
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.text-editor-container :deep(.el-textarea__inner) {
+    padding: 8px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    line-height: 1.5;
+    font-size: 13px;
+    box-shadow: none !important;
+    border: none;
+}
+
+/* 标签页样式 */
+.custom-tabs :deep(.el-tabs__header) {
+    margin-bottom: 12px;
+}
+
+.custom-tabs :deep(.el-tabs__item) {
+    height: 40px;
+    line-height: 40px;
+    font-size: 14px;
+}
+
+.custom-tabs :deep(.el-tabs__item.is-active) {
+    font-weight: 600;
+}
+
+/* 表格工具栏 */
+.params-toolbar,
+.headers-toolbar,
+.form-data-toolbar,
+.extractors-toolbar {
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: flex-start;
+}
+
+/* 表格样式 */
+.params-table,
+.headers-table,
+.form-data-table {
+    margin-bottom: 16px;
+}
+
+/* JSON编辑器样式 */
+.body-type-selector {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.body-type-radio {
+    margin-right: 8px;
+}
+
+/* 提取器卡片样式 */
+.extractors-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.extractors-list .el-collapse {
+    width: 100%;
+    border: none;
+}
+
+.extractors-list .el-collapse-item {
+    background-color: var(--el-bg-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    margin-bottom: 16px;
+}
+
+.extractors-list .el-collapse-item:hover {
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
+}
+
+.extractors-list .el-collapse-item__header {
+    background-color: var(--el-fill-color-light);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.extractors-list .el-collapse-item__content {
+    padding: 0;
+}
+
+/* 提取器表单样式优化 */
+.extractor-form {
+    padding: 16px;
+    background-color: var(--el-bg-color);
+    border-radius: 0 0 8px 8px;
+    border: 1px solid var(--el-border-color);
+    margin-bottom: 16px;
+}
+
+.extractor-form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.extractor-form-row .el-form-item {
+    margin-bottom: 8px;
+}
+
+.extractor-form-row .flex-grow {
+    flex-grow: 1;
+}
+
+.extractor-form .el-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.extractor-item-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.extractor-name {
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+}
+
+.extractor-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.extracted-value {
+    background-color: var(--el-fill-color-light);
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 12px;
+}
+
+.extracted-value-label {
+    font-weight: 600;
+    color: var(--el-color-primary);
+    margin-bottom: 8px;
+}
+
+.extracted-value-content {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.extracted-value-content .el-input {
+    flex-grow: 1;
+}
+
+.extracted-value-content .el-button {
+    flex-shrink: 0;
+    margin-top: 8px;
+}
+
+/* 响应容器样式 */
+.response-container {
+    margin-top: 20px;
+    border: 1px solid var(--el-border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.response-header {
+    padding: 12px 16px;
+    background-color: var(--el-fill-color-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--el-border-color);
+}
+
+.response-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.response-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.response-time {
+    color: var(--el-text-color-secondary);
+    font-size: 13px;
+}
+
+.response-body-wrapper {
+    position: relative;
+}
+
+.response-toolbar {
+    padding: 8px 12px;
+    background-color: var(--el-fill-color-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.content-type {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    font-family: monospace;
+}
+
+.response-body {
+    padding: 12px;
+    margin: 0;
+    max-height: 300px;
+    overflow: auto;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background-color: var(--el-bg-color);
+}
+
+.resize-handle {
+    height: 6px;
+    background-color: var(--el-border-color-lighter);
+    cursor: ns-resize;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.resize-handle:hover {
+    background-color: var(--el-color-primary-light-7);
+}
+
+.headers-wrapper {
+    padding: 12px;
+    max-height: 300px;
+    overflow: auto;
+}
+
+.header-item {
+    display: flex;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.header-key {
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    min-width: 200px;
+    padding-right: 12px;
+}
+
+.header-value {
+    color: var(--el-text-color-regular);
+    word-break: break-all;
+}
+
+/* 测试结果样式 */
+.test-results-container {
+    padding: 12px;
+}
+
+.test-results-summary {
+    margin-bottom: 16px;
+    padding: 12px;
+    background-color: var(--el-fill-color-light);
+    border-radius: 4px;
+}
+
+.summary-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.summary-stats .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.summary-stats .stat-label {
+    font-weight: 600;
+    color: var(--el-text-color-regular);
+}
+
+.summary-stats .stat-value {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.summary-stats .stat-value.pass {
+    color: var(--el-color-success);
+}
+
+.summary-stats .stat-value.fail {
+    color: var(--el-color-danger);
+}
+
+.test-result-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.test-result-item {
+    display: flex;
+    padding: 12px;
+    border-radius: 4px;
+    background-color: var(--el-fill-color-light);
+}
+
+.test-result-item.passed {
+    border-left: 4px solid var(--el-color-success);
+}
+
+.test-result-item.failed {
+    border-left: 4px solid var(--el-color-danger);
+}
+
+.result-icon {
+    margin-right: 12px;
+    display: flex;
+    align-items: flex-start;
+}
+
+.success-icon {
+    color: var(--el-color-success);
+    font-size: 18px;
+}
+
+.error-icon {
+    color: var(--el-color-danger);
+    font-size: 18px;
+}
+
+.result-content {
+    flex: 1;
+}
+
+.result-assertion {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.result-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+}
+
+/* 响应式适配 */
+@media screen and (max-width: 768px) {
+    .body-type-selector {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .body-type-radio {
+        margin-bottom: 8px;
+    }
+    
+    .response-header,
+    .response-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .summary-stats {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+/* 项目信息样式 */
+.project-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .project-title {
     display: flex;
     align-items: center;
-    font-size: 18px;
-    font-weight: 600;
-    color: #303133;
+    gap: 8px;
     margin: 0;
+    font-size: 18px;
+    color: var(--el-text-color-primary);
 }
 
-.project-title .el-icon {
-    margin-right: 8px;
-    color: #409EFF;
-    font-size: 20px;
-}
-
-/* 项目统计信息样式 */
 .project-stats {
     display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
+    gap: 24px;
 }
 
 .stat-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 8px 16px;
-    border-radius: 6px;
-    background-color: #f8f9fa;
-    border: 1px solid #ebeef5;
-    transition: all 0.3s;
-}
-
-.stat-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .stat-value {
     font-size: 20px;
     font-weight: 600;
-    color: #303133;
     margin-bottom: 4px;
-}
-
-.stat-value.success {
-    color: #67C23A;
-}
-
-.stat-value.danger {
-    color: #F56C6C;
-}
-
-.stat-value.info {
-    color: #909399;
 }
 
 .stat-label {
     font-size: 12px;
-    color: #606266;
+    color: var(--el-text-color-secondary);
 }
 
-/* 搜索和操作栏样式优化 */
+.stat-value.success {
+    color: var(--el-color-success);
+}
+
+.stat-value.danger {
+    color: var(--el-color-danger);
+}
+
+.stat-value.info {
+    color: var(--el-color-info);
+}
+
+/* 表格顶部操作栏样式 */
 .table-header {
     margin-bottom: 16px;
 }
 
+/* 搜索区域和查询按钮样式 */
 .search-bar {
     display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 16px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    width: 100%;
+    margin-bottom: 10px;
 }
 
 .search-input {
-    width: 240px;
-    transition: all 0.3s;
-}
-
-.search-input:focus-within {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    width: 260px;
+    margin-right: 10px;
 }
 
 .filter-select {
-    width: 140px;
-    transition: all 0.3s;
+    width: 220px;
+    margin-right: 10px;
 }
 
-.filter-select:focus-within {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+.selected-label {
+    display: inline-block;
+    font-size: 14px;
+    color: var(--el-color-primary);
+    margin-right: 5px;
+}
+
+/* 确保下拉选项有足够的空间 */
+.status-filter-dropdown .el-select-dropdown__item,
+.priority-filter-dropdown .el-select-dropdown__item {
+    padding: 0 12px;
+    height: auto;
+    line-height: 34px;
+}
+
+/* 修复选择后显示问题 */
+.filter-select :deep(.el-input__inner) {
+    overflow: visible;
+    white-space: nowrap;
 }
 
 .action-button {
-    transition: all 0.3s;
+    margin-left: 0 !important;
+    margin-right: 10px;
+    white-space: nowrap;
 }
 
-.action-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-/* 操作按钮容器样式改进 */
+/* 操作按钮容器样式 */
 .operation-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 16px;
     flex-wrap: wrap;
-    margin-bottom: 20px;
-    gap: 16px;
-}
-
-.left-operations {
-    display: flex;
     gap: 12px;
 }
 
+.left-operations,
 .right-operations {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background-color: #f8f9fa;
-    padding: 6px 12px;
-    border-radius: 6px;
-    border: 1px solid #ebeef5;
-    transition: all 0.3s;
-}
-
-.right-operations:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    gap: 12px;
 }
 
 .env-label {
-    color: #606266;
-    font-weight: 500;
+    color: var(--el-text-color-secondary);
+    white-space: nowrap;
 }
 
-/* 表格样式优化 */
-:deep(.el-table) {
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid #ebeef5;
+/* 上传按钮样式 */
+.upload-button {
+    display: inline-block;
 }
 
-:deep(.el-table th) {
-    background-color: #f5f7fa;
-    color: #606266;
-    font-weight: 600;
-    padding: 12px 8px;
-}
-
-:deep(.el-table td) {
-    padding: 12px 8px;
-}
-
-:deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
-    background-color: #fafafa;
-}
-
-:deep(.el-table__row:hover td) {
-    background-color: #f0f7ff !important;
-}
-
-/* 用例标题样式优化 */
+/* 表格内容样式 */
 .case-title {
     display: flex;
     align-items: center;
@@ -3216,16 +4552,13 @@ const getStatusCount = (status) => {
 }
 
 .title-text {
-    font-weight: 500;
-    color: #303133;
+    flex: 1;
 }
 
 .priority-tag {
-    min-width: 40px;
-    text-align: center;
+    flex-shrink: 0;
 }
 
-/* API信息样式优化 */
 .api-info {
     display: flex;
     align-items: center;
@@ -3233,189 +4566,476 @@ const getStatusCount = (status) => {
 }
 
 .method-tag {
-    min-width: 60px;
-    text-align: center;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    flex-shrink: 0;
 }
 
 .api-path {
-    color: #606266;
-    font-family: monospace;
+    color: var(--el-text-color-regular);
     word-break: break-all;
 }
 
-/* 状态标签样式优化 */
 .status-tag {
     min-width: 60px;
     text-align: center;
-    font-weight: 500;
 }
 
-/* 操作按钮样式优化 */
-.operation-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-}
-
-:deep(.el-button.is-circle) {
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s;
-}
-
-:deep(.el-button.is-circle:hover) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-}
-
-/* 分页样式优化 */
+/* 分页容器样式 */
 .pagination-container {
+    margin-top: 20px;
     display: flex;
     justify-content: flex-end;
-    margin-top: 20px;
 }
 
-/* 按钮组样式优化 */
-:deep(.el-button-group) {
+/* 内容类型显示 */
+.content-type-display {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background-color: #f5f7fa;
+    border-radius: 4px;
+    color: #606266;
+    font-size: 14px;
+    border-left: 3px solid #409eff;
+}
+
+/* 标签页样式 */
+.extractors-list {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.extractor-item-header {
+    display: flex;
+    align-items: center;
     gap: 8px;
 }
 
-:deep(.el-button-group .el-button) {
-    border-radius: 4px !important;
-    margin-right: 0 !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-}
-
-/* 表格空状态样式优化 */
-:deep(.el-empty) {
-    padding: 40px 0;
-}
-
-/* 响应面板样式优化 */
-.response-panel {
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid #dcdfe6;
-    margin-top: 20px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-}
-
-.response-header {
-    background-color: #f5f7fa;
-    padding: 14px 16px;
-}
-
-.response-title {
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.response-body {
-    border-radius: 0 0 8px 8px;
-    background-color: #fafafa;
-    border: 1px solid #ebeef5;
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-    line-height: 1.6;
-}
-
-/* 对话框样式优化 */
-:deep(.el-dialog) {
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-:deep(.el-dialog__header) {
-    background-color: #f5f7fa;
-    padding: 16px 20px;
-    margin: 0;
-    border-bottom: 1px solid #ebeef5;
-}
-
-:deep(.el-dialog__title) {
-    font-weight: 600;
-    color: #303133;
-}
-
-:deep(.el-dialog__body) {
-    padding: 20px;
-}
-
-:deep(.el-dialog__footer) {
-    padding: 16px 20px;
-    border-top: 1px solid #ebeef5;
-}
-
-/* 表单样式优化 */
-:deep(.el-form-item__label) {
+.extractor-name {
     font-weight: 500;
+    font-size: 14px;
 }
 
-:deep(.el-input) {
+.extractor-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.extracted-value {
+    margin-top: 8px;
+    padding: 8px;
     border-radius: 4px;
+    background-color: #f8f8f8;
 }
 
-:deep(.el-input__inner) {
-    transition: all 0.3s;
+.extracted-value-label {
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: #409EFF;
 }
 
-:deep(.el-input__inner:focus) {
-    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+.extracted-value-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
 }
 
-/* 添加动画效果 */
-:deep(.fade-enter-active),
-:deep(.fade-leave-active) {
-    transition: opacity 0.3s ease;
+/* 状态类型相关 */
+
+/* 提取器表单样式优化 */
+.extractor-form {
+    padding: 16px;
+    background-color: var(--el-fill-color-lighter);
+    border-radius: 8px;
+    margin-bottom: 16px;
 }
 
-:deep(.fade-enter-from),
-:deep(.fade-leave-to) {
-    opacity: 0;
+.extractor-form .el-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
 }
 
-/* 提示文本样式 */
-.tip-text {
-    color: #909399;
-    font-size: 12px;
-    line-height: 1.4;
-    margin-top: 4px;
+.extractor-form .el-form-item:last-child {
+    grid-column: 1 / -1;
 }
 
-/* 确保所有按钮中的图标都垂直居中 */
-:deep(.el-button) {
-    display: inline-flex;
+.extractor-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.extracted-value {
+    background-color: var(--el-fill-color-light);
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 8px;
+}
+
+.extracted-value-label {
+    font-weight: 600;
+    color: var(--el-color-primary);
+    margin-bottom: 8px;
+}
+
+.extracted-value-content {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.extracted-value-content .el-input {
+    flex-grow: 1;
+}
+
+.extracted-value-content .el-button {
+    flex-shrink: 0;
+    margin-top: 8px;
+}
+
+.extractor-item-header {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
+    gap: 12px;
 }
 
-:deep(.el-button .el-icon) {
-    margin: 0;
+.extractor-name {
+    font-weight: 500;
+    color: var(--el-text-color-primary);
 }
 
-/* 响应式适配 */
-@media screen and (max-width: 768px) {
-    .operation-container {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .right-operations {
-        width: 100%;
-    }
-    
-    .search-bar {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .search-input,
-    .filter-select {
-        width: 100%;
-    }
+/* 为提取器添加的样式 */
+.extractors-content, .tests-content {
+    border: 1px solid #ebeef5;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+.extractors-toolbar, .tests-toolbar {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.extractors-list, .tests-list {
+    margin-top: 10px;
+}
+
+.extractor-item-header, .test-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.extractor-name, .test-name {
+    font-weight: 500;
+    margin-left: 10px;
+    flex-grow: 1;
+}
+
+.extractor-form, .test-form {
+    padding: 10px;
+}
+
+.extractor-form-row, .test-form-row {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+}
+
+.flex-grow {
+    flex-grow: 1;
+}
+
+.extractor-buttons, .test-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.extracted-value {
+    margin-top: 15px;
+    border-top: 1px solid #ebeef5;
+    padding-top: 15px;
+}
+
+.extracted-value-label {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.extracted-value-content {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.test-result-tag {
+    margin-left: auto;
+}
+
+/* 测试卡片样式与提取器一致 */
+.tests-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+    width: 100%;
+}
+
+.tests-content {
+    padding: 10px;
+    border: 1px solid #ebeef5;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.tests-list .el-collapse {
+    width: 100%;
+    border: none;
+}
+
+.tests-list .el-collapse-item {
+    background-color: var(--el-bg-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    margin-bottom: 16px;
+    width: 100%;
+}
+
+.tests-list .el-collapse-item:hover {
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
+}
+
+.tests-list .el-collapse-item__header {
+    background-color: var(--el-fill-color-light);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    width: 100%;
+}
+
+.tests-list .el-collapse-item__content {
+    padding: 0;
+    width: 100%;
+}
+
+.test-form {
+    padding: 16px;
+    background-color: var(--el-bg-color);
+    border-radius: 0 0 8px 8px;
+    border: 1px solid var(--el-border-color);
+    margin-bottom: 0;
+    width: 100%;
+}
+
+.test-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.test-form-row .el-form-item {
+    margin-bottom: 8px;
+    min-width: 200px;
+}
+
+.test-form-row .flex-grow {
+    flex: 1;
+    min-width: 200px;
+}
+
+.test-form .el-form {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.test-item-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.test-name {
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+    flex: 1;
+}
+
+.test-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.test-result-tag {
+    margin-left: auto;
+}
+
+/* 确保测试和提取器区域具有相同的父容器宽度 */
+.tab-content {
+    overflow: visible;
+    width: 100%;
+}
+
+/* 工具栏样式统一 */
+.tests-toolbar, .extractors-toolbar {
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+}
+
+/* 测试卡片样式，与提取器卡片相同 */
+.tests-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+    width: 100%;
+}
+
+.tests-content {
+    padding: 12px;
+    border: 1px solid #ebeef5;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.tests-list .el-collapse {
+    width: 100%;
+    border: none;
+}
+
+.tests-list .el-collapse-item {
+    background-color: var(--el-bg-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    margin-bottom: 16px;
+    width: 100%;
+}
+
+.tests-list .el-collapse-item:hover {
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
+}
+
+.tests-list .el-collapse-item__header {
+    background-color: var(--el-fill-color-light);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    width: 100%;
+}
+
+.tests-list .el-collapse-item__content {
+    padding: 0;
+    width: 100%;
+}
+
+.test-form {
+    padding: 16px;
+    background-color: var(--el-bg-color);
+    border-radius: 0 0 8px 8px;
+    border: 1px solid var(--el-border-color);
+    margin-bottom: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.test-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.test-form-row .el-form-item {
+    margin-bottom: 8px;
+    min-width: 150px;
+    width: calc(50% - 8px);
+    box-sizing: border-box;
+}
+
+.test-form-row .flex-grow {
+    flex: 1;
+    min-width: 150px;
+    box-sizing: border-box;
+}
+
+.test-form .el-form {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.test-item-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.test-name {
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+    flex: 1;
+}
+
+.test-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.test-result-tag {
+    margin-left: auto;
+}
+
+/* 确保测试和提取器区域具有相同的父容器宽度 */
+.tab-content {
+    overflow: visible;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0;
+}
+
+/* 工具栏样式统一 */
+.tests-toolbar, .extractors-toolbar {
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 修复滚动问题 */
+.el-form-item__content {
+    width: 100%;
+    overflow: visible;
+}
+
+/* 优化表单样式 */
+.test-form .el-input, 
+.test-form .el-select,
+.test-form .el-input-number {
+    width: 100%;
 }
 </style>

@@ -20,6 +20,10 @@
                     <div class="user-info">
                         <h2>{{ userInfo.username }}</h2>
                         <p>{{ userInfo.email }}</p>
+                        <p class="user-meta">
+                            <span>用户ID: {{ userInfo.id }}</span>
+                            <span>注册时间: {{ formatDateTime(userInfo.date_joined) }}</span>
+                        </p>
                     </div>
                 </div>
 
@@ -44,6 +48,18 @@
                                 <el-button type="primary" @click="updateProfile">保存修改</el-button>
                             </el-form-item>
                         </el-form>
+                        
+                        <div class="account-info">
+                            <h3>账号信息</h3>
+                            <div class="info-item">
+                                <span class="label">最后登录时间:</span>
+                                <span>{{ formatDateTime(userInfo.last_login) }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">注册时间:</span>
+                                <span>{{ formatDateTime(userInfo.date_joined) }}</span>
+                            </div>
+                        </div>
                     </el-tab-pane>
 
                     <el-tab-pane label="修改密码" name="password">
@@ -146,6 +162,21 @@ const passwordRules = {
     ]
 };
 
+// 格式化日期时间
+const formatDateTime = (dateTimeStr) => {
+    if (!dateTimeStr) return '暂无记录';
+    const date = new Date(dateTimeStr);
+    return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+};
+
 const getUserInfo = async () => {
     try {
         const response = await fetch('/api/user/info', {
@@ -155,11 +186,12 @@ const getUserInfo = async () => {
         });
         const data = await response.json();
         if (data.code === 200) {
-            userInfo.value = data.data;
+            // 更新为新的数据结构
+            userInfo.value = data.data.user;
             profileData.value = {
-                username: data.data.username,
-                email: data.data.email,
-                phone: data.data.phone || ''
+                username: data.data.user.username,
+                email: data.data.user.email,
+                phone: data.data.user.phone || ''
             };
         }
     } catch (error) {
@@ -249,14 +281,12 @@ const beforeAvatarUpload = (file) => {
     const isLt2M = file.size / 1024 / 1024 < 2;
 
     if (!isJPG) {
-        ElMessage.error('头像只能是 JPG 或 PNG 格式!');
-        return false;
+        ElMessage.error('上传头像只能是 JPG 或 PNG 格式!');
     }
     if (!isLt2M) {
-        ElMessage.error('头像大小不能超过 2MB!');
-        return false;
+        ElMessage.error('上传头像大小不能超过 2MB!');
     }
-    return true;
+    return isJPG && isLt2M;
 };
 
 onMounted(() => {
@@ -266,44 +296,234 @@ onMounted(() => {
 
 <style scoped>
 .profile-card {
-    max-width: 800px;
+    width: 100%;
+    max-width: 900px;
     margin: 0 auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+    border-radius: 12px !important;
+    overflow: hidden;
 }
 
 .profile-header {
     display: flex;
-    align-items: center;
+    padding: 32px 24px;
     margin-bottom: 30px;
-    padding: 20px;
-    background-color: #f5f7fa;
-    border-radius: 8px;
+    border-bottom: 1px solid #f0f0f0;
+    background-color: #f9fafc;
 }
 
 .avatar-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-right: 30px;
+    margin-right: 48px;
+}
+
+:deep(.el-avatar) {
+    border: 4px solid #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s;
+}
+
+:deep(.el-avatar:hover) {
+    transform: scale(1.05);
 }
 
 .avatar-uploader {
-    margin-top: 10px;
+    margin-top: 20px;
+}
+
+.avatar-uploader :deep(.el-button) {
+    border-radius: 20px;
+    padding: 8px 16px;
+    transition: all 0.3s;
+}
+
+.avatar-uploader :deep(.el-button:hover) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
 }
 
 .user-info {
-    h2 {
-        margin: 0 0 10px 0;
-        color: #303133;
-    }
-    
-    p {
-        margin: 0;
-        color: #606266;
-    }
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
-.el-form {
-    max-width: 500px;
-    margin: 0 auto;
+.user-info h2 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 28px;
+    color: #303133;
+    font-weight: 600;
+}
+
+.user-info p {
+    margin: 8px 0;
+    color: #606266;
+    font-size: 16px;
+}
+
+.user-meta {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    font-size: 14px;
+    color: #909399;
+}
+
+.user-meta span {
+    background-color: #f2f6fc;
+    padding: 6px 12px;
+    border-radius: 16px;
+    color: #606266;
+}
+
+:deep(.el-tabs__header) {
+    margin-bottom: 30px;
+    border-bottom-color: #ebeef5;
+}
+
+:deep(.el-tabs__item) {
+    font-size: 16px;
+    padding: 0 24px 12px;
+    height: 48px;
+    line-height: 48px;
+    transition: all 0.3s;
+}
+
+:deep(.el-tabs__item.is-active) {
+    font-weight: 600;
+    color: #1890ff;
+}
+
+:deep(.el-tabs__active-bar) {
+    height: 3px;
+    border-radius: 3px;
+    background-color: #1890ff;
+}
+
+.account-info {
+    background-color: #f8f9fa;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 32px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    border: 1px solid #ebeef5;
+}
+
+.account-info h3 {
+    margin-top: 0;
+    margin-bottom: 24px;
+    font-size: 18px;
+    color: #303133;
+    font-weight: 600;
+    border-left: 4px solid #1890ff;
+    padding-left: 12px;
+}
+
+.info-item {
+    display: flex;
+    margin-bottom: 16px;
+    align-items: center;
+}
+
+.info-item:last-child {
+    margin-bottom: 0;
+}
+
+.info-item .label {
+    width: 150px;
+    color: #606266;
+    font-weight: 500;
+}
+
+.info-item span:last-child {
+    flex: 1;
+    color: #303133;
+    background-color: #fff;
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 1px solid #ebeef5;
+}
+
+:deep(.el-form) {
+    max-width: 600px;
+}
+
+:deep(.el-form-item__label) {
+    font-weight: 500;
+    color: #606266;
+}
+
+:deep(.el-input__wrapper) {
+    padding: 0 15px;
+    box-shadow: 0 0 0 1px #dcdfe6 inset;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+:deep(.el-input__wrapper:hover) {
+    box-shadow: 0 0 0 1px #1890ff inset;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+    box-shadow: 0 0 0 1px #1890ff inset;
+}
+
+:deep(.el-button--primary) {
+    background: linear-gradient(90deg, #1890ff 0%, #36cfc9 100%);
+    border: none;
+    padding: 12px 24px;
+    font-weight: 500;
+    font-size: 16px;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+:deep(.el-button--primary:hover) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(24, 144, 255, 0.3);
+}
+
+:deep(.el-form-item:last-child) {
+    margin-top: 30px;
+}
+
+@media screen and (max-width: 768px) {
+    .profile-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .avatar-container {
+        margin-right: 0;
+        margin-bottom: 24px;
+    }
+    
+    .user-meta {
+        justify-content: center;
+    }
+    
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .info-item .label {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .info-item span:last-child {
+        width: 100%;
+    }
+    
+    :deep(.el-form) {
+        width: 100%;
+    }
 }
 </style> 
