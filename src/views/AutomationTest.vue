@@ -858,7 +858,7 @@ const fetchTestSuites = async () => {
     loading.value = true;
     try {
         const response = await axios.get(
-            `http://localhost:8081/api/suite/list/${projectId}`,
+            `http://47.94.195.221:8000/api/suite/list/${projectId}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -896,7 +896,7 @@ const fetchEnvironments = async () => {
     
     try {
         const response = await axios.get(
-            `http://localhost:8081/api/env-suite/list/${projectId}`,
+            `http://47.94.195.221:8000/api/env-suite/list/${projectId}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -936,7 +936,7 @@ const fetchTestCases = async () => {
 
     loading.value = true;
     try {
-        const response = await fetch(`http://localhost:8081/api/testcase/list/${projectId}`, {
+        const response = await fetch(`http://47.94.195.221:8000/api/testcase/list/${projectId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1030,7 +1030,7 @@ const saveSuite = async () => {
                         // 更新测试套件
                         console.log('更新测试套件:', currentEditingSuiteId.value, requestData);
                         response = await axios.put(
-                            `http://localhost:8081/api/suite/update/${currentEditingSuiteId.value}`,
+                            `http://47.94.195.221:8000/api/suite/update/${currentEditingSuiteId.value}`,
                             requestData,
                             {
                                 headers: {
@@ -1042,7 +1042,7 @@ const saveSuite = async () => {
                         // 创建测试套件
                         console.log('创建测试套件:', requestData);
                         response = await axios.post(
-                            'http://localhost:8081/api/suite/create',
+                            'http://47.94.195.221:8000/api/suite/create',
                             requestData,
                             {
                                 headers: {
@@ -1095,7 +1095,7 @@ const runSuite = async (suite) => {
         try {
             // 先获取测试套件详情，确保有最新的用例数据
             const detailResponse = await axios.get(
-                `http://localhost:8081/api/suite/detail/${suiteId}`,
+                `http://47.94.195.221:8000/api/suite/detail/${suiteId}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1112,7 +1112,7 @@ const runSuite = async (suite) => {
             
             // 发送执行测试套件请求，添加启用提取器的参数和完整的用例数据
             const response = await axios.post(
-                `http://localhost:8081/api/suite/execute/${suiteId}`,
+                `http://47.94.195.221:8000/api/suite/execute/${suiteId}`,
                 { 
                     enable_extractors: true, // 启用提取器功能
                     env_id: suiteDetail.env_id,
@@ -1167,7 +1167,7 @@ const runSelectedSuite = async () => {
 const fetchTestReports = async () => {
     try {
         const response = await axios.get(
-            `http://localhost:8081/api/report/list/${projectId.value}`,
+            `http://47.94.195.221:8000/api/report/list/${projectId.value}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1190,7 +1190,7 @@ const fetchTestReports = async () => {
 const viewReport = async (report) => {
     try {
         const response = await axios.get(
-            `http://localhost:8081/api/report/detail/${report.id}`,
+            `http://47.94.195.221:8000/api/report/detail/${report.id}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1228,7 +1228,7 @@ const viewSuiteResults = async (suite) => {
         
         try {
             const response = await axios.get(
-                `http://localhost:8081/api/report/latest/${suiteId}`,
+                `http://47.94.195.221:8000/api/report/latest/${suiteId}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1270,7 +1270,7 @@ const editSuite = async (suite) => {
     
     try {
         const response = await axios.get(
-            `http://localhost:8081/api/suite/detail/${suiteId}`,
+            `http://47.94.195.221:8000/api/suite/detail/${suiteId}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1432,7 +1432,7 @@ const deleteReport = async (report) => {
         );
         
         const response = await axios.delete(
-            `http://localhost:8081/api/report/delete/${report.id}`,
+            `http://47.94.195.221:8000/api/report/delete/${report.id}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1489,7 +1489,7 @@ const deleteSuite = async (suite) => {
             
             // 调用删除接口
             const response = await axios.delete(
-                `http://localhost:8081/api/suite/delete/${suiteId}`,
+                `http://47.94.195.221:8000/api/suite/delete/${suiteId}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1614,7 +1614,7 @@ const saveCase = async () => {
 
             // 调用后端接口更新用例
             const response = await axios.put(
-                `http://localhost:8081/api/testcase/update/${caseId}`,
+                `http://47.94.195.221:8000/api/testcase/update/${caseId}`,
                 {
                     title: updatedCase.title,
                     method: updatedCase.method,
@@ -1737,7 +1737,7 @@ const deleteSelectedReports = async () => {
             // 并行删除所有选中的报告
             const deletePromises = selectedReports.value.map(report => 
                 axios.delete(
-                    `http://localhost:8081/api/report/delete/${report.id}`,
+                    `http://47.94.195.221:8000/api/report/delete/${report.id}`,
                     {
                         headers: {
                             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1812,7 +1812,7 @@ const deleteSelectedSuites = async () => {
                 }
                 
                 return axios.delete(
-                    `http://localhost:8081/api/suite/delete/${suiteId}`,
+                    `http://47.94.195.221:8000/api/suite/delete/${suiteId}`,
                     {
                         headers: {
                             'Authorization': `Bearer ${localStorage.getItem('token')}`

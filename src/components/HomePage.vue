@@ -262,7 +262,7 @@ const currentProjectId = ref(null);
 // 修改获取项目列表方法
 const fetchProjects = async () => {
   try {
-    const response = await fetch('http://localhost:8081/api/project/', {
+    const response = await fetch('http://47.94.195.221:8000/api/project/', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -388,7 +388,7 @@ const createProject = async () => {
   }
 
   try {
-    const response = await fetch('http://localhost:8081/api/project/create/', {
+    const response = await fetch('http://47.94.195.221:8000/api/project/create/', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,

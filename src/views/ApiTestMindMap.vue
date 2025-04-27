@@ -501,7 +501,7 @@ const fetchTestCases = async () => {
       return;
     }
     
-    const response = await request.get(`http://localhost:8081/api/testcase/list/${projectId.value}`);
+    const response = await request.get(`http://47.94.195.221:8000/api/testcase/list/${projectId.value}`);
     if (response.data.code === 200) {
       // 修改数据结构以匹配后端返回的格式
       testCases.value = response.data.data.testCases.map(testCase => ({

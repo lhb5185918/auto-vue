@@ -1,13 +1,13 @@
 <template>
   <Home>
-    <PageContainer title="仪表盘">
+    <PageContainer title="仪表盘" class="dashboard-container">
       <template #actions>
         <el-button type="primary" @click="refreshData">
           <el-icon><Refresh /></el-icon>刷新数据
         </el-button>
       </template>
 
-      <div class="dashboard-grid">
+      <div class="dashboard-content">
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <el-card 
@@ -36,155 +36,152 @@
 
         <!-- 图表区域 -->
         <div class="charts-container">
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-card class="chart-card" shadow="hover">
-                <template #header>
-                  <div class="card-header">
-                    <span>测试用例分布</span>
-                  </div>
-                </template>
-                <div class="chart-wrapper">
-                  <BarChart 
-                    :labels="['接口测试', '性能测试', 'UI测试', '安全测试']" 
-                    :data="[100, 200, 150, 80]"
-                    :chartOptions="{
-                      backgroundColor: ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C'],
-                      borderRadius: 8,
-                      title: '测试用例分布',
-                      enable3D: true,
-                      depth: 20,
-                      tooltips: {
-                        enabled: true,
-                        backgroundColor: 'rgba(0,0,0,0.8)',
-                        titleColor: '#fff'
-                      }
-                    }"
-                  />
+          <div class="chart-row">
+            <el-card class="chart-card" shadow="hover">
+              <template #header>
+                <div class="card-header">
+                  <span>测试用例分布</span>
                 </div>
-              </el-card>
-            </el-col>
-            <el-col :span="12">
-              <el-card class="chart-card" shadow="hover">
-                <template #header>
-                  <div class="card-header">
-                    <span>测试执行趋势</span>
-                    <el-radio-group v-model="trendTimeRange" size="small">
-                      <el-radio-button label="week">周</el-radio-button>
-                      <el-radio-button label="month">月</el-radio-button>
-                    </el-radio-group>
-                  </div>
-                </template>
-                <div class="chart-wrapper">
-                  <LineChart 
-                    :data="{
-                      labels: trendData.labels,
-                      datasets: [
-                        {
-                          label: '总执行次数',
-                          data: trendData.totalCounts,
-                          borderColor: '#409EFF',
-                          backgroundColor: 'rgba(64, 158, 255, 0.1)',
-                          fill: true,
-                          tension: 0.4
-                        },
-                        {
-                          label: '成功用例',
-                          data: trendData.successCounts,
-                          borderColor: '#67C23A',
-                          backgroundColor: 'rgba(103, 194, 58, 0.1)',
-                          fill: true,
-                          tension: 0.4
-                        },
-                        {
-                          label: '失败用例',
-                          data: trendData.failCounts,
-                          borderColor: '#F56C6C',
-                          backgroundColor: 'rgba(245, 108, 108, 0.1)',
-                          fill: true,
-                          tension: 0.4
+              </template>
+              <div class="chart-wrapper">
+                <BarChart 
+                  :labels="['接口测试', '性能测试', 'UI测试', '安全测试']" 
+                  :data="[100, 200, 150, 80]"
+                  :chartOptions="{
+                    backgroundColor: ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C'],
+                    borderRadius: 8,
+                    title: '测试用例分布',
+                    enable3D: true,
+                    depth: 20,
+                    tooltips: {
+                      enabled: true,
+                      backgroundColor: 'rgba(0,0,0,0.8)',
+                      titleColor: '#fff'
+                    }
+                  }"
+                />
+              </div>
+            </el-card>
+            
+            <el-card class="chart-card" shadow="hover">
+              <template #header>
+                <div class="card-header">
+                  <span>测试执行趋势</span>
+                  <el-radio-group v-model="trendTimeRange" size="small">
+                    <el-radio-button label="week">周</el-radio-button>
+                    <el-radio-button label="month">月</el-radio-button>
+                  </el-radio-group>
+                </div>
+              </template>
+              <div class="chart-wrapper">
+                <LineChart 
+                  :data="{
+                    labels: trendData.labels,
+                    datasets: [
+                      {
+                        label: '总执行次数',
+                        data: trendData.totalCounts,
+                        borderColor: '#409EFF',
+                        backgroundColor: 'rgba(64, 158, 255, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                      },
+                      {
+                        label: '成功用例',
+                        data: trendData.successCounts,
+                        borderColor: '#67C23A',
+                        backgroundColor: 'rgba(103, 194, 58, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                      },
+                      {
+                        label: '失败用例',
+                        data: trendData.failCounts,
+                        borderColor: '#F56C6C',
+                        backgroundColor: 'rgba(245, 108, 108, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                      }
+                    ]
+                  }"
+                  :options="{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                      intersect: false,
+                      mode: 'index'
+                    },
+                    plugins: {
+                      legend: {
+                        position: 'top',
+                        align: 'start',
+                        labels: {
+                          usePointStyle: true,
+                          padding: 20,
+                          font: {
+                            size: 12
+                          }
                         }
-                      ]
-                    }"
-                    :options="{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      interaction: {
+                      },
+                      tooltip: {
+                        mode: 'index',
                         intersect: false,
-                        mode: 'index'
-                      },
-                      plugins: {
-                        legend: {
-                          position: 'top',
-                          align: 'start',
-                          labels: {
-                            usePointStyle: true,
-                            padding: 20,
-                            font: {
-                              size: 12
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#303133',
+                        bodyColor: '#606266',
+                        borderColor: '#E4E7ED',
+                        borderWidth: 1,
+                        padding: 10,
+                        callbacks: {
+                          label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                              label += ': ';
                             }
-                          }
-                        },
-                        tooltip: {
-                          mode: 'index',
-                          intersect: false,
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          titleColor: '#303133',
-                          bodyColor: '#606266',
-                          borderColor: '#E4E7ED',
-                          borderWidth: 1,
-                          padding: 10,
-                          callbacks: {
-                            label: function(context) {
-                              let label = context.dataset.label || '';
-                              if (label) {
-                                label += ': ';
-                              }
-                              label += context.parsed.y + '个';
-                              return label;
-                            }
-                          }
-                        }
-                      },
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                          grid: {
-                            drawBorder: false,
-                            color: 'rgba(0, 0, 0, 0.05)'
-                          },
-                          ticks: {
-                            font: {
-                              size: 12
-                            }
-                          }
-                        },
-                        x: {
-                          grid: {
-                            display: false
-                          },
-                          ticks: {
-                            font: {
-                              size: 12
-                            }
+                            label += context.parsed.y + '个';
+                            return label;
                           }
                         }
                       }
-                    }"
-                  />
-                </div>
-              </el-card>
-            </el-col>
-          </el-row>
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        grid: {
+                          drawBorder: false,
+                          color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                          font: {
+                            size: 12
+                          }
+                        }
+                      },
+                      x: {
+                        grid: {
+                          display: false
+                        },
+                        ticks: {
+                          font: {
+                            size: 12
+                          }
+                        }
+                      }
+                    }
+                  }"
+                />
+              </div>
+            </el-card>
+          </div>
           
-          <el-row :gutter="20" class="mt-20">
-            <el-col :span="12">
-              <el-card class="chart-card" shadow="hover">
-                <template #header>
-                  <div class="card-header">
-                    <span>缺陷严重程度分布</span>
-                  </div>
-                </template>
+          <div class="chart-row">
+            <el-card class="chart-card" shadow="hover">
+              <template #header>
+                <div class="card-header">
+                  <span>缺陷严重程度分布</span>
+                </div>
+              </template>
+              <div class="chart-wrapper">
                 <PieChart
                   :data="[
                     { name: '致命', value: 20, color: '#F56C6C' },
@@ -192,16 +189,30 @@
                     { name: '一般', value: 40, color: '#409EFF' },
                     { name: '轻微', value: 10, color: '#67C23A' }
                   ]"
+                  :options="{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'right',
+                        labels: { 
+                          boxWidth: 15,
+                          padding: 15
+                        }
+                      }
+                    }
+                  }"
                 />
-              </el-card>
-            </el-col>
-            <el-col :span="12">
-              <el-card class="chart-card" shadow="hover">
-                <template #header>
-                  <div class="card-header">
-                    <span>测试覆盖率趋势</span>
-                  </div>
-                </template>
+              </div>
+            </el-card>
+            
+            <el-card class="chart-card" shadow="hover">
+              <template #header>
+                <div class="card-header">
+                  <span>测试覆盖率趋势</span>
+                </div>
+              </template>
+              <div class="chart-wrapper">
                 <AreaChart
                   :labels="['1月', '2月', '3月', '4月', '5月', '6月']"
                   :data="[75, 82, 85, 88, 90, 95]"
@@ -210,16 +221,18 @@
                     fillColor: '#409EFF',
                     strokeColor: '#409EFF',
                     tension: 0.4,
-                    tooltips: true
+                    tooltips: true,
+                    responsive: true,
+                    maintainAspectRatio: false
                   }"
                 />
-              </el-card>
-            </el-col>
-          </el-row>
+              </div>
+            </el-card>
+          </div>
         </div>
 
         <!-- 项目列表 -->
-        <el-card class="project-list" shadow="hover">
+        <el-card class="project-list-card" shadow="hover">
           <template #header>
             <div class="card-header">
               <span>最近项目</span>
@@ -229,39 +242,41 @@
               </el-button>
             </div>
           </template>
-          <el-table 
-            :data="recentProjects" 
-            style="width: 100%" 
-            v-loading="loading"
-            :height="240"
-          >
-            <el-table-column prop="name" label="项目名称" min-width="150">
-              <template #default="{ row }">
-                <el-link type="primary" @click="goToTestCases(row)">{{ row.name }}</el-link>
-              </template>
-            </el-table-column>
-            <el-table-column prop="description" label="描述" show-overflow-tooltip min-width="200" />
-            <el-table-column prop="create_time" label="创建时间" width="180">
-              <template #default="{ row }">
-                {{ formatDate(row.create_time) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="180" fixed="right">
-              <template #default="{ row }">
-                <el-button-group>
-                  <el-button type="primary" link @click="goToTestCases(row)">
-                    <el-icon><Document /></el-icon>用例
-                  </el-button>
-                  <el-button type="primary" link @click="goToAnalysis(row)">
-                    <el-icon><TrendCharts /></el-icon>分析
-                  </el-button>
-                  <el-button type="primary" link @click="goToReport(row)">
-                    <el-icon><DataAnalysis /></el-icon>报告
-                  </el-button>
-                </el-button-group>
-              </template>
-            </el-table-column>
-          </el-table>
+          <div class="project-list-container">
+            <el-table 
+              :data="recentProjects" 
+              style="width: 100%" 
+              v-loading="loading"
+              :height="240"
+            >
+              <el-table-column prop="name" label="项目名称" min-width="150">
+                <template #default="{ row }">
+                  <el-link type="primary" @click="goToTestCases(row)">{{ row.name }}</el-link>
+                </template>
+              </el-table-column>
+              <el-table-column prop="description" label="描述" show-overflow-tooltip min-width="200" />
+              <el-table-column prop="create_time" label="创建时间" width="180">
+                <template #default="{ row }">
+                  {{ formatDate(row.create_time) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="180" fixed="right">
+                <template #default="{ row }">
+                  <el-button-group>
+                    <el-button type="primary" link @click="goToTestCases(row)">
+                      <el-icon><Document /></el-icon>用例
+                    </el-button>
+                    <el-button type="primary" link @click="goToAnalysis(row)">
+                      <el-icon><TrendCharts /></el-icon>分析
+                    </el-button>
+                    <el-button type="primary" link @click="goToReport(row)">
+                      <el-icon><DataAnalysis /></el-icon>报告
+                    </el-button>
+                  </el-button-group>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
         </el-card>
       </div>
     </PageContainer>
@@ -494,70 +509,68 @@ const goToProjects = () => {
 </script>
 
 <style scoped>
-.dashboard-grid {
+.dashboard-container {
+  height: auto !important;
+  min-height: 100vh;
+  overflow-y: auto !important;
+}
+
+.dashboard-content {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  padding-bottom: 120px; /* 确保底部有足够空间 */
 }
 
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   margin-bottom: 24px;
 }
 
-.stat-card {
-  transition: all 0.3s ease;
-  background-color: #fff;
-  border-radius: 4px;
+.chart-card {
+  width: 100%;
+  height: auto;
 }
 
-.stat-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+.chart-wrapper {
+  height: 380px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.project-list-card {
+  width: 100%;
+}
+
+.project-list-container {
+  overflow-x: auto;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.card-header span {
-  font-size: 14px;
-  color: #606266;
-}
-
-.icon {
-  font-size: 20px;
-  color: #909399;
 }
 
 .card-content {
-  padding: 20px;
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  padding: 12px 0;
 }
 
 .card-value {
   font-size: 28px;
   font-weight: bold;
-  color: #303133;
-  line-height: 1;
-}
-
-.card-value.success {
-  color: #67C23A;
-}
-
-.card-value.warning {
-  color: #E6A23C;
+  margin-bottom: 8px;
 }
 
 .card-label {
@@ -565,120 +578,32 @@ const goToProjects = () => {
   color: #909399;
 }
 
-.charts-container {
-  margin-top: 20px;
-}
-
-.chart-card {
-  height: 400px;
-  transition: all 0.3s ease;
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-}
-
-.chart-wrapper {
-  flex: 1;
-  padding: 20px;
-  height: calc(100% - 57px);
-  position: relative;
-}
-
-:deep(.el-card__body) {
-  height: calc(100% - 57px);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-:deep(.chart-container) {
-  width: 100%;
-  height: 100%;
-}
-
-:deep(.el-card__header) {
-  padding: 15px 20px;
-  border-bottom: 1px solid #ebeef5;
-  background-color: #fafafa;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.el-row {
-  margin-bottom: 20px;
+/* 响应式布局 */
+@media (max-width: 1440px) {
+  .stat-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
   
-  &:last-child {
-    margin-bottom: 0;
+  .chart-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .chart-wrapper {
+    height: 340px;
   }
 }
 
-@media screen and (max-width: 1400px) {
-  .chart-card {
-    height: 350px;
+@media (max-width: 768px) {
+  .stat-cards {
+    grid-template-columns: 1fr;
   }
-}
-
-@media screen and (min-width: 1401px) {
-  .chart-card {
-    height: 400px;
+  
+  .chart-wrapper {
+    height: 300px;
   }
-}
-
-:deep(.el-table) {
-  margin: 0;  /* 移除之前的负边距 */
-}
-
-:deep(.el-table__body-wrapper) {
-  overflow-y: auto;
-}
-
-/* 美化表格样式 */
-:deep(.el-table th) {
-  background-color: #f5f7fa;
-  color: #606266;
-  font-weight: 500;
-}
-
-:deep(.el-table td, .el-table th) {
-  padding: 8px 0;
-}
-
-:deep(.el-button-group) {
-  display: flex;
-  gap: 8px;
-}
-
-:deep(.el-button-group .el-button) {
-  margin-left: 0 !important;
-}
-
-:deep(.el-button--link) {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-:deep(.el-link) {
-  font-weight: normal;
-}
-
-:deep(.el-link:hover) {
-  text-decoration: underline;
-}
-
-.project-list {
-  margin-top: 20px;
-}
-
-:deep(.el-radio-group) {
-  margin-left: 16px;
-}
-
-:deep(.el-radio-button__inner) {
-  padding: 4px 12px;
+  
+  .dashboard-content {
+    padding-bottom: 80px;
+  }
 }
 </style>

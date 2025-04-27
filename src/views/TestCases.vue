@@ -1897,7 +1897,7 @@ const handleResponse = (response) => {
 const updateTestCaseStatus = async (caseId, status) => {
     try {
         const response = await axios.put(
-            `http://localhost:8081/api/testcase/status/${caseId}`,
+            `http://47.94.195.221:8000/api/testcase/status/${caseId}`,
             {
                 status: status,
                 project_id: projectId.value
@@ -1933,7 +1933,7 @@ const submitTestCase = async () => {
     try {
         loading.value = true;
         const response = await axios.post(
-            `http://localhost:8081/api/testcase/execute/${testCaseForm.value.case_id}`,
+            `http://47.94.195.221:8000/api/testcase/execute/${testCaseForm.value.case_id}`,
             {
                 project_id: projectId.value
             }
@@ -2004,7 +2004,7 @@ const fetchTestCases = async () => {
     try {
         loading.value = true;
         const response = await axios.get(
-            `http://localhost:8081/api/testcase/list/${projectId.value}`,
+            `http://47.94.195.221:8000/api/testcase/list/${projectId.value}`,
             {
                 params: {
                     page: currentPage.value,
@@ -2049,7 +2049,7 @@ const executeTestCase = async (caseId) => {
     try {
         loading.value = true;
         
-        const response = await fetch(`http://localhost:8081/api/testcase/execute/${caseId}`, {
+        const response = await fetch(`http://47.94.195.221:8000/api/testcase/execute/${caseId}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -2555,8 +2555,8 @@ const saveTestCase = async () => {
 
                 // 根据是否有 case_id 判断是新建还是编辑
                 const url = testCaseForm.value.case_id
-                    ? `http://localhost:8081/api/testcase/update/${testCaseForm.value.case_id}/`
-                    : 'http://localhost:8081/api/testcase/create/';
+                    ? `http://47.94.195.221:8000/api/testcase/update/${testCaseForm.value.case_id}/`
+                    : 'http://47.94.195.221:8000/api/testcase/create/';
 
                 const response = await axios({
                     method: testCaseForm.value.case_id ? 'PUT' : 'POST',
@@ -2684,7 +2684,7 @@ const envList = ref([]);
 const fetchEnvList = async () => {
     try {
         const response = await axios.get(
-            `http://localhost:8081/api/env-suite/list/${projectId.value}`,
+            `http://47.94.195.221:8000/api/env-suite/list/${projectId.value}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -2783,7 +2783,7 @@ const submitEnvForm = async () => {
                 console.log('Submitting env form data:', requestData); // 添加调试日志
 
                 const response = await axios.post(
-                    'http://localhost:8081/api/env/create',
+                    'http://47.94.195.221:8000/api/env/create',
                     requestData,
                     {
                         headers: {
@@ -2921,7 +2921,7 @@ const editEnvVariable = async (variable) => {
 const submitEditVar = async () => {
     try {
         const response = await axios.put(
-            `http://localhost:8081/api/env/variable/${projectId.value}`,
+            `http://47.94.195.221:8000/api/env/variable/${projectId.value}`,
             {
                 id: editVarForm.value.id,
                 key: editVarForm.value.key,
@@ -2964,7 +2964,7 @@ const deleteEnvVariable = async (variable) => {
         );
 
         const response = await axios.delete(
-            `http://localhost:8081/api/env/variable/${variable.id}`,
+            `http://47.94.195.221:8000/api/env/variable/${variable.id}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -3271,7 +3271,7 @@ envForm.value = {
 const fetchEnvSuites = async () => {
     try {
         const response = await axios.get(
-            `http://localhost:8081/api/env-suite/list/${projectId.value}`,
+            `http://47.94.195.221:8000/api/env-suite/list/${projectId.value}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -3324,7 +3324,7 @@ const saveEnvSuite = async () => {
     if (valid) {
       try {
         const response = await axios.post(
-          'http://localhost:8081/api/env-suite/create',
+          'http://47.94.195.221:8000/api/env-suite/create',
           {
             ...envSuiteForm.value,
             project_id: projectId.value
@@ -3696,7 +3696,7 @@ const handleViewEnv = async () => {
         
         // 1. 获取环境套列表
         const suitesResponse = await axios.get(
-            `http://localhost:8081/api/env-suite/list/${projectId.value}`,
+            `http://47.94.195.221:8000/api/env-suite/list/${projectId.value}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -3714,7 +3714,7 @@ const handleViewEnv = async () => {
             
             // 2. 获取环境变量列表 - 使用正确的API
             const variablesResponse = await axios.get(
-                `http://localhost:8081/api/env/variable/${projectId.value}`,
+                `http://47.94.195.221:8000/api/env/variable/${projectId.value}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
