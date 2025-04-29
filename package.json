@@ -1,0 +1,41 @@
+{
+  "name": "vue-study",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@antv/g6": "^4.8.24",
+    "@antv/hierarchy": "^0.6.8",
+    "@antv/matrix-util": "^3.0.4",
+    "@babel/runtime": "^7.22.15",
+    "@babel/runtime-corejs3": "^7.27.0",
+    "@dagrejs/graphlib": "^2.1.4",
+    "@element-plus/icons-vue": "^2.3.1",
+    "axios": "^1.7.7",
+    "chart.js": "^4.4.6",
+    "color": "^3.2.1",
+    "dayjs": "^1.11.10",
+    "echarts": "^5.5.1",
+    "element-plus": "^2.8.8",
+    "jsplumb": "^2.15.6",
+    "kity": "^2.0.4",
+    "kityminder-core": "^1.4.50",
+    "lodash": "^4.17.21",
+    "tinycolor2": "^1.6.0",
+    "vue": "^3.5.12",
+    "vue-router": "^4.4.5",
+    "vuedraggable": "^2.24.3"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@vitejs/plugin-vue": "^5.1.4",
+    "vite": "^5.4.10",
+    "vite-plugin-commonjs": "^0.10.4",
+    "vite-plugin-vue-devtools": "^7.5.4"
+  }
+}
