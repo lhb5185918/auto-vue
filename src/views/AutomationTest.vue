@@ -858,7 +858,7 @@ const fetchTestSuites = async () => {
     loading.value = true;
     try {
         const response = await axios.get(
-            `http://47.94.195.221:8000/api/suite/list/${projectId}`,
+            `http://localhost:8081/api/suite/list/${projectId}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -872,8 +872,19 @@ const fetchTestSuites = async () => {
                 ...suite,
                 id: suite.suite_id, // 确保id字段存在，映射suite_id到id
                 selected: false,
-                executing: false
+                executing: false,
+                // 确保环境ID信息被正确映射，优先使用environment_cover_id
+                env_id: suite.environment_cover_id || suite.env_id
             }));
+            
+            // 确保环境数据已加载
+            if (environments.value.length === 0) {
+                await fetchEnvironments();
+            } else {
+                // 如果环境已加载，直接更新环境名称
+                updateSuiteEnvironmentNames();
+            }
+            
             console.log('Fetched test suites:', testSuites.value);
         } else {
             throw new Error(response.data.message || '获取测试套件失败');
@@ -886,6 +897,33 @@ const fetchTestSuites = async () => {
     }
 };
 
+// 更新测试套件的环境名称
+const updateSuiteEnvironmentNames = () => {
+    if (environments.value.length === 0 || testSuites.value.length === 0) return;
+    
+    console.log('正在更新套件环境名称，环境列表:', environments.value);
+    console.log('套件列表:', testSuites.value);
+    
+    // 创建环境ID到名称的映射
+    const envMap = {};
+    environments.value.forEach(env => {
+        envMap[env.id] = env.name;
+    });
+    
+    // 更新每个套件的环境名称
+    testSuites.value.forEach(suite => {
+        // 优先使用environment_cover_id作为环境ID
+        const envId = suite.environment_cover_id || suite.env_id;
+        console.log(`套件[${suite.name}]的环境ID: ${envId}, 映射的环境名称: ${envMap[envId] || '默认环境'}`);
+        suite.env_name = envMap[envId] || '默认环境';
+    });
+};
+
+// 当环境列表加载完成后更新套件的环境名称
+watch(() => environments.value, () => {
+    updateSuiteEnvironmentNames();
+}, { immediate: true });
+
 // 获取环境列表
 const fetchEnvironments = async () => {
     const projectId = route.query.projectId;
@@ -896,7 +934,7 @@ const fetchEnvironments = async () => {
     
     try {
         const response = await axios.get(
-            `http://47.94.195.221:8000/api/env-suite/list/${projectId}`,
+            `http://localhost:8081/api/env-suite/list/${projectId}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -917,6 +955,11 @@ const fetchEnvironments = async () => {
             }));
             
             console.log('解析后的环境列表:', environments.value);
+            
+            // 如果已经加载了测试套件，则更新环境名称
+            if (testSuites.value.length > 0) {
+                updateSuiteEnvironmentNames();
+            }
         } else {
             throw new Error(response.data.message || '获取环境列表失败');
         }
@@ -936,7 +979,7 @@ const fetchTestCases = async () => {
 
     loading.value = true;
     try {
-        const response = await fetch(`http://47.94.195.221:8000/api/testcase/list/${projectId}`, {
+        const response = await fetch(`http://localhost:8081/api/testcase/list/${projectId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1021,7 +1064,8 @@ const saveSuite = async () => {
                 let response;
                 const requestData = {
                     ...suiteForm.value,
-                    project_id: projectId.value
+                    project_id: projectId.value,
+                    environment_cover_id: suiteForm.value.envId // 添加environment_cover_id字段
                 };
                 
                 try {
@@ -1030,7 +1074,7 @@ const saveSuite = async () => {
                         // 更新测试套件
                         console.log('更新测试套件:', currentEditingSuiteId.value, requestData);
                         response = await axios.put(
-                            `http://47.94.195.221:8000/api/suite/update/${currentEditingSuiteId.value}`,
+                            `http://localhost:8081/api/suite/update/${currentEditingSuiteId.value}`,
                             requestData,
                             {
                                 headers: {
@@ -1042,7 +1086,7 @@ const saveSuite = async () => {
                         // 创建测试套件
                         console.log('创建测试套件:', requestData);
                         response = await axios.post(
-                            'http://47.94.195.221:8000/api/suite/create',
+                            'http://localhost:8081/api/suite/create',
                             requestData,
                             {
                                 headers: {
@@ -1057,8 +1101,8 @@ const saveSuite = async () => {
                         showSuiteDialog.value = false;
                         // 重置当前编辑的套件ID
                         currentEditingSuiteId.value = null;
-                        // 刷新测试套件列表
-                        fetchTestSuites();
+                        // 刷新测试套件列表并确保环境名称正确显示
+                        await fetchTestSuites();
                     } else {
                         throw new Error(response.data.message || '操作失败');
                     }
@@ -1095,7 +1139,7 @@ const runSuite = async (suite) => {
         try {
             // 先获取测试套件详情，确保有最新的用例数据
             const detailResponse = await axios.get(
-                `http://47.94.195.221:8000/api/suite/detail/${suiteId}`,
+                `http://localhost:8081/api/suite/detail/${suiteId}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1112,7 +1156,7 @@ const runSuite = async (suite) => {
             
             // 发送执行测试套件请求，添加启用提取器的参数和完整的用例数据
             const response = await axios.post(
-                `http://47.94.195.221:8000/api/suite/execute/${suiteId}`,
+                `http://localhost:8081/api/suite/execute/${suiteId}`,
                 { 
                     enable_extractors: true, // 启用提取器功能
                     env_id: suiteDetail.env_id,
@@ -1167,7 +1211,7 @@ const runSelectedSuite = async () => {
 const fetchTestReports = async () => {
     try {
         const response = await axios.get(
-            `http://47.94.195.221:8000/api/report/list/${projectId.value}`,
+            `http://localhost:8081/api/report/list/${projectId.value}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1190,7 +1234,7 @@ const fetchTestReports = async () => {
 const viewReport = async (report) => {
     try {
         const response = await axios.get(
-            `http://47.94.195.221:8000/api/report/detail/${report.id}`,
+            `http://localhost:8081/api/report/detail/${report.id}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1228,7 +1272,7 @@ const viewSuiteResults = async (suite) => {
         
         try {
             const response = await axios.get(
-                `http://47.94.195.221:8000/api/report/latest/${suiteId}`,
+                `http://localhost:8081/api/report/latest/${suiteId}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1270,7 +1314,7 @@ const editSuite = async (suite) => {
     
     try {
         const response = await axios.get(
-            `http://47.94.195.221:8000/api/suite/detail/${suiteId}`,
+            `http://localhost:8081/api/suite/detail/${suiteId}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1284,7 +1328,8 @@ const editSuite = async (suite) => {
             suiteForm.value = {
                 name: suiteData.name,
                 description: suiteData.description || '',
-                envId: suiteData.env_id,
+                // 优先使用environment_cover_id，如果不存在再使用env_id
+                envId: suiteData.environment_cover_id || suiteData.env_id,
                 selectedCases: suiteData.cases?.map(c => ({
                     ...c,
                     case_id: c.case_id.toString(), // 确保case_id是字符串类型
@@ -1346,9 +1391,10 @@ const getProgressStatus = (rate) => {
 
 // 在组件挂载时获取测试套件和报告
 onMounted(async () => {
+    // 先加载环境列表，确保在获取测试套件时能正确显示环境名称
+    await fetchEnvironments(); 
     await fetchTestSuites();
-    await fetchEnvironments(); // 添加获取环境列表
-    await fetchTestReports(); // 添加获取测试报告
+    await fetchTestReports(); 
     console.log('组件挂载完成，环境列表:', environments.value);
 });
 
@@ -1432,7 +1478,7 @@ const deleteReport = async (report) => {
         );
         
         const response = await axios.delete(
-            `http://47.94.195.221:8000/api/report/delete/${report.id}`,
+            `http://localhost:8081/api/report/delete/${report.id}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1489,7 +1535,7 @@ const deleteSuite = async (suite) => {
             
             // 调用删除接口
             const response = await axios.delete(
-                `http://47.94.195.221:8000/api/suite/delete/${suiteId}`,
+                `http://localhost:8081/api/suite/delete/${suiteId}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1614,7 +1660,7 @@ const saveCase = async () => {
 
             // 调用后端接口更新用例
             const response = await axios.put(
-                `http://47.94.195.221:8000/api/testcase/update/${caseId}`,
+                `http://localhost:8081/api/testcase/update/${caseId}`,
                 {
                     title: updatedCase.title,
                     method: updatedCase.method,
@@ -1737,7 +1783,7 @@ const deleteSelectedReports = async () => {
             // 并行删除所有选中的报告
             const deletePromises = selectedReports.value.map(report => 
                 axios.delete(
-                    `http://47.94.195.221:8000/api/report/delete/${report.id}`,
+                    `http://localhost:8081/api/report/delete/${report.id}`,
                     {
                         headers: {
                             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1812,7 +1858,7 @@ const deleteSelectedSuites = async () => {
                 }
                 
                 return axios.delete(
-                    `http://47.94.195.221:8000/api/suite/delete/${suiteId}`,
+                    `http://localhost:8081/api/suite/delete/${suiteId}`,
                     {
                         headers: {
                             'Authorization': `Bearer ${localStorage.getItem('token')}`

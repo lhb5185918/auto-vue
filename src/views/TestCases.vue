@@ -170,6 +170,13 @@
                             >
                                 新建环境套
                             </el-button>
+                            <el-button 
+                                type="success" 
+                                @click="showEnvSuitesDialog"
+                                :icon="List"
+                            >
+                                查看环境套
+                            </el-button>
                         </el-button-group>
                     </div>
                     <div class="right-operations">
@@ -1474,6 +1481,45 @@
                     </div>
                 </template>
             </el-dialog>
+
+            <!-- 环境套列表对话框 -->
+            <el-dialog
+                title="环境套列表"
+                v-model="showEnvSuitesListDialog"
+                width="50%"
+                class="env-suites-dialog"
+            >
+                <el-table
+                    :data="envSuites"
+                    border
+                    stripe
+                    style="width: 100%"
+                    v-loading="loading"
+                >
+                    <el-table-column prop="id" label="ID" width="80" align="center" />
+                    <el-table-column prop="name" label="环境套名称" min-width="150" />
+                    <el-table-column prop="description" label="描述" min-width="200" />
+                    <el-table-column label="操作" width="120" align="center">
+                        <template #default="{ row }">
+                            <el-button
+                                type="danger"
+                                size="small"
+                                @click="deleteEnvSuite(row)"
+                                :icon="Delete"
+                                circle
+                            />
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <div v-if="envSuites.length === 0" class="empty-data">
+                    <el-empty description="暂无环境套数据" />
+                </div>
+                <template #footer>
+                    <div class="dialog-footer">
+                        <el-button @click="showEnvSuitesListDialog = false">关闭</el-button>
+                    </div>
+                </template>
+            </el-dialog>
         </PageContainer>
     </Home>
 </template>
@@ -1897,7 +1943,7 @@ const handleResponse = (response) => {
 const updateTestCaseStatus = async (caseId, status) => {
     try {
         const response = await axios.put(
-            `http://47.94.195.221:8000/api/testcase/status/${caseId}`,
+            `http://localhost:8081/api/testcase/status/${caseId}`,
             {
                 status: status,
                 project_id: projectId.value
@@ -1933,7 +1979,7 @@ const submitTestCase = async () => {
     try {
         loading.value = true;
         const response = await axios.post(
-            `http://47.94.195.221:8000/api/testcase/execute/${testCaseForm.value.case_id}`,
+            `http://localhost:8081/api/testcase/execute/${testCaseForm.value.case_id}`,
             {
                 project_id: projectId.value
             }
@@ -2004,7 +2050,7 @@ const fetchTestCases = async () => {
     try {
         loading.value = true;
         const response = await axios.get(
-            `http://47.94.195.221:8000/api/testcase/list/${projectId.value}`,
+            `http://localhost:8081/api/testcase/list/${projectId.value}`,
             {
                 params: {
                     page: currentPage.value,
@@ -2049,7 +2095,7 @@ const executeTestCase = async (caseId) => {
     try {
         loading.value = true;
         
-        const response = await fetch(`http://47.94.195.221:8000/api/testcase/execute/${caseId}`, {
+        const response = await fetch(`http://localhost:8081/api/testcase/execute/${caseId}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -2103,7 +2149,7 @@ const deleteTestCase = async (row) => {
             type: 'warning',
         });
         
-        const response = await fetch(`http://localhost:8000/api/testcases/${row.case_id}`, {
+        const response = await fetch(`http://localhost:8081/api/testcases/${row.case_id}`, {
             method: 'DELETE',
         });
 
@@ -2555,8 +2601,8 @@ const saveTestCase = async () => {
 
                 // 根据是否有 case_id 判断是新建还是编辑
                 const url = testCaseForm.value.case_id
-                    ? `http://47.94.195.221:8000/api/testcase/update/${testCaseForm.value.case_id}/`
-                    : 'http://47.94.195.221:8000/api/testcase/create/';
+                    ? `http://localhost:8081/api/testcase/update/${testCaseForm.value.case_id}/`
+                    : 'http://localhost:8081/api/testcase/create/';
 
                 const response = await axios({
                     method: testCaseForm.value.case_id ? 'PUT' : 'POST',
@@ -2684,7 +2730,7 @@ const envList = ref([]);
 const fetchEnvList = async () => {
     try {
         const response = await axios.get(
-            `http://47.94.195.221:8000/api/env-suite/list/${projectId.value}`,
+            `http://localhost:8081/api/env-suite/list/${projectId.value}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -2783,7 +2829,7 @@ const submitEnvForm = async () => {
                 console.log('Submitting env form data:', requestData); // 添加调试日志
 
                 const response = await axios.post(
-                    'http://47.94.195.221:8000/api/env/create',
+                    'http://localhost:8081/api/env/create',
                     requestData,
                     {
                         headers: {
@@ -2921,7 +2967,7 @@ const editEnvVariable = async (variable) => {
 const submitEditVar = async () => {
     try {
         const response = await axios.put(
-            `http://47.94.195.221:8000/api/env/variable/${projectId.value}`,
+            `http://localhost:8081/api/env/variable/${projectId.value}`,
             {
                 id: editVarForm.value.id,
                 key: editVarForm.value.key,
@@ -2964,7 +3010,7 @@ const deleteEnvVariable = async (variable) => {
         );
 
         const response = await axios.delete(
-            `http://47.94.195.221:8000/api/env/variable/${variable.id}`,
+            `http://localhost:8081/api/env/variable/${variable.id}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -3271,7 +3317,7 @@ envForm.value = {
 const fetchEnvSuites = async () => {
     try {
         const response = await axios.get(
-            `http://47.94.195.221:8000/api/env-suite/list/${projectId.value}`,
+            `http://localhost:8081/api/env-suite/list/${projectId.value}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -3324,7 +3370,7 @@ const saveEnvSuite = async () => {
     if (valid) {
       try {
         const response = await axios.post(
-          'http://47.94.195.221:8000/api/env-suite/create',
+          'http://localhost:8081/api/env-suite/create',
           {
             ...envSuiteForm.value,
             project_id: projectId.value
@@ -3616,7 +3662,7 @@ const getStatusTagType = (status) => {
 // 处理环境套变更
 const handleEnvChange = async (value) => {
     try {
-        await axios.put('/environment/current/', {
+        await axios.put('http://localhost:8081/api/environment/current/', {
             env_id: value
         });
         ElMessage.success('环境套切换成功');
@@ -3696,7 +3742,7 @@ const handleViewEnv = async () => {
         
         // 1. 获取环境套列表
         const suitesResponse = await axios.get(
-            `http://47.94.195.221:8000/api/env-suite/list/${projectId.value}`,
+            `http://localhost:8081/api/env-suite/list/${projectId.value}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -3714,7 +3760,7 @@ const handleViewEnv = async () => {
             
             // 2. 获取环境变量列表 - 使用正确的API
             const variablesResponse = await axios.get(
-                `http://47.94.195.221:8000/api/env/variable/${projectId.value}`,
+                `http://localhost:8081/api/env/variable/${projectId.value}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -3928,9 +3974,59 @@ const getOperator = (condition) => {
     };
     return operatorMap[condition] || '==';
 };
+
+// 环境套相关数据
+const showEnvSuitesListDialog = ref(false);
+
+// 显示环境套列表对话框
+const showEnvSuitesDialog = () => {
+    fetchEnvSuites().then(() => {
+        showEnvSuitesListDialog.value = true;
+    });
+};
+
+// 删除环境套
+const deleteEnvSuite = async (suite) => {
+    try {
+        await ElMessageBox.confirm(`确定要删除环境套 "${suite.name}" 吗？删除后无法恢复！`, '警告', {
+            type: 'warning',
+            confirmButtonText: '确定',
+            cancelButtonText: '取消'
+        });
+        
+        loading.value = true;
+        const response = await axios.delete(
+            `http://localhost:8081/api/env-suite/delete/${suite.id}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            }
+        );
+        
+        if (response.data.code === 200) {
+            ElMessage.success('环境套删除成功');
+            // 重新获取环境套列表
+            await fetchEnvSuites();
+            // 如果当前选中的是被删除的环境套，清空选择
+            if (currentEnvId.value === suite.id) {
+                currentEnvId.value = '';
+            }
+        } else {
+            ElMessage.error(response.data.message || '删除环境套失败');
+        }
+    } catch (error) {
+        if (error !== 'cancel') {
+            console.error('删除环境套失败:', error);
+            ElMessage.error('删除环境套失败，请重试');
+        }
+    } finally {
+        loading.value = false;
+    }
+};
   </script>
 
-  <style>
+  <style scoped>
 
 /* 环境变量列表样式 */
 .env-list-container {
@@ -5038,4 +5134,31 @@ const getOperator = (condition) => {
 .test-form .el-input-number {
     width: 100%;
 }
+
+/* 环境套对话框样式 */
+.env-suites-dialog {
+    max-width: 800px;
+}
+
+.empty-data {
+    padding: 20px 0;
+    text-align: center;
+}
+
+.dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+}
+
+:deep(.el-dialog__header) {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+:deep(.el-table .el-button.is-circle) {
+    margin-right: 0;
+}
+
+/* 其他已有的样式 */
 </style>

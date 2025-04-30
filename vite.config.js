@@ -37,7 +37,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://47.94.195.221:8000',
+        target: 'http://localhost:8081',
         changeOrigin: true,
         rewrite: path => path.replace(/^\/api/, '')  // 保持路径重写[5](@ref)
       }
@@ -63,36 +63,36 @@ export default defineConfig({
     }
   },
   build: {
-    commonjsOptions: {
-      include: [
-        /node_modules\/(is-arrayish|simple-swizzle|color|@antv)/, // 扩展匹配范围[6](@ref)
-        /@dagrejs\/graphlib/,
-        /dayjs/,
-        /lodash/
-      ],
-      transformMixedEsModules: true,
-      defaultIsModuleExports: 'auto'
-    },
+    // commonjsOptions: {
+    //   include: [
+    //     /node_modules\/(is-arrayish|simple-swizzle|color|@antv)/, // 扩展匹配范围[6](@ref)
+    //     /@dagrejs\/graphlib/,
+    //     /dayjs/,
+    //     /lodash/
+    //   ],
+    //   transformMixedEsModules: true,
+    //   defaultIsModuleExports: 'auto'
+    // },
     rollupOptions: {
       plugins: [
-        commonjs({
-          include: /node_modules/,
-          requireReturnsDefault: 'preferred',
-          dynamicRequireTargets: [
-            'node_modules/@antv/**/*.js', // 显式包含AntV模块[6](@ref)
-            'node_modules/is-arrayish/**/*.js',
-            'node_modules/simple-swizzle/**/*.js',
-            'node_modules/color/**/*.js'
-          ]
-        })
+        // commonjs({
+        //   include: /node_modules/,
+        //   requireReturnsDefault: 'auto',
+        //   dynamicRequireTargets: [
+        //     'node_modules/@antv/**/*.js', // 显式包含AntV模块[6](@ref)
+        //     'node_modules/is-arrayish/**/*.js',
+        //     'node_modules/simple-swizzle/**/*.js',
+        //     'node_modules/color/**/*.js'
+        //   ]
+        // })
       ],
       output: {
         manualChunks: {
-          'lodash': ['lodash'],
-          'g6': ['@antv/g6', '@antv/matrix-util'], // 合并AntV核心库[2](@ref)
-          'color-utils': ['color', 'simple-swizzle', 'is-arrayish']
+          // 'lodash': ['lodash'],
+          // 'g6': ['@antv/g6', '@antv/matrix-util'], // 合并AntV核心库[2](@ref)
+          // 'color-utils': ['color', 'simple-swizzle', 'is-arrayish', 'tinycolor2']
         },
-        interop: 'auto'
+        // interop: 'compat'
       },
       onwarn(warning, warn) {
         if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return

@@ -179,7 +179,7 @@ const formatDateTime = (dateTimeStr) => {
 
 const getUserInfo = async () => {
     try {
-        const response = await fetch('/api/user/info', {
+        const response = await fetch('http://localhost:8081/api/user/info', {
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
@@ -206,7 +206,7 @@ const updateProfile = async () => {
     await profileForm.value.validate(async (valid) => {
         if (valid) {
             try {
-                const response = await fetch('/api/user/update', {
+                const response = await fetch('http://localhost:8081/api/user/info', {
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -236,7 +236,7 @@ const updatePassword = async () => {
     await passwordForm.value.validate(async (valid) => {
         if (valid) {
             try {
-                const response = await fetch('/api/user/password', {
+                const response = await fetch('http://localhost:8081/api/user/info', {
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,

@@ -444,7 +444,7 @@ const handleSearch = async () => {
     };
 
     const response = await axios.post(
-      'http://47.94.195.221:8000/api/project/',
+      'http://localhost:8081/api/project/',
       params,
       {
         headers: {

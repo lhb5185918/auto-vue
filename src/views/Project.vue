@@ -295,7 +295,7 @@ const formatDate = (dateString) => {
 const getProjects = async () => {
   loading.value = true;
   try {
-    const response = await axios.post('http://47.94.195.221:8000/api/project/',
+    const response = await axios.post('http://localhost:8081/api/project/',
       {
         page: currentPage.value,
         page_size: pageSize.value
@@ -432,7 +432,7 @@ const submitEdit = async () => {
       submitting.value = true;
       try {
         const response = await axios.post(
-          `http://47.94.195.221:8000/api/project/edit/`,
+          `http://localhost:8081/api/project/edit/`,
           editForm.value,
           {
             headers: {
@@ -481,7 +481,7 @@ const submitCreate = async () => {
       submitting.value = true;
       try {
         const response = await axios.post(
-          'http://47.94.195.221:8000/api/project/create/',
+          'http://localhost:8081/api/project/create/',
           createForm.value,
           {
             headers: {
@@ -522,7 +522,7 @@ const confirmDelete = async () => {
   
   try {
     const response = await axios.post(
-      'http://47.94.195.221:8000/api/project/delete/',
+      'http://localhost:8081/api/project/delete/',
       { id: projectToDelete.value.id },
       {
         headers: {
