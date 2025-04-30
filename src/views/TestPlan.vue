@@ -238,14 +238,14 @@
             </div>
           </el-form-item>
 
-          <el-form-item label="选择用例" prop="testCases">
+          <el-form-item label="选择测试套件" prop="testSuites">
             <el-transfer
-              v-model="planForm.testCases"
-              :data="availableTestCases"
-              :titles="['可选用例', '已选用例']"
+              v-model="planForm.testSuites"
+              :data="availableTestSuites"
+              :titles="['可选测试套件', '已选测试套件']"
               :props="{
-                key: 'id',
-                label: 'title'
+                key: 'suite_id',
+                label: 'name'
               }"
               filterable
             />
@@ -308,6 +308,7 @@ const total = ref(0);
 const searchKeyword = ref('');
 const statusFilter = ref('');
 const selectedPlans = ref([]);
+const projectId = ref(null);
 
 // 表单相关
 const showDialog = ref(false);
@@ -319,7 +320,7 @@ const planForm = ref({
   scheduleType: 'once',
   executeTime: '',
   cronExpression: '',
-  testCases: [],
+  testSuites: [],
   retryTimes: 0,
   notifyTypes: []
 });
@@ -361,11 +362,11 @@ const rules = {
       }
     }
   ],
-  testCases: [
+  testSuites: [
     { 
       type: 'array', 
       required: true, 
-      message: '请选择测试用例', 
+      message: '请选择测试套件', 
       trigger: 'change' 
     }
   ]
@@ -373,6 +374,7 @@ const rules = {
 
 // 可选的测试用例列表
 const availableTestCases = ref([]);
+const availableTestSuites = ref([]);
 
 // 获取测试计划列表
 const fetchTestPlans = async () => {
@@ -409,6 +411,23 @@ const fetchTestCases = async () => {
   } catch (error) {
     console.error('获取测试用例失败:', error);
     ElMessage.error('获取测试用例失败');
+  }
+};
+
+// 获取可用的测试套件
+const fetchTestSuites = async () => {
+  try {
+    const response = await request.get('/api/suite/list', {
+      params: {
+        projectId: projectId.value
+      }
+    });
+    if (response.data.code === 200) {
+      availableTestSuites.value = response.data.data.suites;
+    }
+  } catch (error) {
+    console.error('获取测试套件失败:', error);
+    ElMessage.error('获取测试套件失败');
   }
 };
 
@@ -556,7 +575,7 @@ const showCreateDialog = () => {
     scheduleType: 'once',
     executeTime: '',
     cronExpression: '',
-    testCases: [],
+    testSuites: [],
     retryTimes: 0,
     notifyTypes: []
   };
@@ -662,7 +681,7 @@ const handleCurrentChange = (val) => {
 
 onMounted(() => {
   fetchTestPlans();
-  fetchTestCases();
+  fetchTestSuites();
 });
 </script>
 

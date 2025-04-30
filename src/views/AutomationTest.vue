@@ -414,7 +414,12 @@
             >
                 <div class="report-content" v-if="currentReport">
                     <div class="report-header">
-                        <h2>{{ currentReport.suiteName }} - 测试报告</h2>
+                        <div class="report-title-row">
+                            <h2>{{ currentReport.suiteName }} - 测试报告</h2>
+                            <el-button type="primary" @click="viewExecutionLog(currentReport)" size="small">
+                                <el-icon><Document /></el-icon> 查看执行日志
+                            </el-button>
+                        </div>
                         <div class="report-meta">
                             <div class="meta-item">
                                 <span class="label">执行时间：</span>
@@ -660,6 +665,198 @@
                         <el-button type="primary" @click="saveCase">保存</el-button>
                     </div>
                 </template>
+            </el-dialog>
+
+            <!-- 执行日志对话框 -->
+            <el-dialog
+                title="执行日志"
+                v-model="showLogDialog"
+                width="85%"
+                class="log-dialog"
+                append-to-body
+                fullscreen
+            >
+                <div class="log-content" v-if="currentExecutionLog">
+                    <!-- 执行概览 -->
+                    <div class="log-overview">
+                        <el-row :gutter="20">
+                            <el-col :span="8">
+                                <div class="overview-item">
+                                    <span class="label">执行时间:</span>
+                                    <span>{{ currentExecutionLog.execution_time }}</span>
+                                </div>
+                            </el-col>
+                            <el-col :span="8">
+                                <div class="overview-item">
+                                    <span class="label">总耗时:</span>
+                                    <span>{{ currentExecutionLog.duration }}秒</span>
+                                </div>
+                            </el-col>
+                            <el-col :span="8">
+                                <div class="overview-item">
+                                    <span class="label">执行环境:</span>
+                                    <span>{{ currentExecutionLog.environment?.name || '默认环境' }}</span>
+                                </div>
+                            </el-col>
+                        </el-row>
+                        
+                        <el-row :gutter="20" class="stats-row">
+                            <el-col :span="6">
+                                <div class="stat-card total">
+                                    <div class="stat-number">{{ getCurrentTotalCases() }}</div>
+                                    <div class="stat-label">总用例数</div>
+                                </div>
+                            </el-col>
+                            <el-col :span="6">
+                                <div class="stat-card passed">
+                                    <div class="stat-number">{{ getPassedCases() }}</div>
+                                    <div class="stat-label">通过用例数</div>
+                                </div>
+                            </el-col>
+                            <el-col :span="6">
+                                <div class="stat-card failed">
+                                    <div class="stat-number">{{ getFailedCases() }}</div>
+                                    <div class="stat-label">失败/错误用例数</div>
+                                </div>
+                            </el-col>
+                            <el-col :span="6">
+                                <div class="stat-card rate">
+                                    <div class="stat-number">{{ getPassRate() }}</div>
+                                    <div class="stat-label">通过率</div>
+                                </div>
+                            </el-col>
+                        </el-row>
+                        
+                        <div class="log-message" v-if="currentExecutionLog.log_detail">
+                            <el-alert
+                                :title="currentExecutionLog.log_detail"
+                                :type="getLogAlertType()"
+                                :closable="false"
+                                show-icon
+                            />
+                        </div>
+                        
+                        <div class="log-error" v-if="currentExecutionLog.error_message">
+                            <el-alert
+                                :title="currentExecutionLog.error_message"
+                                type="error"
+                                :closable="false"
+                                show-icon
+                            />
+                        </div>
+                    </div>
+                    
+                    <!-- 测试用例详情 -->
+                    <div class="cases-detail" v-if="currentExecutionLog.response && currentExecutionLog.response.body">
+                        <h3>测试用例执行详情</h3>
+                        
+                        <el-collapse accordion>
+                            <el-collapse-item v-for="(caseItem, index) in currentExecutionLog.response.body" :key="index" 
+                                :title="`${index + 1}. ${caseItem.title} (${caseItem.method} ${caseItem.api_path})`"
+                                :name="index"
+                                :class="{'error-case': caseItem.status === 'ERROR' || caseItem.status === 'FAIL'}"
+                            >
+                                <template #extra>
+                                    <el-tag :type="getCaseStatusType(caseItem.status)" size="small">
+                                        {{ caseItem.status }}
+                                    </el-tag>
+                                    <span class="case-duration">{{ caseItem.duration }}秒</span>
+                                </template>
+                                
+                                <el-tabs>
+                                    <el-tab-pane label="请求详情">
+                                        <div class="detail-section">
+                                            <div class="detail-item">
+                                                <div class="detail-label">请求URL:</div>
+                                                <div class="detail-value">{{ caseItem.api_path }}</div>
+                                            </div>
+                                            <div class="detail-item">
+                                                <div class="detail-label">请求方法:</div>
+                                                <div class="detail-value">{{ caseItem.method }}</div>
+                                            </div>
+                                            
+                                            <div class="detail-item" v-if="caseItem.request && caseItem.request.headers">
+                                                <div class="detail-label">请求头:</div>
+                                                <div class="detail-value">
+                                                    <el-button size="small" @click="toggleJsonFormat(index, 'reqHeaders')" type="info" plain>
+                                                        {{ isJsonFormatted(index, 'reqHeaders') ? '收起' : '展开格式化' }}
+                                                    </el-button>
+                                                    <pre v-if="isJsonFormatted(index, 'reqHeaders')">{{ formatJson(caseItem.request.headers) }}</pre>
+                                                    <div v-else class="truncated-json">{{ JSON.stringify(caseItem.request.headers) }}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="detail-item" v-if="caseItem.request && (caseItem.request.body || caseItem.request.params)">
+                                                <div class="detail-label">请求参数:</div>
+                                                <div class="detail-value">
+                                                    <el-button size="small" @click="toggleJsonFormat(index, 'reqBody')" type="info" plain>
+                                                        {{ isJsonFormatted(index, 'reqBody') ? '收起' : '展开格式化' }}
+                                                    </el-button>
+                                                    <pre v-if="isJsonFormatted(index, 'reqBody')">{{ formatJson(caseItem.request.body || caseItem.request.params) }}</pre>
+                                                    <div v-else class="truncated-json">{{ JSON.stringify(caseItem.request.body || caseItem.request.params) }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </el-tab-pane>
+                                    
+                                    <el-tab-pane label="响应详情">
+                                        <div class="detail-section">
+                                            <div class="detail-item" v-if="caseItem.response && caseItem.response.status_code !== undefined">
+                                                <div class="detail-label">状态码:</div>
+                                                <div class="detail-value">{{ caseItem.response.status_code }}</div>
+                                            </div>
+                                            
+                                            <div class="detail-item" v-if="caseItem.response && caseItem.response.headers">
+                                                <div class="detail-label">响应头:</div>
+                                                <div class="detail-value">
+                                                    <el-button size="small" @click="toggleJsonFormat(index, 'respHeaders')" type="info" plain>
+                                                        {{ isJsonFormatted(index, 'respHeaders') ? '收起' : '展开格式化' }}
+                                                    </el-button>
+                                                    <pre v-if="isJsonFormatted(index, 'respHeaders')">{{ formatJson(caseItem.response.headers) }}</pre>
+                                                    <div v-else class="truncated-json">{{ JSON.stringify(caseItem.response.headers) }}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="detail-item" v-if="caseItem.response && caseItem.response.body">
+                                                <div class="detail-label">响应体:</div>
+                                                <div class="detail-value">
+                                                    <el-button size="small" @click="toggleJsonFormat(index, 'respBody')" type="info" plain>
+                                                        {{ isJsonFormatted(index, 'respBody') ? '收起' : '展开格式化' }}
+                                                    </el-button>
+                                                    <pre v-if="isJsonFormatted(index, 'respBody')">{{ formatJson(caseItem.response.body) }}</pre>
+                                                    <div v-else class="truncated-json">{{ JSON.stringify(caseItem.response.body) }}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="detail-item error-item" v-if="caseItem.error">
+                                                <div class="detail-label">错误信息:</div>
+                                                <div class="detail-value error-message">{{ caseItem.error }}</div>
+                                            </div>
+                                        </div>
+                                    </el-tab-pane>
+                                    
+                                    <el-tab-pane label="变量提取" v-if="caseItem.extractors && caseItem.extractors.extracted_variables">
+                                        <div class="detail-section">
+                                            <div class="detail-item">
+                                                <div class="detail-label">提取变量:</div>
+                                                <div class="detail-value">
+                                                    <el-button size="small" @click="toggleJsonFormat(index, 'extractors')" type="info" plain>
+                                                        {{ isJsonFormatted(index, 'extractors') ? '收起' : '展开格式化' }}
+                                                    </el-button>
+                                                    <pre v-if="isJsonFormatted(index, 'extractors')">{{ formatJson(caseItem.extractors.extracted_variables) }}</pre>
+                                                    <div v-else class="truncated-json">{{ JSON.stringify(caseItem.extractors.extracted_variables) }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </el-tab-pane>
+                                </el-tabs>
+                            </el-collapse-item>
+                        </el-collapse>
+                    </div>
+                </div>
+                <div v-else class="empty-log">
+                    <el-empty description="暂无执行日志" />
+                </div>
             </el-dialog>
         </PageContainer>
     </Home>
@@ -1906,6 +2103,11 @@ const parsedResponseData = ref(null);
 const formatRequestActive = ref(false);
 const formatResponseActive = ref(false);
 
+// 添加执行日志对话框和相关变量
+const showLogDialog = ref(false);
+const currentExecutionLog = ref('');
+const formattedSections = ref({}); // 存储各部分是否格式化
+
 // 实现查看响应数据的方法
 const viewCaseResponse = (caseResult) => {
     try {
@@ -1972,6 +2174,16 @@ const viewCaseResponse = (caseResult) => {
 // 格式化JSON数据
 const formatJson = (data) => {
     try {
+        if (typeof data === 'string') {
+            try {
+                data = JSON.parse(data);
+            } catch (e) {
+                // 如果解析失败，返回原字符串
+                return data;
+            }
+        }
+        
+        // 格式化JSON
         const formatted = JSON.stringify(data, null, 2);
         
         // 简单的语法高亮处理
@@ -2066,6 +2278,119 @@ const unformattedJson = (data) => {
             .replace(/'/g, '&#039;');
     }
 };
+
+// 获取测试用例总数
+const getCurrentTotalCases = () => {
+    if (!currentExecutionLog.value || !currentExecutionLog.value.response || !currentExecutionLog.value.response.body) {
+        return 0;
+    }
+    return currentExecutionLog.value.response.body.length;
+};
+
+// 获取通过的测试用例数
+const getPassedCases = () => {
+    if (!currentExecutionLog.value || !currentExecutionLog.value.response || !currentExecutionLog.value.response.body) {
+        return 0;
+    }
+    return currentExecutionLog.value.response.body.filter(item => item.status === 'PASS').length;
+};
+
+// 获取失败的测试用例数
+const getFailedCases = () => {
+    if (!currentExecutionLog.value || !currentExecutionLog.value.response || !currentExecutionLog.value.response.body) {
+        return 0;
+    }
+    return currentExecutionLog.value.response.body.filter(item => item.status === 'FAIL' || item.status === 'ERROR').length;
+};
+
+// 获取通过率
+const getPassRate = () => {
+    if (!currentExecutionLog.value || !currentExecutionLog.value.response || !currentExecutionLog.value.response.headers) {
+        return '0%';
+    }
+    return currentExecutionLog.value.response.headers.pass_rate || '0%';
+};
+
+// 获取日志提示类型
+const getLogAlertType = () => {
+    if (!currentExecutionLog.value) return 'info';
+    
+    const passRate = parseFloat(getPassRate());
+    if (passRate === 100) return 'success';
+    if (passRate >= 60) return 'warning';
+    return 'error';
+};
+
+// 获取测试用例状态类型
+const getCaseStatusType = (status) => {
+    const statusMap = {
+        'PASS': 'success',
+        'FAIL': 'danger',
+        'ERROR': 'danger',
+        'SKIP': 'info'
+    };
+    return statusMap[status] || 'info';
+};
+
+// 切换JSON格式化状态
+const toggleJsonFormat = (caseIndex, section) => {
+    const key = `${caseIndex}_${section}`;
+    if (!formattedSections.value[key]) {
+        formattedSections.value[key] = true;
+    } else {
+        formattedSections.value[key] = !formattedSections.value[key];
+    }
+};
+
+// 检查是否已格式化
+const isJsonFormatted = (caseIndex, section) => {
+    const key = `${caseIndex}_${section}`;
+    return !!formattedSections.value[key];
+};
+
+// 查看执行日志的函数
+const viewExecutionLog = async (report) => {
+    try {
+        // 显示加载中提示
+        const loadingInstance = ElLoading.service({
+            lock: true,
+            text: '加载执行日志中...',
+            background: 'rgba(0, 0, 0, 0.7)'
+        });
+        
+        try {
+            const response = await axios.get(
+                `http://localhost:8081/api/log/${report.id}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                }
+            );
+            
+            if (response.data.code === 200) {
+                // 直接将完整的日志对象保存，不再仅保存字符串
+                currentExecutionLog.value = response.data.data;
+                
+                // 重置格式化状态
+                formattedSections.value = {};
+                
+                // 打开日志对话框
+                showLogDialog.value = true;
+            } else {
+                throw new Error(response.data.message || '获取执行日志失败');
+            }
+        } finally {
+            // 关闭加载提示
+            loadingInstance.close();
+        }
+    } catch (error) {
+        console.error('获取执行日志失败:', error);
+        ElMessage.error('获取执行日志失败: ' + (error.message || '未知错误'));
+    }
+};
+
+// ... existing code ...
 </script>
 
 <style scoped>
@@ -2519,5 +2844,188 @@ const unformattedJson = (data) => {
 
 .add-extractor {
     margin-top: 16px;
+}
+
+/* Styles for log dialog */
+.log-dialog :deep(.el-dialog__body) {
+    padding: 0;
+}
+
+.log-content {
+    padding: 20px;
+}
+
+.log-overview {
+    margin-bottom: 24px;
+}
+
+.overview-item {
+    margin-bottom: 16px;
+}
+
+.overview-item .label {
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+.stats-row {
+    margin: 24px 0;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.stat-card .stat-number {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.stat-card .stat-label {
+    font-size: 14px;
+    color: #606266;
+}
+
+.stat-card.total {
+    background-color: #e1f3ff;
+    color: #1890ff;
+}
+
+.stat-card.passed {
+    background-color: #f0f9eb;
+    color: #67c23a;
+}
+
+.stat-card.failed {
+    background-color: #fef0f0;
+    color: #f56c6c;
+}
+
+.stat-card.rate {
+    background-color: #f5f7fa;
+    color: #303133;
+}
+
+.log-message {
+    margin: 16px 0;
+}
+
+.log-error {
+    margin: 16px 0;
+}
+
+.cases-detail {
+    margin-top: 24px;
+}
+
+.cases-detail h3 {
+    margin-bottom: 16px;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.case-duration {
+    margin-left: 12px;
+    color: #909399;
+    font-size: 13px;
+}
+
+.detail-section {
+    padding: 16px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.detail-item {
+    margin-bottom: 16px;
+}
+
+.detail-label {
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #303133;
+}
+
+.detail-value {
+    font-family: 'Courier New', monospace;
+    word-break: break-all;
+}
+
+.detail-value pre {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 4px;
+    background-color: #f5f7fa;
+    max-height: 400px;
+    overflow: auto;
+    white-space: pre-wrap;
+    font-size: 14px;
+    border: 1px solid #ebeef5;
+}
+
+.truncated-json {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 4px;
+    background-color: #f5f7fa;
+    max-height: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    border: 1px solid #ebeef5;
+}
+
+.error-item .error-message {
+    color: #f56c6c;
+    font-weight: 500;
+}
+
+.empty-log {
+    padding: 40px 0;
+}
+
+:deep(.el-collapse-item__header) {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+:deep(.el-collapse-item__content) {
+    padding: 16px 0;
+}
+
+.detail-value pre :deep(.json-key) {
+    color: #0451a5;
+}
+
+.detail-value pre :deep(.json-string) {
+    color: #a31515;
+}
+
+.detail-value pre :deep(.json-number) {
+    color: #098658;
+}
+
+.detail-value pre :deep(.json-boolean) {
+    color: #0000ff;
+}
+
+.detail-value pre :deep(.json-null) {
+    color: #0451a5;
+}
+
+/* 错误用例样式 */
+:deep(.error-case) .el-collapse-item__header {
+    background-color: rgba(245, 108, 108, 0.1);
+    border-left: 4px solid #f56c6c;
+    color: #f56c6c !important;
+}
+
+:deep(.error-case) .el-collapse-item__wrap {
+    border-left: 4px solid #f56c6c;
 }
 </style> 
