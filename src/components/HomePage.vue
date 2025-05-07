@@ -61,14 +61,6 @@
               </el-menu-item>
 
               <el-menu-item 
-                index="/execution"
-                @click="handleProjectMenu('/execution')"
-              >
-                <el-icon><VideoPlay /></el-icon>
-                <span>用例执行</span>
-              </el-menu-item>
-
-              <el-menu-item 
                 index="mindmap"
                 @click="handleProjectMenu('mindmap')"
               >
@@ -103,10 +95,25 @@
             <el-menu-item index="/role-manage">角色权限</el-menu-item>
             <el-menu-item index="/system-config">系统配置</el-menu-item>
           </el-sub-menu>
+
+          <el-sub-menu index="ai-test">
+            <template #title>
+              <el-icon><DataAnalysis /></el-icon>
+              <span>AI测试</span>
+            </template>
+            <el-menu-item index="/knowledge-base">
+              <el-icon><Collection /></el-icon>
+              <span>知识库管理</span>
+            </el-menu-item>
+            <el-menu-item index="/smart-testcases">
+              <el-icon><Files /></el-icon>
+              <span>智能测试用例维护</span>
+            </el-menu-item>
+          </el-sub-menu>
         </el-menu>
       </div>
 
-      <!-- 主内容区��� -->
+      <!-- 主内容区 -->
       <div class="main-content">
         <div class="header">
           <div class="header-content">
@@ -243,7 +250,8 @@ import {
   InfoFilled,
   Timer,
   Clock,
-  Share
+  Share,
+  Collection
 } from '@element-plus/icons-vue';
 
 const route = useRoute();

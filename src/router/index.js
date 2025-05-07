@@ -7,7 +7,12 @@ import TestCases from '@/views/TestCases.vue';
 import ProjectAnalysis from '@/views/ProjectAnalysis.vue';
 import AutomationTest from '@/views/AutomationTest.vue'
 import TestPlan from '@/views/TestPlan.vue';
+import TestPlanDetail from '@/views/TestPlanDetail.vue';
+import ExecutionReport from '@/views/ExecutionReport.vue';
 import ApiTestMindMap from '@/views/ApiTestMindMap.vue';
+import UserManage from '@/views/UserManage.vue';
+import SystemConfig from '@/views/SystemConfig.vue';
+import KnowledgeBase from '@/views/KnowledgeBase.vue';
 
 const routes = [
     {
@@ -108,12 +113,75 @@ const routes = [
         component: TestPlan
     },
     {
+        path: '/test-plan-detail',
+        name: 'TestPlanDetail',
+        component: TestPlanDetail,
+        meta: {
+            requiresAuth: true,
+            title: '测试计划详情'
+        }
+    },
+    {
+        path: '/execution-report',
+        name: 'ExecutionReport',
+        component: ExecutionReport,
+        meta: {
+            requiresAuth: true,
+            title: '执行报告'
+        }
+    },
+    {
         path: '/mindmap/:projectId',
         name: 'ApiTestMindMap',
         component: () => import('@/views/ApiTestMindMap.vue'),
         meta: {
             requiresAuth: true,
             title: '接口自动化脑图'
+        }
+    },
+    {
+        path: '/user-manage',
+        name: 'UserManage',
+        component: UserManage,
+        meta: {
+            requiresAuth: true,
+            title: '用户管理'
+        }
+    },
+    {
+        path: '/system-config',
+        name: 'SystemConfig',
+        component: SystemConfig,
+        meta: {
+            requiresAuth: true,
+            title: '系统配置'
+        }
+    },
+    {
+        path: '/knowledge-base',
+        name: 'KnowledgeBase',
+        component: KnowledgeBase,
+        meta: {
+            requiresAuth: true,
+            title: '知识库管理'
+        }
+    },
+    {
+        path: '/knowledge-upload',
+        name: 'KnowledgeUpload',
+        component: () => import('@/views/KnowledgeUpload.vue'),
+        meta: {
+            requiresAuth: true,
+            title: '知识库文件上传'
+        }
+    },
+    {
+        path: '/smart-testcases',
+        name: 'SmartTestcases',
+        component: () => import('@/views/SmartTestcases.vue'),
+        meta: {
+            requiresAuth: true,
+            title: '智能测试用例维护'
         }
     }
 ];
