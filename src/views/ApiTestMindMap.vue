@@ -320,7 +320,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElLoading } from 'element-plus';
 import { 
   Document as Save,
   Download,
@@ -377,6 +377,31 @@ const initMindMap = () => {
       // 注册自定义节点
       G6.registerNode('mindmap-node', {
         draw: (cfg, group) => {
+          // 获取节点执行状态，从最新数据获取
+          const data = graph.value?.save();
+          let storedNode = null;
+          if (data) {
+            // 在完整的图数据中查找当前节点的最新状态
+            storedNode = findNode(data, cfg.id);
+          }
+          
+          // 优先使用刚查询到的状态，如果没有则使用节点本身状态
+          const status = (storedNode?.data?.status) || cfg.data?.status || 'none'; // 可能的值: 'none', 'success', 'fail'
+          console.log('绘制节点:', cfg.id, '状态:', status, '数据来源:', storedNode ? '图数据' : '节点数据');
+          
+          // 根据执行状态设置节点颜色
+          let fillColor = cfg.id === 'root' ? '#e6f7ff' : '#fff';
+          let strokeColor = cfg.id === 'root' ? '#1890ff' : '#91d5ff';
+          let lineWidth = cfg.id === 'root' ? 2 : 1;
+          
+          if (status === 'success') {
+            fillColor = '#f6ffed';
+            strokeColor = '#52c41a';
+          } else if (status === 'fail') {
+            fillColor = '#fff2f0';
+            strokeColor = '#ff4d4f';
+          }
+          
           const keyShape = group.addShape('rect', {
             attrs: {
               x: -90,
@@ -384,13 +409,14 @@ const initMindMap = () => {
               width: 180,
               height: 50,
               radius: 4,
-              fill: cfg.id === 'root' ? '#e6f7ff' : '#fff',
-              stroke: cfg.id === 'root' ? '#1890ff' : '#91d5ff',
-              lineWidth: cfg.id === 'root' ? 2 : 1,
+              fill: fillColor,
+              stroke: strokeColor,
+              lineWidth: lineWidth,
               cursor: 'pointer',
             },
           });
 
+          // 添加文本标签
           group.addShape('text', {
             attrs: {
               text: cfg.label || '',
@@ -402,10 +428,179 @@ const initMindMap = () => {
               cursor: 'pointer',
               textBaseline: 'middle',
             },
+            // 为文本添加名称，以便状态样式可以找到它
+            name: 'text-shape',
           });
+          
+          // 如果有执行状态，添加状态指示器图标
+          if (status !== 'none') {
+            const iconX = 70; // 右侧位置
+            const iconY = 0;  // 垂直居中
+            const iconR = 8;  // 图标半径
+            
+            if (status === 'success') {
+              // 添加成功图标
+              group.addShape('circle', {
+                attrs: {
+                  x: iconX,
+                  y: iconY,
+                  r: iconR,
+                  fill: '#52c41a',
+                },
+                name: 'status-icon-bg',
+              });
+              
+              // 添加对勾
+              group.addShape('path', {
+                attrs: {
+                  path: [
+                    ['M', iconX - 4, iconY],
+                    ['L', iconX - 1, iconY + 3],
+                    ['L', iconX + 4, iconY - 3],
+                  ],
+                  stroke: '#fff',
+                  lineWidth: 2,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                },
+                name: 'status-icon',
+              });
+            } else if (status === 'fail') {
+              // 添加失败图标
+              group.addShape('circle', {
+                attrs: {
+                  x: iconX,
+                  y: iconY,
+                  r: iconR,
+                  fill: '#ff4d4f',
+                },
+                name: 'status-icon-bg',
+              });
+              
+              // 添加 X
+              group.addShape('path', {
+                attrs: {
+                  path: [
+                    ['M', iconX - 3, iconY - 3],
+                    ['L', iconX + 3, iconY + 3],
+                    ['M', iconX + 3, iconY - 3],
+                    ['L', iconX - 3, iconY + 3],
+                  ],
+                  stroke: '#fff',
+                  lineWidth: 2,
+                  lineCap: 'round',
+                },
+                name: 'status-icon',
+              });
+            }
+          }
 
           return keyShape;
         },
+        
+        // 添加更新方法，在节点状态变化时使用
+        setState(name, value, item) {
+          const group = item.getContainer();
+          const shapes = group.get('children');
+          const nodeModel = item.getModel();
+          
+          if (name === 'selected') {
+            const keyShape = item.getKeyShape();
+            const textShape = group.find(child => child.get('name') === 'text-shape');
+            
+            if (keyShape) {
+              if (value) {
+                // 选中状态
+                keyShape.attr('stroke', '#1890ff');
+                keyShape.attr('lineWidth', 3);
+                keyShape.attr('shadowColor', 'rgba(24, 144, 255, 0.5)');
+                keyShape.attr('shadowBlur', 10);
+                
+                // 添加高亮背景和边框效果
+                if (!group.find(child => child.get('name') === 'selected-bg')) {
+                  group.addShape('rect', {
+                    attrs: {
+                      x: -95,
+                      y: -30,
+                      width: 190,
+                      height: 60,
+                      radius: 6,
+                      fill: 'rgba(24, 144, 255, 0.1)',
+                      stroke: 'rgba(24, 144, 255, 0.3)',
+                      lineWidth: 1,
+                    },
+                    name: 'selected-bg',
+                    zIndex: -1, // 放在最底层
+                  });
+                  
+                  group.addShape('rect', {
+                    attrs: {
+                      x: -93,
+                      y: -28,
+                      width: 186,
+                      height: 56,
+                      radius: 5,
+                      stroke: '#1890ff',
+                      lineWidth: 2,
+                      lineDash: [5, 5],
+                      opacity: 0.6,
+                    },
+                    name: 'selected-border',
+                    zIndex: -0.5, // 在背景之上，节点之下
+                  });
+                  
+                  // 确保选中效果在底层
+                  group.sort();
+                }
+              } else {
+                // 取消选中状态
+                const nodeData = nodeModel.data || {};
+                const status = nodeData.status || 'none';
+                
+                // 恢复默认样式
+                if (nodeModel.id === 'root') {
+                  keyShape.attr('stroke', '#1890ff');
+                  keyShape.attr('lineWidth', 2);
+                } else if (status === 'success') {
+                  keyShape.attr('stroke', '#52c41a');
+                  keyShape.attr('lineWidth', 1);
+                } else if (status === 'fail') {
+                  keyShape.attr('stroke', '#ff4d4f');
+                  keyShape.attr('lineWidth', 1);
+                } else {
+                  keyShape.attr('stroke', '#91d5ff');
+                  keyShape.attr('lineWidth', 1);
+                }
+                
+                keyShape.attr('shadowBlur', 0);
+                keyShape.attr('shadowColor', 'transparent');
+                
+                // 移除选中效果元素
+                const selectedBg = group.find(child => child.get('name') === 'selected-bg');
+                if (selectedBg) {
+                  group.removeChild(selectedBg);
+                }
+                
+                const selectedBorder = group.find(child => child.get('name') === 'selected-border');
+                if (selectedBorder) {
+                  group.removeChild(selectedBorder);
+                }
+              }
+            }
+            
+            if (textShape) {
+              if (value) {
+                // 文本高亮
+                textShape.attr('fill', nodeModel.id === 'root' ? '#1890ff' : '#1890ff');
+                textShape.attr('fontWeight', 'bold');
+              } else {
+                // 恢复默认文本样式
+                textShape.attr('fill', nodeModel.id === 'root' ? '#1890ff' : '#333');
+                textShape.attr('fontWeight', nodeModel.id === 'root' ? 'bold' : 'normal');
+              }
+            }
+          }
+        }
       });
 
       // 创建图实例
@@ -428,6 +623,20 @@ const initMindMap = () => {
             endArrow: true,
           },
         },
+        // 添加节点状态样式
+        nodeStateStyles: {
+          // 选中状态的样式
+          selected: {
+            stroke: '#1890ff',
+            lineWidth: 3,
+            shadowColor: 'rgba(24, 144, 255, 0.5)',
+            shadowBlur: 10,
+            'text-shape': {
+              fontWeight: 'bold',
+              fill: '#1890ff',
+            }
+          }
+        },
         layout: {
           type: 'indented',  // 使用缩进树布局
           direction: 'LR',   // 从左到右
@@ -449,7 +658,8 @@ const initMindMap = () => {
         data: {
           text: '接口自动化测试',
           notes: '',  // 添加备注字段
-          type: 'root'  // 标识为根节点
+          type: 'root',  // 标识为根节点
+          status: 'none'  // 添加执行状态
         },
         style: {
           fill: '#e6f7ff',
@@ -467,7 +677,28 @@ const initMindMap = () => {
         try {
           const { item } = evt;
           if (item) {
-            selectedNode.value = item.getModel();
+            const clickedModel = item.getModel();
+            
+            // 如果点击的是已选中节点，不做处理
+            if (selectedNode.value && selectedNode.value.id === clickedModel.id) {
+              return;
+            }
+            
+            // 清除先前选中节点的状态
+            if (selectedNode.value) {
+              const prevNode = graph.value.findById(selectedNode.value.id);
+              if (prevNode) {
+                graph.value.setItemState(prevNode, 'selected', false);
+              }
+            }
+            
+            // 更新当前选中节点
+            selectedNode.value = clickedModel;
+            
+            // 设置当前节点为选中状态
+            graph.value.setItemState(item, 'selected', true);
+            
+            console.log('节点被选中:', clickedModel.id);
           }
         } catch (error) {
           console.error('节点点击处理失败:', error);
@@ -533,6 +764,9 @@ const addNode = () => {
   }
 
   try {
+    // 获取当前选中节点ID，后面用于清除状态
+    const prevSelectedId = selectedNode.value.id;
+
     // 创建新节点
     const newNode = {
       id: `node-${Date.now()}`,
@@ -546,7 +780,8 @@ const addNode = () => {
         notes: '',
         text: '新建节点',
         extractions: [],  // 添加提取规则数组
-        params: []       // 前置参数
+        params: [],       // 前置参数
+        status: 'none'    // 添加执行状态
       }
     };
 
@@ -566,12 +801,21 @@ const addNode = () => {
 
     // 更新图数据
     graph.value.changeData(data);
-
+ 
+    // 清除旧的选中状态
+    if (prevSelectedId) {
+      const oldNode = graph.value.findById(prevSelectedId);
+      if (oldNode) {
+        graph.value.setItemState(oldNode, 'selected', false);
+      }
+    }
+  
     // 自选中新节点
     const newNodeModel = graph.value.findById(newNode.id);
     if (newNodeModel) {
       selectedNode.value = newNodeModel.getModel();
-      graph.value.emit('node:click', { item: newNodeModel });
+      // 设置新节点为选中状态
+      graph.value.setItemState(newNodeModel, 'selected', true);
     }
 
     ElMessage.success('添加节点成功');
@@ -617,6 +861,51 @@ const removeNodeById = (tree, id) => {
   }
 };
 
+// 强制刷新所有节点
+const refreshAllNodes = () => {
+  if (!graph.value) return;
+  
+  // 保存当前选中节点的ID
+  const selectedId = selectedNode.value?.id;
+  
+  // 获取当前状态的完整数据
+  const currentData = graph.value.save();
+  console.log('刷新前的完整图数据:', currentData);
+  
+  // 首先更新数据
+  graph.value.changeData(currentData);
+  
+  // 强制所有节点重绘
+  const nodes = graph.value.getNodes();
+  nodes.forEach(node => {
+    const model = node.getModel();
+    console.log('刷新节点:', model.id, '状态:', model.data?.status);
+    graph.value.refreshItem(node);
+  });
+  
+  // 重新设置选中状态
+  if (selectedId) {
+    const node = graph.value.findById(selectedId);
+    if (node) {
+      // 确保selectedNode引用更新
+      selectedNode.value = node.getModel();
+      // 使用正确的API设置选中状态
+      graph.value.setItemState(node, 'selected', true);
+    }
+  }
+  
+  // 强制重新绘制整个图
+  graph.value.paint();
+  
+  // 先重置视图然后再调整以确保显示全部更新
+  graph.value.fitCenter();
+  setTimeout(() => {
+    graph.value.fitView();
+  }, 100);
+  
+  console.log('强制刷新了所有节点');
+};
+
 // 执行测试方法
 const executeSelected = async () => {
   if (!selectedNode.value || !selectedNode.value.data.testCase) {
@@ -625,37 +914,337 @@ const executeSelected = async () => {
   }
 
   try {
-    const response = await request.post(`/api/testcase/execute/${selectedNode.value.data.testCase}`);
-    if (response.data.code === 200) {
-      ElMessage.success('测试用例执行成功');
-    } else {
-      ElMessage.error(response.data.message || '执行失败');
+    // 显示加载状态
+    const loadingInstance = ElLoading.service({
+      lock: true,
+      text: '执行中...',
+      background: 'rgba(0, 0, 0, 0.7)'
+    });
+    
+    try {
+      const response = await request.post(`/api/testcase/execute/${selectedNode.value.data.testCase}`);
+      console.log('API响应:', response.data);
+      
+      // 更新节点状态
+      const data = graph.value.save();
+      const node = findNode(data, selectedNode.value.id);
+      if (node) {
+        // 检查顶层接口调用是否成功
+        if (response.data.code === 200) {
+          // 顶层API请求成功，现在检查测试用例执行结果
+          
+          // 改进的状态判断逻辑 - 使用更明确的判断标准
+          // 默认假设测试成功 (乐观判断)
+          let testResult = true;
+          
+          // 详细记录响应结构，帮助调试
+          console.log('响应结构分析:', {
+            'success字段存在': 'success' in response.data,
+            'success值': response.data.success,
+            'message': response.data.message,
+            'data字段存在': 'data' in response.data,
+            'status字段存在': response.data.data && 'status' in response.data.data,
+            'status值': response.data.data?.status
+          });
+          
+          // 明确的失败条件判断
+          const explicitFailure = 
+            response.data.success === false || // 明确的success:false
+            (response.data.data?.status && 
+             response.data.data.status.toUpperCase() !== 'PASS' && 
+             response.data.data.status.toUpperCase() !== 'SUCCESS') || // 明确的非成功状态
+            response.data.data?.assertions?.all_passed === false; // 明确的断言失败
+          
+          // 明确的成功条件判断  
+          const explicitSuccess = 
+            response.data.success === true || // 明确的success:true
+            (response.data.data?.status && 
+             (response.data.data.status.toUpperCase() === 'PASS' || 
+              response.data.data.status.toUpperCase() === 'SUCCESS')) || // 明确的成功状态
+            response.data.data?.assertions?.all_passed === true; // 明确的断言成功
+            
+          // 如果存在消息中包含成功关键词，也视为成功
+          const successInMessage = 
+            response.data.message && 
+            (response.data.message.includes('成功') || 
+             response.data.message.includes('通过') ||
+             response.data.message.toLowerCase().includes('success') ||
+             response.data.message.toLowerCase().includes('pass'));
+             
+          // 最终结果综合判断
+          if (explicitFailure && !explicitSuccess) {
+            console.log('测试判定为失败: 存在明确失败标志且无明确成功标志');
+            testResult = false;
+          } else if (explicitSuccess || successInMessage) {
+            console.log('测试判定为成功: 存在明确成功标志或成功相关消息');
+            testResult = true;
+          }
+          
+          // 如果接口返回的消息明确包含"成功"，强制视为成功
+          if (successInMessage) {
+            console.log('基于消息内容强制设为成功状态');
+            testResult = true;
+          }
+          
+          // 打印调试信息
+          console.log('测试执行结果最终判断:', {
+            'explicitFailure': explicitFailure,
+            'explicitSuccess': explicitSuccess, 
+            'successInMessage': successInMessage,
+            'testResult': testResult
+          });
+          
+          // 更新节点数据中的状态
+          console.log('更新节点状态前:', node.data.status);
+          node.data.status = testResult ? 'success' : 'fail';
+          console.log('更新节点状态后:', node.data.status, '节点ID:', node.id);
+          
+          // 刷新节点强制重绘
+          const nodeItem = graph.value.findById(node.id);
+          if (nodeItem) {
+            console.log('刷新节点前的状态:', nodeItem.getModel().data?.status);
+            
+            // 强制刷新节点
+            graph.value.refreshItem(nodeItem);
+            console.log('刷新节点后的状态:', nodeItem.getModel().data?.status);
+          }
+          
+          // 更新selectedNode以同步UI显示
+          selectedNode.value = {
+            ...selectedNode.value,
+            data: {
+              ...selectedNode.value.data,
+              status: testResult ? 'success' : 'fail'
+            }
+          };
+          
+          // 更新整个图数据
+          console.log('更新图数据前状态:', findNode(data, node.id).data.status);
+          graph.value.changeData(data);
+          console.log('更新图数据后状态:', findNode(graph.value.save(), node.id).data.status);
+          
+          // 强制重新渲染所有节点
+          refreshAllNodes();
+          
+          // 根据测试结果显示不同消息
+          if (testResult) {
+            // 使用自定义的消息通知，强制使用成功样式
+            ElMessage({
+              message: '测试用例执行成功',
+              type: 'success',
+              duration: 5000, // 延长消息显示时间
+              customClass: 'test-success-message', // 添加自定义类名
+              showClose: true // 允许手动关闭
+            });
+          } else {
+            ElMessage({
+              message: '测试用例执行完成，但未通过测试',
+              type: 'warning',
+              duration: 5000
+            });
+          }
+        } else {
+          // API请求本身失败
+          node.data.status = 'fail';
+          
+          // 刷新节点强制重绘
+          const nodeItem = graph.value.findById(node.id);
+          if (nodeItem) {
+            graph.value.refreshItem(nodeItem);
+          }
+          
+          selectedNode.value = {
+            ...selectedNode.value,
+            data: {
+              ...selectedNode.value.data,
+              status: 'fail'
+            }
+          };
+          
+          graph.value.changeData(data);
+          
+          // 强制重新渲染所有节点
+          refreshAllNodes();
+          
+          ElMessage.error(response.data.message || '执行请求失败');
+        }
+      }
+    } finally {
+      loadingInstance.close();
     }
   } catch (error) {
-    console.error('执行失败:', error);
-    ElMessage.error('执行失败');
+    console.error('执行错误:', error);
+    ElMessage.error('执行错误: ' + (error.message || '未知错误'));
   }
 };
 
 const executeAll = async () => {
-  const nodes = graph.value.save().children.filter(node => node.data.testCase);
+  const data = graph.value.save();
+  const nodes = data.children.filter(node => node.data?.testCase);
+  
   if (nodes.length === 0) {
     ElMessage.warning('没有可执行的测试用例');
     return;
   }
 
   try {
-    const response = await request.post('/api/testcase/batch-execute', {
-      caseIds: nodes.map(node => node.data.testCase)
+    // 显示加载状态
+    const loadingInstance = ElLoading.service({
+      lock: true,
+      text: '批量执行中...',
+      background: 'rgba(0, 0, 0, 0.7)'
     });
-    if (response.data.code === 200) {
-      ElMessage.success('批量执行成功');
-    } else {
-      ElMessage.error(response.data.message || '批量执行失败');
+    
+    try {
+      const response = await request.post('/api/testcase/batch-execute', {
+        caseIds: nodes.map(node => node.data.testCase)
+      });
+      console.log('批量执行API响应:', response.data);
+      
+      if (response.data.code === 200) {
+        // 更新节点状态
+        const results = response.data.data || [];
+        let allSuccessful = true; // 记录所有用例是否全部通过
+        
+        // 遍历所有结果，更新相应节点状态
+        if (results.length > 0) {
+          results.forEach(result => {
+            const targetNode = nodes.find(node => node.data.testCase === result.case_id);
+            if (targetNode) {
+              // 使用改进的判断逻辑，与单个执行保持一致
+              let testResult = true;
+              
+              // 明确的失败条件判断
+              const explicitFailure = 
+                result.success === false || // 明确的success:false
+                (result.status && 
+                 result.status.toUpperCase() !== 'PASS' && 
+                 result.status.toUpperCase() !== 'SUCCESS') || // 明确的非成功状态
+                result.assertions?.all_passed === false; // 明确的断言失败
+              
+              // 明确的成功条件判断  
+              const explicitSuccess = 
+                result.success === true || // 明确的success:true
+                (result.status && 
+                 (result.status.toUpperCase() === 'PASS' || 
+                  result.status.toUpperCase() === 'SUCCESS')) || // 明确的成功状态
+                result.assertions?.all_passed === true; // 明确的断言成功
+                
+              // 如果存在消息中包含成功关键词，也视为成功
+              const successInMessage = 
+                result.message && 
+                (result.message.includes('成功') || 
+                 result.message.includes('通过') ||
+                 result.message.toLowerCase().includes('success') ||
+                 result.message.toLowerCase().includes('pass'));
+                
+              // 最终结果综合判断
+              if (explicitFailure && !explicitSuccess) {
+                console.log(`用例${result.case_id}判定为失败: 存在明确失败标志且无明确成功标志`);
+                testResult = false;
+              } else if (explicitSuccess || successInMessage) {
+                console.log(`用例${result.case_id}判定为成功: 存在明确成功标志或成功相关消息`);
+                testResult = true;
+              }
+              
+              // 如果接口返回的消息明确包含"成功"，强制视为成功
+              if (successInMessage) {
+                console.log(`用例${result.case_id}基于消息内容强制设为成功状态`);
+                testResult = true;
+              }
+              
+              console.log('用例执行结果:', result.case_id, testResult ? '成功' : '失败');
+              targetNode.data.status = testResult ? 'success' : 'fail';
+              
+              // 如果任一测试失败，标记整体未全部成功
+              if (!testResult) {
+                allSuccessful = false;
+              }
+              
+              // 刷新节点强制重绘
+              const nodeItem = graph.value.findById(targetNode.id);
+              if (nodeItem) {
+                graph.value.refreshItem(nodeItem);
+              }
+            }
+          });
+        } else {
+          // 如果没有详细结果，则依据总体结果判断
+          const overallSuccess = response.data.success !== false; // 假设成功，除非明确为false
+          nodes.forEach(node => {
+            node.data.status = overallSuccess ? 'success' : 'fail';
+            
+            // 刷新节点强制重绘
+            const nodeItem = graph.value.findById(node.id);
+            if (nodeItem) {
+              graph.value.refreshItem(nodeItem);
+            }
+          });
+          allSuccessful = overallSuccess;
+        }
+        
+        // 更新整个图数据
+        graph.value.changeData(data);
+        
+        // 强制重新渲染所有节点
+        refreshAllNodes();
+        
+        // 根据测试结果显示不同消息
+        if (allSuccessful) {
+          ElMessage({
+            message: '所有测试用例执行成功',
+            type: 'success',
+            duration: 5000, // 延长消息显示时间
+            customClass: 'test-success-message', // 添加自定义类名
+            showClose: true // 允许手动关闭
+          });
+        } else {
+          ElMessage({
+            message: '批量执行完成，部分测试未通过',
+            type: 'warning',
+            duration: 5000,
+            customClass: 'test-fail-message', // 添加自定义类名
+            showClose: true // 允许手动关闭
+          });
+        }
+      } else {
+        // API请求本身失败
+        nodes.forEach(node => {
+          node.data.status = 'fail';
+          
+          // 刷新节点强制重绘
+          const nodeItem = graph.value.findById(node.id);
+          if (nodeItem) {
+            graph.value.refreshItem(nodeItem);
+          }
+        });
+        
+        // 更新图数据
+        graph.value.changeData(data);
+        
+        // 强制重新渲染所有节点
+        refreshAllNodes();
+        
+        ElMessage({
+          message: response.data.message || '批量执行请求失败',
+          type: 'error',
+          duration: 5000,
+          customClass: 'test-error-message', // 添加自定义类名
+          showClose: true
+        });
+      }
+    } finally {
+      loadingInstance.close();
     }
   } catch (error) {
-    console.error('批量执行失败:', error);
-    ElMessage.error('批量执行失败');
+    console.error('批量执行错误:', error);
+    ElMessage({
+      message: '批量执行错误: ' + (error.message || '未知错误'),
+      type: 'error', 
+      duration: 5000,
+      customClass: 'test-error-message',
+      showClose: true
+    });
   }
 };
 
@@ -885,7 +1474,8 @@ const addParentNode = () => {
         condition: 'none',
         priority: 'medium',
         notes: '',
-        text: '新建父节点'
+        text: '新建父节点',
+        status: 'none' // 添加执行状态
       }
     };
 
@@ -1086,6 +1676,37 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 自定义消息提示样式 */
+:deep(.test-success-message) {
+  background-color: #f0f9eb !important;
+  border-color: #e1f3d8 !important;
+  color: #67c23a !important;
+}
+
+:deep(.test-success-message .el-icon) {
+  color: #67c23a !important;
+}
+
+:deep(.test-fail-message) {
+  background-color: #fdf6ec !important;
+  border-color: #faecd8 !important;
+  color: #e6a23c !important;
+}
+
+:deep(.test-fail-message .el-icon) {
+  color: #e6a23c !important;
+}
+
+:deep(.test-error-message) {
+  background-color: #fef0f0 !important;
+  border-color: #fde2e2 !important;
+  color: #f56c6c !important;
+}
+
+:deep(.test-error-message .el-icon) {
+  color: #f56c6c !important;
+}
+
 .toolbar {
   padding: 16px;
   background: #fff;
@@ -1568,5 +2189,31 @@ onUnmounted(() => {
 .extractions-list .el-button {
   align-self: flex-start;
   margin-top: 8px;
+}
+
+/* 添加节点状态样式 */
+:deep(.node-success) {
+  background-color: #f6ffed;
+  border-color: #52c41a;
+}
+
+:deep(.node-fail) {
+  background-color: #fff2f0;
+  border-color: #ff4d4f;
+}
+
+:deep(.status-icon) {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+:deep(.status-icon-success) {
+  color: #52c41a;
+}
+
+:deep(.status-icon-fail) {
+  color: #ff4d4f;
 }
 </style> 

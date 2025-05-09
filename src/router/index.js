@@ -13,6 +13,7 @@ import ApiTestMindMap from '@/views/ApiTestMindMap.vue';
 import UserManage from '@/views/UserManage.vue';
 import SystemConfig from '@/views/SystemConfig.vue';
 import KnowledgeBase from '@/views/KnowledgeBase.vue';
+import AnalysisResults from '../views/AnalysisResults.vue'
 
 const routes = [
     {
@@ -183,6 +184,27 @@ const routes = [
             requiresAuth: true,
             title: '智能测试用例维护'
         }
+    },
+    {
+        path: '/analysis-results',
+        name: 'AnalysisResults',
+        component: AnalysisResults,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/analysis-report',
+        name: 'AnalysisReport',
+        component: AnalysisResults,
+        meta: { 
+            requiresAuth: true,
+            title: '分析报告'
+        }
+    },
+    {
+        path: '/ai-analysis-report',
+        name: 'AIAnalysisReport',
+        component: () => import('@/views/AIAnalysisReport.vue'),
+        meta: { requiresAuth: true }
     }
 ];
 

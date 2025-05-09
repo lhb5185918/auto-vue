@@ -500,7 +500,23 @@
                                     </el-tag>
                                 </template>
                             </el-table-column>
-                            <el-table-column prop="message" label="详细信息" min-width="200" />
+                            <el-table-column label="详细信息" min-width="200">
+                                <template #default="{ row }">
+                                    <div v-if="row.message">
+                                        <el-tooltip 
+                                            v-if="isJsonString(row.message)" 
+                                            placement="top" 
+                                            :content="'查看完整详情'" 
+                                            :show-after="300"
+                                        >
+                                            <div class="formatted-message" @click="showMessageDetail(row.message)">
+                                                {{ getFormattedMessage(row.message, true) }}
+                                            </div>
+                                        </el-tooltip>
+                                        <span v-else>{{ row.message }}</span>
+                                    </div>
+                                </template>
+                            </el-table-column>
                             <el-table-column label="操作" width="120" align="center">
                                 <template #default="{ row }">
                                     <el-button 
@@ -517,66 +533,55 @@
                 </div>
             </el-dialog>
 
-            <!-- 响应数据详情对话框 -->
+            <!-- 响应数据对话框 -->
             <el-dialog
-                title="接口响应详情"
                 v-model="showResponseDialog"
-                width="85%"
-                append-to-body
+                title="测试结果详情"
+                width="80%"
                 class="response-dialog"
+                append-to-body
             >
-                <div v-if="currentCaseResponse" class="response-content">
-                    <el-tabs v-model="responseTabActive">
-                        <el-tab-pane label="请求数据" name="request">
-                            <div class="tab-header">
-                                <el-button 
-                                    type="primary" 
-                                    size="small" 
-                                    @click="toggleFormatRequest" 
-                                    :icon="formatRequestActive ? Check : MagicStick"
-                                >
-                                    {{ formatRequestActive ? '已格式化' : '格式化JSON' }}
-                                </el-button>
-                                <el-button 
-                                    type="info" 
-                                    size="small" 
-                                    @click="copyToClipboard(parsedRequestData)" 
-                                    :icon="CopyDocument"
-                                >
-                                    复制
-                                </el-button>
-                            </div>
-                            <div class="json-viewer-container">
-                                <pre v-if="parsedRequestData" class="json-viewer" :class="{'formatted': formatRequestActive}" v-html="formatRequestActive ? formatJson(parsedRequestData) : unformattedJson(parsedRequestData)"></pre>
-                                <el-empty v-else description="无请求数据" />
-                            </div>
-                        </el-tab-pane>
-                        <el-tab-pane label="响应数据" name="response">
-                            <div class="tab-header">
-                                <el-button 
-                                    type="primary" 
-                                    size="small" 
-                                    @click="toggleFormatResponse" 
-                                    :icon="formatResponseActive ? Check : MagicStick"
-                                >
-                                    {{ formatResponseActive ? '已格式化' : '格式化JSON' }}
-                                </el-button>
-                                <el-button 
-                                    type="info" 
-                                    size="small" 
-                                    @click="copyToClipboard(parsedResponseData)" 
-                                    :icon="CopyDocument"
-                                >
-                                    复制
-                                </el-button>
-                            </div>
-                            <div class="json-viewer-container">
-                                <pre v-if="parsedResponseData" class="json-viewer" :class="{'formatted': formatResponseActive}" v-html="formatResponseActive ? formatJson(parsedResponseData) : unformattedJson(parsedResponseData)"></pre>
-                                <el-empty v-else description="无响应数据" />
-                            </div>
-                        </el-tab-pane>
-                    </el-tabs>
-                </div>
+                <el-tabs v-model="responseTabActive">
+                    <el-tab-pane label="响应数据" name="response">
+                        <div class="response-toolbar">
+                            <el-button 
+                                size="small" 
+                                @click="toggleFormatResponse"
+                                :icon="formatResponseActive ? Check : MagicStick"
+                                type="primary"
+                            >
+                                {{ formatResponseActive ? '已格式化' : '格式化JSON' }}
+                            </el-button>
+                            <el-button size="small" @click="copyToClipboard(parsedResponseData)" icon="CopyDocument">
+                                复制
+                            </el-button>
+                        </div>
+                        <div class="json-viewer-container">
+                            <pre v-if="parsedResponseData" class="json-viewer json-text" :class="{'formatted': formatResponseActive}">{{ formatResponseActive ? (typeof parsedResponseData === 'string' ? parsedResponseData : JSON.stringify(parsedResponseData, null, 2)) : (typeof parsedResponseData === 'string' ? parsedResponseData : JSON.stringify(parsedResponseData)) }}</pre>
+                            <el-empty v-else description="无响应数据" />
+                        </div>
+                    </el-tab-pane>
+                    
+                    <el-tab-pane label="请求数据" name="request">
+                        <div class="response-toolbar">
+                            <el-button 
+                                size="small" 
+                                @click="toggleFormatRequest"
+                                :icon="formatRequestActive ? Check : MagicStick"
+                                type="primary"
+                            >
+                                {{ formatRequestActive ? '已格式化' : '格式化JSON' }}
+                            </el-button>
+                            <el-button size="small" @click="copyToClipboard(parsedRequestData)" icon="CopyDocument">
+                                复制
+                            </el-button>
+                        </div>
+                        <div class="json-viewer-container">
+                            <pre v-if="parsedRequestData" class="json-viewer json-text" :class="{'formatted': formatRequestActive}">{{ formatRequestActive ? (typeof parsedRequestData === 'string' ? parsedRequestData : JSON.stringify(parsedRequestData, null, 2)) : (typeof parsedRequestData === 'string' ? parsedRequestData : JSON.stringify(parsedRequestData)) }}</pre>
+                            <el-empty v-else description="无请求数据" />
+                        </div>
+                    </el-tab-pane>
+                </el-tabs>
             </el-dialog>
 
             <!-- 用例编辑弹窗 -->
@@ -588,76 +593,235 @@
                 class="case-edit-dialog"
                 append-to-body
             >
-                <el-form :model="caseEditForm" label-width="120px">
-                    <el-form-item label="用例名称">
-                        <el-input v-model="caseEditForm.title" placeholder="请输入用例名称" />
-                    </el-form-item>
-                    <el-form-item label="请求方法">
-                        <el-select v-model="caseEditForm.method">
-                            <el-option label="GET" value="GET" />
-                            <el-option label="POST" value="POST" />
-                            <el-option label="PUT" value="PUT" />
-                            <el-option label="DELETE" value="DELETE" />
-                            <el-option label="PATCH" value="PATCH" />
-                        </el-select>
-                    </el-form-item>
-                    <el-form-item label="接口路径">
-                        <el-input v-model="caseEditForm.api_path" placeholder="请输入接口路径" />
-                    </el-form-item>
-                    <el-form-item label="请求头">
-                        <el-input
-                            v-model="caseEditForm.headers"
-                            type="textarea"
-                            :rows="4"
-                            placeholder="请输入请求头 (JSON格式)"
-                        />
-                    </el-form-item>
-                    <el-form-item label="请求参数">
-                        <el-input
-                            v-model="caseEditForm.params"
-                            type="textarea"
-                            :rows="6"
-                            placeholder="请输入请求参数 (JSON格式)"
-                        />
-                    </el-form-item>
-                    <!--移除请求体表单项-->
-                    <el-form-item label="预期结果">
-                        <el-input
-                            v-model="caseEditForm.expected"
-                            type="textarea"
-                            :rows="4"
-                            placeholder="请输入预期结果 (JSON格式)"
-                        />
-                    </el-form-item>
+                <el-form :model="caseEditForm" label-width="120px" class="test-case-edit-form">
+                    <el-row :gutter="20">
+                        <el-col :span="16">
+                            <el-form-item label="用例名称" required>
+                                <el-input v-model="caseEditForm.title" placeholder="请输入用例名称" />
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="请求方法" required>
+                                <el-select v-model="caseEditForm.method" class="full-width">
+                                    <el-option label="GET" value="GET" />
+                                    <el-option label="POST" value="POST" />
+                                    <el-option label="PUT" value="PUT" />
+                                    <el-option label="DELETE" value="DELETE" />
+                                    <el-option label="PATCH" value="PATCH" />
+                                </el-select>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
                     
-                    <!-- 添加提取器配置部分 -->
-                    <el-form-item label="提取器配置">
-                        <div class="extractors-container">
-                            <div class="help-text">
-                                <p><el-icon><Document /></el-icon> 提取器用于从接口响应中提取数据，并在后续接口中使用</p>
-                                <p>变量使用方法：在URL、请求参数或请求头中使用 <code>${变量名}</code> 格式引用变量</p>
-                                <p>JSONPath示例：<code>$.data.id</code>、<code>$.data.list[0].name</code></p>
-                            </div>
-                            
-                            <div v-for="(extractor, index) in caseEditForm.extractors" :key="index" class="extractor-item">
-                                <el-row :gutter="10">
-                                    <el-col :span="8">
-                                        <el-input v-model="extractor.name" placeholder="变量名" size="small" />
-                                    </el-col>
-                                    <el-col :span="12">
-                                        <el-input v-model="extractor.jsonPath" placeholder="JSONPath表达式 (如: $.data.id)" size="small" />
-                                    </el-col>
-                                    <el-col :span="4">
-                                        <el-button type="danger" @click="removeExtractor(index)" :icon="Delete" circle size="small"></el-button>
-                                    </el-col>
-                                </el-row>
-                            </div>
-                            
-                            <div class="add-extractor">
-                                <el-button type="primary" @click="addExtractor" plain :icon="Plus" size="small">添加提取器</el-button>
-                            </div>
+                    <el-form-item label="接口路径" required>
+                        <el-input 
+                            v-model="caseEditForm.api_path" 
+                            placeholder="请输入接口路径，例如: /api/users?id=1" 
+                            @input="autoExtractQueryParams"
+                        />
+                        <div class="form-item-tip">
+                            <el-icon><InfoFilled /></el-icon>
+                            <span>支持URL参数自动提取，URL中的查询参数会自动填充到请求参数中</span>
                         </div>
                     </el-form-item>
+                    
+                    <el-tabs type="border-card" class="request-tabs">
+                        <el-tab-pane label="请求头">
+                            <el-form-item class="no-margin">
+                                <el-input
+                                    v-model="caseEditForm.headers"
+                                    type="textarea"
+                                    :rows="6"
+                                    placeholder="请输入请求头 (JSON格式)"
+                                    class="code-textarea"
+                                />
+                                <div class="form-item-tip">
+                                    <el-icon><Document /></el-icon>
+                                    <span>格式示例: {"Content-Type": "application/json", "Authorization": "Bearer ${token}"}</span>
+                                </div>
+                            </el-form-item>
+                        </el-tab-pane>
+                        
+                        <el-tab-pane label="请求参数">
+                            <el-form-item class="no-margin">
+                                <!-- 参数类型选择 -->
+                                <div class="param-type-selector">
+                                    <el-radio-group v-model="paramType" size="small" @change="handleParamTypeChange">
+                                        <el-radio-button label="query">查询参数</el-radio-button>
+                                        <el-radio-button label="form">表单参数</el-radio-button>
+                                        <el-radio-button label="json">JSON参数</el-radio-button>
+                                        <el-radio-button label="none">无参数</el-radio-button>
+                                    </el-radio-group>
+                                </div>
+
+                                <!-- 不同参数类型的输入区域 -->
+                                <!-- 查询参数 -->
+                                <div v-if="paramType === 'query'" class="params-container">
+                                    <div class="params-header">
+                                        <div class="param-row header">
+                                            <div class="param-name">参数名</div>
+                                            <div class="param-value">参数值</div>
+                                            <div class="param-desc">描述</div>
+                                            <div class="param-action">操作</div>
+                                        </div>
+                                    </div>
+                                    <div class="params-body">
+                                        <div v-for="(param, index) in queryParams" :key="index" class="param-row">
+                                            <div class="param-name">
+                                                <el-input v-model="param.key" placeholder="参数名" size="default" />
+                                            </div>
+                                            <div class="param-value">
+                                                <el-input v-model="param.value" placeholder="参数值" size="default" />
+                                            </div>
+                                            <div class="param-desc">
+                                                <el-input v-model="param.description" placeholder="描述(可选)" size="default" />
+                                            </div>
+                                            <div class="param-action">
+                                                <el-button type="danger" @click="removeParam('query', index)" :icon="Delete" circle size="small"></el-button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="add-param-btn">
+                                        <el-button type="primary" @click="addParam('query')" plain :icon="Plus" size="small">添加参数</el-button>
+                                    </div>
+                                </div>
+
+                                <!-- 表单参数 -->
+                                <div v-if="paramType === 'form'" class="params-container">
+                                    <div class="params-header">
+                                        <div class="param-row header">
+                                            <div class="param-name">参数名</div>
+                                            <div class="param-value">参数值</div>
+                                            <div class="param-desc">描述</div>
+                                            <div class="param-action">操作</div>
+                                        </div>
+                                    </div>
+                                    <div class="params-body">
+                                        <div v-for="(param, index) in formParams" :key="index" class="param-row">
+                                            <div class="param-name">
+                                                <el-input v-model="param.key" placeholder="参数名" size="default" />
+                                            </div>
+                                            <div class="param-value">
+                                                <el-input v-model="param.value" placeholder="参数值" size="default" />
+                                            </div>
+                                            <div class="param-desc">
+                                                <el-input v-model="param.description" placeholder="描述(可选)" size="default" />
+                                            </div>
+                                            <div class="param-action">
+                                                <el-button type="danger" @click="removeParam('form', index)" :icon="Delete" circle size="small"></el-button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="add-param-btn">
+                                        <el-button type="primary" @click="addParam('form')" plain :icon="Plus" size="small">添加参数</el-button>
+                                    </div>
+                                </div>
+
+                                <!-- JSON参数 -->
+                                <div v-if="paramType === 'json'" class="params-container">
+                                    <el-input
+                                        v-model="jsonParams"
+                                        type="textarea"
+                                        :rows="10"
+                                        placeholder="请输入JSON格式参数"
+                                        class="code-textarea"
+                                    />
+                                </div>
+                                
+                                <div v-if="paramType !== 'none'" class="form-item-tip">
+                                    <el-icon><InfoFilled /></el-icon>
+                                    <span>
+                                        {{ 
+                                            paramType === 'query' ? 'GET请求通常使用查询参数，这些参数会附加到URL中' : 
+                                            paramType === 'form' ? '表单参数通常用于POST请求，Content-Type为application/x-www-form-urlencoded' : 
+                                            '对于JSON参数，Content-Type为application/json'
+                                        }}
+                                    </span>
+                                </div>
+                            </el-form-item>
+                        </el-tab-pane>
+                        
+                        <el-tab-pane label="预期结果">
+                            <el-form-item class="no-margin">
+                                <el-input
+                                    v-model="caseEditForm.expected"
+                                    type="textarea"
+                                    :rows="8"
+                                    placeholder="请输入预期结果 (JSON格式)"
+                                    class="code-textarea"
+                                />
+                                <div class="form-item-tip">
+                                    <el-icon><CircleCheck /></el-icon>
+                                    <span>用于验证响应结果，可以指定部分字段进行验证，例如: {"code": 200, "message": "success"}</span>
+                                </div>
+                            </el-form-item>
+                        </el-tab-pane>
+                    </el-tabs>
+                    
+                    <!-- 优化提取器配置部分 -->
+                    <el-divider content-position="left">
+                        <el-tooltip content="提取器可以从响应中提取数据作为变量，在后续用例中使用" placement="top">
+                            <div class="divider-title">
+                                <el-icon><MagicStick /></el-icon>
+                                <span>提取器配置</span>
+                            </div>
+                        </el-tooltip>
+                    </el-divider>
+                    
+                    <div class="extractors-container">
+                        <div class="help-card">
+                            <el-alert
+                                type="info"
+                                :closable="false"
+                                show-icon
+                            >
+                                <template #title>
+                                    <div class="help-title">提取器使用说明</div>
+                                </template>
+                                <div class="help-content">
+                                    <p><b>作用</b>：从当前接口响应中提取数据，并在后续接口中使用</p>
+                                    <p><b>变量使用</b>：在URL、请求参数或请求头中使用 <code>${变量名}</code> 格式引用变量</p>
+                                    <p><b>JSONPath示例</b>：</p>
+                                    <ul>
+                                        <li><code>$.data.id</code> - 提取data对象中的id字段</li>
+                                        <li><code>$.data.list[0].name</code> - 提取data.list数组第一项的name字段</li>
+                                        <li><code>$.data.items[*].id</code> - 提取所有items的id字段数组</li>
+                                    </ul>
+                                </div>
+                            </el-alert>
+                        </div>
+                        
+                        <div class="extractors-list">
+                            <div v-for="(extractor, index) in caseEditForm.extractors" :key="index" class="extractor-item">
+                                <el-card shadow="hover">
+                                    <el-row :gutter="10">
+                                        <el-col :span="7">
+                                            <el-form-item label="变量名" class="no-margin">
+                                                <el-input v-model="extractor.name" placeholder="变量名 (如: userId)" size="default" />
+                                            </el-form-item>
+                                        </el-col>
+                                        <el-col :span="14">
+                                            <el-form-item label="JSONPath表达式" class="no-margin">
+                                                <el-input v-model="extractor.jsonPath" placeholder="JSONPath表达式 (如: $.data.id)" size="default" />
+                                            </el-form-item>
+                                        </el-col>
+                                        <el-col :span="3" class="flex-center">
+                                            <el-button type="danger" @click="removeExtractor(index)" :icon="Delete" circle></el-button>
+                                        </el-col>
+                                    </el-row>
+                                </el-card>
+                            </div>
+                            
+                            <div class="add-extractor" v-if="caseEditForm.extractors.length === 0">
+                                <el-empty description="暂无提取器配置">
+                                    <el-button type="primary" @click="addExtractor" :icon="Plus">添加提取器</el-button>
+                                </el-empty>
+                            </div>
+                            <div class="add-extractor-btn" v-else>
+                                <el-button type="primary" @click="addExtractor" :icon="Plus">添加提取器</el-button>
+                            </div>
+                        </div>
+                    </div>
                 </el-form>
                 <template #footer>
                     <div class="dialog-footer">
@@ -781,7 +945,7 @@
                                                     <el-button size="small" @click="toggleJsonFormat(index, 'reqHeaders')" type="info" plain>
                                                         {{ isJsonFormatted(index, 'reqHeaders') ? '收起' : '展开格式化' }}
                                                     </el-button>
-                                                    <pre v-if="isJsonFormatted(index, 'reqHeaders')">{{ formatJson(caseItem.request.headers) }}</pre>
+                                                    <pre v-if="isJsonFormatted(index, 'reqHeaders')" class="json-text">{{ formatRawJson(caseItem.request.headers) }}</pre>
                                                     <div v-else class="truncated-json">{{ JSON.stringify(caseItem.request.headers) }}</div>
                                                 </div>
                                             </div>
@@ -792,7 +956,7 @@
                                                     <el-button size="small" @click="toggleJsonFormat(index, 'reqBody')" type="info" plain>
                                                         {{ isJsonFormatted(index, 'reqBody') ? '收起' : '展开格式化' }}
                                                     </el-button>
-                                                    <pre v-if="isJsonFormatted(index, 'reqBody')">{{ formatJson(caseItem.request.body || caseItem.request.params) }}</pre>
+                                                    <pre v-if="isJsonFormatted(index, 'reqBody')" class="json-text">{{ formatRawJson(caseItem.request.body || caseItem.request.params) }}</pre>
                                                     <div v-else class="truncated-json">{{ JSON.stringify(caseItem.request.body || caseItem.request.params) }}</div>
                                                 </div>
                                             </div>
@@ -812,7 +976,7 @@
                                                     <el-button size="small" @click="toggleJsonFormat(index, 'respHeaders')" type="info" plain>
                                                         {{ isJsonFormatted(index, 'respHeaders') ? '收起' : '展开格式化' }}
                                                     </el-button>
-                                                    <pre v-if="isJsonFormatted(index, 'respHeaders')">{{ formatJson(caseItem.response.headers) }}</pre>
+                                                    <pre v-if="isJsonFormatted(index, 'respHeaders')" class="json-text">{{ formatRawJson(caseItem.response.headers) }}</pre>
                                                     <div v-else class="truncated-json">{{ JSON.stringify(caseItem.response.headers) }}</div>
                                                 </div>
                                             </div>
@@ -823,14 +987,26 @@
                                                     <el-button size="small" @click="toggleJsonFormat(index, 'respBody')" type="info" plain>
                                                         {{ isJsonFormatted(index, 'respBody') ? '收起' : '展开格式化' }}
                                                     </el-button>
-                                                    <pre v-if="isJsonFormatted(index, 'respBody')">{{ formatJson(caseItem.response.body) }}</pre>
+                                                    <pre v-if="isJsonFormatted(index, 'respBody')" class="json-text">{{ formatRawJson(caseItem.response.body) }}</pre>
                                                     <div v-else class="truncated-json">{{ JSON.stringify(caseItem.response.body) }}</div>
                                                 </div>
                                             </div>
                                             
                                             <div class="detail-item error-item" v-if="caseItem.error">
                                                 <div class="detail-label">错误信息:</div>
-                                                <div class="detail-value error-message">{{ caseItem.error }}</div>
+                                                <div class="detail-value error-message">
+                                                    <el-tooltip 
+                                                        v-if="isJsonString(caseItem.error)" 
+                                                        placement="top" 
+                                                        :content="'查看完整错误'" 
+                                                        :show-after="300"
+                                                    >
+                                                        <div class="formatted-message error-link" @click="showMessageDetail(caseItem.error)">
+                                                            {{ getFormattedMessage(caseItem.error, true) }}
+                                                        </div>
+                                                    </el-tooltip>
+                                                    <span v-else>{{ caseItem.error }}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </el-tab-pane>
@@ -843,7 +1019,7 @@
                                                     <el-button size="small" @click="toggleJsonFormat(index, 'extractors')" type="info" plain>
                                                         {{ isJsonFormatted(index, 'extractors') ? '收起' : '展开格式化' }}
                                                     </el-button>
-                                                    <pre v-if="isJsonFormatted(index, 'extractors')">{{ formatJson(caseItem.extractors.extracted_variables) }}</pre>
+                                                    <pre v-if="isJsonFormatted(index, 'extractors')" class="json-text">{{ formatRawJson(caseItem.extractors.extracted_variables) }}</pre>
                                                     <div v-else class="truncated-json">{{ JSON.stringify(caseItem.extractors.extracted_variables) }}</div>
                                                 </div>
                                             </div>
@@ -857,6 +1033,17 @@
                 <div v-else class="empty-log">
                     <el-empty description="暂无执行日志" />
                 </div>
+            </el-dialog>
+            
+            <!-- 消息详情对话框 -->
+            <el-dialog
+                v-model="showMessageDetailDialog"
+                title="详细信息"
+                width="60%"
+                class="message-detail-dialog"
+                append-to-body
+            >
+                <pre class="formatted-json">{{ currentMessageDetail }}</pre>
             </el-dialog>
         </PageContainer>
     </Home>
@@ -883,7 +1070,9 @@ import {
     Refresh,
     Check,
     MagicStick,
-    CopyDocument
+    CopyDocument,
+    InfoFilled,
+    CircleCheck
 } from '@element-plus/icons-vue';
 import axios from 'axios';
 import draggable from 'vuedraggable/src/vuedraggable';
@@ -1813,6 +2002,13 @@ const saveCase = async () => {
             return;
         }
 
+        // 保存当前参数到caseEditForm.params
+        try {
+            saveCurrentParams();
+        } catch (e) {
+            return; // 参数格式错误，提前返回
+        }
+
         // 验证提取器配置
         const invalidExtractors = caseEditForm.value.extractors.filter(
             e => (e.name && !e.jsonPath) || (!e.name && e.jsonPath)
@@ -1906,21 +2102,52 @@ const editCase = (caseItem, index) => {
         console.warn('extractors 不是数组类型:', caseItem.extractors);
     }
     
+    // 处理参数数据，确保是有效的JSON字符串
+    let paramsData = '';
+    if (caseItem.body && Object.keys(caseItem.body).length > 0) {
+        // 如果body是对象，转为JSON字符串
+        if (typeof caseItem.body === 'object') {
+            paramsData = JSON.stringify(caseItem.body, null, 2);
+        } else if (typeof caseItem.body === 'string') {
+            // 如果已经是字符串，确保是有效的JSON
+            try {
+                // 尝试解析再格式化，确保格式正确
+                const parsed = JSON.parse(caseItem.body);
+                paramsData = JSON.stringify(parsed, null, 2);
+            } catch (e) {
+                // 如果解析失败，直接使用字符串
+                paramsData = caseItem.body;
+            }
+        }
+    } else if (caseItem.params) {
+        // 同样处理params
+        if (typeof caseItem.params === 'object') {
+            paramsData = JSON.stringify(caseItem.params, null, 2);
+        } else if (typeof caseItem.params === 'string') {
+            try {
+                const parsed = JSON.parse(caseItem.params);
+                paramsData = JSON.stringify(parsed, null, 2);
+            } catch (e) {
+                paramsData = caseItem.params;
+            }
+        }
+    }
+    
     // 填充表单数据
     caseEditForm.value = {
         title: caseItem.title || '',
         method: caseItem.method || 'GET',
         api_path: caseItem.api_path || '',
         headers: caseItem.headers ? JSON.stringify(caseItem.headers, null, 2) : '',
-        // 如果有body数据则用body数据填充params，否则使用params数据
-        params: caseItem.body && Object.keys(caseItem.body).length > 0 
-            ? JSON.stringify(caseItem.body, null, 2) 
-            : (caseItem.params ? JSON.stringify(caseItem.params, null, 2) : ''),
+        params: paramsData,
         expected: caseItem.expected ? JSON.stringify(caseItem.expected, null, 2) : '',
         case_id: caseItem.case_id,
         index: index,
         extractors: extractors // 使用确保是数组的extractors
     };
+
+    // 初始化参数类型相关数据
+    initParamData();
 
     // 打开编辑弹窗
     showCaseEditDialog.value = true;
@@ -1933,6 +2160,161 @@ const editCase = (caseItem, index) => {
             showCaseEditDialog.value = true;
         }
     }, 100);
+};
+
+// 处理参数类型变化
+const handleParamTypeChange = (type) => {
+    if (type === paramType.value) return;
+    
+    try {
+        // 在切换类型前，保存当前参数到caseEditForm.params
+        saveCurrentParams();
+        
+        // 切换到新类型后，从caseEditForm.params加载参数
+        loadParamsFromForm();
+    } catch (error) {
+        console.error('切换参数类型失败:', error);
+        ElMessage.warning('切换参数类型时出现错误，部分数据可能没有正确保存');
+    }
+};
+
+// 初始化参数数据
+const initParamData = () => {
+    // 根据请求方法设置默认参数类型
+    if (caseEditForm.value.method === 'GET') {
+        paramType.value = 'query';
+    } else {
+        paramType.value = 'json';
+    }
+    
+    // 加载参数数据
+    loadParamsFromForm();
+};
+
+// 保存当前参数到caseEditForm.params
+const saveCurrentParams = () => {
+    let paramsValue = null;
+    
+    if (paramType.value === 'query') {
+        // 查询参数转换为对象
+        paramsValue = {};
+        queryParams.value.forEach(param => {
+            if (param.key) {
+                paramsValue[param.key] = param.value;
+            }
+        });
+    } else if (paramType.value === 'form') {
+        // 表单参数转换为对象
+        paramsValue = {};
+        formParams.value.forEach(param => {
+            if (param.key) {
+                paramsValue[param.key] = param.value;
+            }
+        });
+    } else if (paramType.value === 'json') {
+        // JSON参数直接使用
+        try {
+            if (jsonParams.value) {
+                paramsValue = JSON.parse(jsonParams.value);
+            } else {
+                paramsValue = {};
+            }
+        } catch (e) {
+            console.error('解析JSON参数失败:', e);
+            ElMessage.warning('JSON格式不正确，请检查');
+            throw e;
+        }
+    } else {
+        // 无参数
+        paramsValue = {};
+    }
+    
+    // 更新caseEditForm.params
+    caseEditForm.value.params = JSON.stringify(paramsValue, null, 2);
+};
+
+// 从caseEditForm.params加载参数
+const loadParamsFromForm = () => {
+    let params = {};
+    
+    try {
+        if (caseEditForm.value.params) {
+            params = JSON.parse(caseEditForm.value.params);
+            
+            // 检查params是否是字符串，如果是，尝试再次解析
+            if (typeof params === 'string') {
+                try {
+                    params = JSON.parse(params);
+                } catch (e) {
+                    // 如果还是无法解析，则创建一个包含该字符串的临时对象
+                    params = { "value": params };
+                }
+            }
+            
+            // 确保params是一个对象
+            if (typeof params !== 'object' || params === null || Array.isArray(params)) {
+                params = {};
+            }
+        }
+    } catch (e) {
+        console.error('解析参数失败:', e);
+        params = {};
+    }
+    
+    if (paramType.value === 'query') {
+        // 将对象转换为查询参数数组
+        queryParams.value = Object.entries(params).map(([key, value]) => ({
+            key,
+            value: String(value),
+            description: ''
+        }));
+        
+        // 如果没有参数，添加一个空行
+        if (queryParams.value.length === 0) {
+            addParam('query');
+        }
+    } else if (paramType.value === 'form') {
+        // 将对象转换为表单参数数组
+        formParams.value = Object.entries(params).map(([key, value]) => ({
+            key,
+            value: String(value),
+            description: ''
+        }));
+        
+        // 如果没有参数，添加一个空行
+        if (formParams.value.length === 0) {
+            addParam('form');
+        }
+    } else if (paramType.value === 'json') {
+        // 将对象转换为格式化的JSON字符串
+        jsonParams.value = JSON.stringify(params, null, 2);
+    }
+};
+
+// 添加参数
+const addParam = (type) => {
+    if (type === 'query') {
+        queryParams.value.push({
+            key: '',
+            value: '',
+            description: ''
+        });
+    } else if (type === 'form') {
+        formParams.value.push({
+            key: '',
+            value: '',
+            description: ''
+        });
+    }
+};
+
+// 删除参数
+const removeParam = (type, index) => {
+    if (type === 'query') {
+        queryParams.value.splice(index, 1);
+    } else if (type === 'form') {
+        formParams.value.splice(index, 1);
+    }
 };
 
 // 计算属性 - 是否有选中的测试套件
@@ -2116,16 +2498,35 @@ const viewCaseResponse = (caseResult) => {
         // 解析请求数据
         if (caseResult.requestData) {
             try {
-                // 首先尝试作为JSON字符串解析
-                parsedRequestData.value = JSON.parse(caseResult.requestData);
+                // 尝试确定是否已经是对象
+                if (typeof caseResult.requestData === 'object' && caseResult.requestData !== null) {
+                    parsedRequestData.value = caseResult.requestData;
+                } else {
+                    // 首先尝试作为JSON字符串解析
+                    parsedRequestData.value = JSON.parse(caseResult.requestData);
+                }
             } catch (e) {
-                // 如果解析失败，使用更安全的方式处理
+                // 如果解析失败，尝试修复格式问题
                 try {
-                    // 尝试修复可能的JSON格式问题
-                    const fixedJson = caseResult.requestData
-                        .replace(/'/g, '"')
-                        .replace(/(\w+):/g, '"$1":');
-                    parsedRequestData.value = JSON.parse(fixedJson);
+                    // 检查是否为JavaScript对象字符串表示
+                    const isObjectStr = /^\s*\{.*\}\s*$/.test(caseResult.requestData);
+                    if (isObjectStr) {
+                        // 尝试进行JSON修复
+                        const fixedJson = caseResult.requestData
+                            .replace(/'/g, '"')
+                            .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3');
+                        
+                        parsedRequestData.value = JSON.parse(fixedJson);
+                    } else {
+                        // 如果还是失败，尝试eval (仅用于前端显示，不要用于执行代码)
+                        try {
+                            // 注意：这是不安全的，但在受控环境中仅用于显示数据可以考虑
+                            parsedRequestData.value = eval('(' + caseResult.requestData + ')');
+                        } catch (evalError) {
+                            // 最后，如果所有尝试都失败，将其作为字符串显示
+                            parsedRequestData.value = caseResult.requestData;
+                        }
+                    }
                 } catch (error) {
                     console.error('解析请求数据失败:', error);
                     parsedRequestData.value = caseResult.requestData;
@@ -2138,16 +2539,35 @@ const viewCaseResponse = (caseResult) => {
         // 解析响应数据
         if (caseResult.responseData) {
             try {
-                // 首先尝试作为JSON字符串解析
-                parsedResponseData.value = JSON.parse(caseResult.responseData);
+                // 尝试确定是否已经是对象
+                if (typeof caseResult.responseData === 'object' && caseResult.responseData !== null) {
+                    parsedResponseData.value = caseResult.responseData;
+                } else {
+                    // 首先尝试作为JSON字符串解析
+                    parsedResponseData.value = JSON.parse(caseResult.responseData);
+                }
             } catch (e) {
-                // 如果解析失败，使用更安全的方式处理
+                // 如果解析失败，尝试修复格式问题
                 try {
-                    // 尝试修复可能的JSON格式问题
-                    const fixedJson = caseResult.responseData
-                        .replace(/'/g, '"')
-                        .replace(/(\w+):/g, '"$1":');
-                    parsedResponseData.value = JSON.parse(fixedJson);
+                    // 检查是否为JavaScript对象字符串表示
+                    const isObjectStr = /^\s*\{.*\}\s*$/.test(caseResult.responseData);
+                    if (isObjectStr) {
+                        // 尝试进行JSON修复
+                        const fixedJson = caseResult.responseData
+                            .replace(/'/g, '"')
+                            .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3');
+                        
+                        parsedResponseData.value = JSON.parse(fixedJson);
+                    } else {
+                        // 如果还是失败，尝试eval (仅用于前端显示，不要用于执行代码)
+                        try {
+                            // 注意：这是不安全的，但在受控环境中仅用于显示数据可以考虑
+                            parsedResponseData.value = eval('(' + caseResult.responseData + ')');
+                        } catch (evalError) {
+                            // 最后，如果所有尝试都失败，将其作为字符串显示
+                            parsedResponseData.value = caseResult.responseData;
+                        }
+                    }
                 } catch (error) {
                     console.error('解析响应数据失败:', error);
                     parsedResponseData.value = caseResult.responseData;
@@ -2174,20 +2594,76 @@ const viewCaseResponse = (caseResult) => {
 // 格式化JSON数据
 const formatJson = (data) => {
     try {
+        // 检查数据类型
+        if (data === null || data === undefined) {
+            return '空数据';
+        }
+        
+        // 如果已经是字符串，尝试解析为JSON
         if (typeof data === 'string') {
             try {
-                data = JSON.parse(data);
+                // 检查是否本身是JSON字符串
+                if ((/^\s*[\{\[]/.test(data) && /[\}\]]\s*$/.test(data)) || 
+                    /^".*"$/.test(data) || 
+                    /^-?\d+(\.\d+)?$/.test(data) || 
+                    /^(true|false)$/.test(data) || 
+                    data === 'null') {
+                    
+                    // 尝试解析JSON字符串
+                    data = JSON.parse(data);
+                } else {
+                    // 不是JSON格式字符串，原样返回并进行HTML转义
+                    return String(data)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#039;');
+                }
             } catch (e) {
-                // 如果解析失败，返回原字符串
-                return data;
+                // 解析失败，尝试修复JSON格式
+                try {
+                    // 检查是否为JavaScript对象字符串表示
+                    const isObjectStr = /^\s*\{.*\}\s*$/.test(data);
+                    if (isObjectStr) {
+                        // 尝试修复常见的JSON格式问题
+                        const fixedJson = data
+                            .replace(/'/g, '"')
+                            .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3');
+                        
+                        data = JSON.parse(fixedJson);
+                    } else {
+                        // 如果还是无法解析，原样返回并进行HTML转义
+                        return String(data)
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#039;');
+                    }
+                } catch (error) {
+                    // 所有尝试都失败，原样返回并进行HTML转义
+                    return String(data)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#039;');
+                }
             }
         }
         
-        // 格式化JSON
+        // 此时data应该是一个对象，进行格式化
         const formatted = JSON.stringify(data, null, 2);
         
+        // 将HTML标签和特殊字符转义，防止被浏览器解析为HTML
+        const escaped = formatted
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        
         // 简单的语法高亮处理
-        return formatted.replace(
+        return escaped.replace(
             /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
             function (match) {
                 let cls = 'json-number';
@@ -2207,7 +2683,13 @@ const formatJson = (data) => {
         );
     } catch (error) {
         console.error('格式化JSON失败:', error);
-        return String(data);
+        // 返回转义后的字符串
+        return String(data)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 };
 
@@ -2260,7 +2742,35 @@ const copyToClipboard = (data) => {
 // 添加未格式化的JSON字符串逻辑
 const unformattedJson = (data) => {
     try {
-        // 返回一行的JSON字符串，但需要转义HTML特殊字符
+        // 检查数据类型
+        if (data === null || data === undefined) {
+            return '空数据';
+        }
+        
+        // 如果是字符串，检查是否是JSON字符串
+        if (typeof data === 'string') {
+            try {
+                // 验证是否为有效的JSON字符串
+                JSON.parse(data);
+                // 如果有效，直接返回这个字符串，但需要进行HTML转义
+                return String(data)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            } catch (e) {
+                // 不是有效的JSON字符串，直接进行HTML转义返回
+                return String(data)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+        }
+        
+        // 如果是对象，转换为JSON字符串并转义
         const jsonString = JSON.stringify(data);
         return jsonString
             .replace(/&/g, '&amp;')
@@ -2269,7 +2779,8 @@ const unformattedJson = (data) => {
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
     } catch (error) {
-        console.error('格式化JSON失败:', error);
+        console.error('处理JSON字符串失败:', error);
+        // 出错时返回转义后的原始数据
         return String(data)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -2390,7 +2901,198 @@ const viewExecutionLog = async (report) => {
     }
 };
 
-// ... existing code ...
+// 添加新的辅助函数，用于测试执行日志中的JSON格式化显示
+const formatRawJson = (data) => {
+    try {
+        if (data === null || data === undefined) {
+            return '空数据';
+        }
+        
+        // 如果是字符串，尝试解析为JSON对象
+        if (typeof data === 'string') {
+            try {
+                return JSON.stringify(JSON.parse(data), null, 2);
+            } catch (e) {
+                // 如果解析失败，可能是普通字符串，直接返回
+                return data;
+            }
+        }
+        
+        // 如果是对象，直接格式化
+        return JSON.stringify(data, null, 2);
+    } catch (error) {
+        console.error('JSON格式化失败:', error);
+        // 出错时返回原始内容
+        return String(data);
+    }
+};
+
+// 添加到script setup部分（其他ref定义的地方）
+const showMessageDetailDialog = ref(false);
+const currentMessageDetail = ref('');
+
+// 添加到其他函数后面
+// 检查字符串是否为JSON
+const isJsonString = (str) => {
+    if (!str || typeof str !== 'string') return false;
+    try {
+        // 检查是否包含典型的JSON结构（{} 或 [] 开头结尾）
+        // 或者含有Unicode转义序列 \u
+        return (
+            (/^\s*[\{\[]/.test(str) && /[\}\]]\s*$/.test(str)) || 
+            /\\u[\da-f]{4}/i.test(str)
+        );
+    } catch (e) {
+        return false;
+    }
+};
+
+// 格式化消息文本
+const getFormattedMessage = (message, truncate = false) => {
+    try {
+        if (!message) return '';
+        
+        // 处理Unicode转义
+        let decodedMessage = message.replace(/\\u([\da-f]{4})/gi, (match, hex) => {
+            return String.fromCharCode(parseInt(hex, 16));
+        });
+        
+        // 尝试解析为JSON
+        try {
+            let jsonObj = JSON.parse(decodedMessage);
+            let formatted = JSON.stringify(jsonObj, null, 2);
+            
+            // 如果需要截断
+            if (truncate && formatted.length > 100) {
+                return formatted.substring(0, 100) + '...';
+            }
+            
+            return formatted;
+        } catch (e) {
+            // 不是有效JSON，直接返回解码后的字符串
+            if (truncate && decodedMessage.length > 100) {
+                return decodedMessage.substring(0, 100) + '...';
+            }
+            return decodedMessage;
+        }
+    } catch (e) {
+        console.error('格式化消息失败:', e);
+        return message; // 出错时返回原始消息
+    }
+};
+
+// 显示消息详情
+const showMessageDetail = (message) => {
+    currentMessageDetail.value = getFormattedMessage(message);
+    showMessageDetailDialog.value = true;
+};
+
+// URL查询参数自动提取函数
+const autoExtractQueryParams = () => {
+    try {
+        const url = caseEditForm.value.api_path;
+        if (!url || !url.includes('?')) return;
+        
+        // 分离基础URL和查询字符串
+        const [basePath, queryString] = url.split('?');
+        if (!queryString) return;
+        
+        // 更新表单的API路径为基础路径
+        caseEditForm.value.api_path = basePath;
+        
+        // 解析查询参数
+        const params = {};
+        queryString.split('&').forEach(param => {
+            const [key, value] = param.split('=');
+            if (key && value) {
+                // 使用decodeURIComponent解码URL编码的参数
+                params[decodeURIComponent(key)] = decodeURIComponent(value);
+            }
+        });
+        
+        // 检查现有的请求参数
+        let existingParams = {};
+        try {
+            if (caseEditForm.value.params) {
+                existingParams = JSON.parse(caseEditForm.value.params);
+            }
+        } catch (e) {
+            // 如果现有参数不是有效的JSON，则使用空对象
+            existingParams = {};
+        }
+        
+        // 合并参数并更新表单
+        const mergedParams = { ...existingParams, ...params };
+        caseEditForm.value.params = JSON.stringify(mergedParams, null, 2);
+        
+        // 提示用户
+        ElMessage.success('已自动提取URL查询参数到请求参数');
+    } catch (error) {
+        console.error('提取URL参数失败:', error);
+    }
+};
+
+// 请求参数类型相关变量
+const paramType = ref('json'); // 默认为JSON参数
+const queryParams = ref([]);
+const formParams = ref([]);
+const jsonParams = ref('');
+
+// 提取器配置相关变量
+const extractors = ref([]);
+
+// 参数类型选择器样式
+const paramTypeSelectorStyle = computed(() => ({
+    marginBottom: paramType === 'json' ? '15px' : '0'
+}));
+
+// 参数容器样式
+const paramsContainerStyle = computed(() => ({
+    marginTop: paramType === 'json' ? '10px' : '0',
+    border: paramType === 'json' ? '1px solid var(--el-border-color-light)' : 'none',
+    borderRadius: '4px',
+    padding: '10px',
+    backgroundColor: paramType === 'json' ? 'var(--el-fill-color-light)' : 'transparent'
+}));
+
+// 参数行样式
+const paramRowStyle = computed(() => ({
+    display: 'flex',
+    marginBottom: '10px',
+    alignItems: 'center'
+}));
+
+// 参数名称样式
+const paramNameStyle = computed(() => ({
+    flex: '2',
+    paddingRight: '10px'
+}));
+
+// 参数值样式
+const paramValueStyle = computed(() => ({
+    flex: '3',
+    paddingRight: '10px'
+}));
+
+// 参数描述样式
+const paramDescStyle = computed(() => ({
+    flex: '3',
+    paddingRight: '10px'
+}));
+
+// 操作按钮样式
+const paramActionStyle = computed(() => ({
+    flex: '1',
+    display: 'flex',
+    justifyContent: 'center'
+}));
+
+// 添加参数按钮样式
+const addParamBtnStyle = computed(() => ({
+    marginTop: '15px',
+    display: 'flex',
+    justifyContent: 'center'
+}));
 </script>
 
 <style scoped>
@@ -3027,5 +3729,205 @@ const viewExecutionLog = async (report) => {
 
 :deep(.error-case) .el-collapse-item__wrap {
     border-left: 4px solid #f56c6c;
+}
+
+/* 添加样式 */
+.json-text {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #333;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+/* 添加的样式 */
+.formatted-message {
+  color: #409eff;
+  cursor: pointer;
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.formatted-message:hover {
+  text-decoration: underline;
+}
+
+.message-detail-dialog .formatted-json {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Courier New', monospace;
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 5px;
+  border: 1px solid #e0e0e0;
+  max-height: 600px;
+  overflow: auto;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.error-link {
+  color: #f56c6c !important;
+}
+
+.error-link:hover {
+  color: #fa9898 !important;
+}
+
+/* 测试用例编辑对话框样式 */
+.case-edit-dialog {
+    --el-dialog-padding-primary: 20px;
+}
+
+.test-case-edit-form .full-width {
+    width: 100%;
+}
+
+.test-case-edit-form .form-item-tip {
+    margin-top: 5px;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.test-case-edit-form .code-textarea {
+    font-family: "Courier New", monospace;
+}
+
+.request-tabs {
+    margin-bottom: 20px;
+}
+
+.request-tabs .el-tabs__content {
+    padding: 15px;
+}
+
+.no-margin {
+    margin-bottom: 0;
+}
+
+.extractors-container {
+    margin-top: 10px;
+}
+
+.help-card {
+    margin-bottom: 20px;
+}
+
+.help-title {
+    font-weight: bold;
+}
+
+.help-content {
+    padding: 5px 0;
+}
+
+.help-content p {
+    margin: 5px 0;
+}
+
+.help-content ul {
+    margin: 5px 0;
+    padding-left: 20px;
+}
+
+.extractors-list {
+    margin-top: 15px;
+}
+
+.extractor-item {
+    margin-bottom: 15px;
+}
+
+.extractor-item .el-card__body {
+    padding: 15px;
+}
+
+.add-extractor {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.add-extractor-btn {
+    display: flex;
+    justify-content: center;
+    margin: 10px 0;
+}
+
+.divider-title {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: bold;
+}
+
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 参数类型选择器样式 */
+.param-type-selector {
+    margin-bottom: 15px;
+}
+
+/* 参数容器样式 */
+.params-container {
+    margin-top: 10px;
+    border: 1px solid var(--el-border-color-light);
+    border-radius: 4px;
+    padding: 10px;
+    background-color: var(--el-fill-color-light);
+}
+
+/* 参数行样式 */
+.param-row {
+    display: flex;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.param-row.header {
+    font-weight: bold;
+    color: var(--el-text-color-primary);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--el-border-color);
+}
+
+.param-name {
+    flex: 2;
+    padding-right: 10px;
+}
+
+.param-value {
+    flex: 3;
+    padding-right: 10px;
+}
+
+.param-desc {
+    flex: 3;
+    padding-right: 10px;
+}
+
+.param-action {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.add-param-btn {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
 }
 </style> 

@@ -12,6 +12,9 @@
                 <el-button type="primary" @click="exportReport" :loading="exporting">
                   导出报告
                 </el-button>
+                <el-button type="success" @click="analyzeWithAI" :disabled="!hasExecutionData">
+                  <el-icon><Connection /></el-icon>AI分析
+                </el-button>
               </div>
             </div>
           </template>
@@ -374,6 +377,22 @@ const exportReport = async () => {
   } finally {
     exporting.value = false;
   }
+};
+
+// 添加AI分析函数
+const analyzeWithAI = () => {
+  if (!executionId.value) {
+    ElMessage.warning('没有可分析的执行数据');
+    return;
+  }
+  
+  router.push({
+    path: '/ai-analysis-report',
+    query: {
+      executionId: executionId.value,
+      fromReport: true
+    }
+  });
 };
 
 // 初始化结果图表

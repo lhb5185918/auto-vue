@@ -82,8 +82,8 @@
               <el-icon><DataAnalysis /></el-icon>
               <span>测试报告</span>
             </template>
-            <el-menu-item index="/execution-report">执行报告</el-menu-item>
-            <el-menu-item index="/analysis-report">分析报告</el-menu-item>
+            <el-menu-item index="/analysis-report">AI分析报告</el-menu-item>
+            <el-menu-item index="/ai-analysis-report">接口自动化分析</el-menu-item>
           </el-sub-menu>
 
           <el-sub-menu index="system">
